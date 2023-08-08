@@ -1,0 +1,15 @@
+[Unit]
+Description=Dns local cache services configuration daemon
+After=network.target dbus.service
+Requires=dbus.service
+Conflicts=systemd-resolved.service
+
+[Service]
+Type=dbus
+EnvironmentFile=/etc/sysconfig/dnsconfd
+BusName=com.redhat.dnsconfd
+ExecStart=/usr/sbin/dnsconfd
+EnvironmentFile=/etc/sysconfig/dnsconfd
+
+[Install]
+WantedBy=multi-user.target

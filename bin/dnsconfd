@@ -1,0 +1,21 @@
+#!/usr/bin/python3
+
+from dnsconfd import DnsconfdContext
+import signal
+import logging
+
+from gi.repository import GLib
+import dbus
+import dbus.mainloop.glib
+import os
+
+if __name__ == "__main__":
+    dbus.mainloop.glib.DBusGMainLoop(set_as_default=True)
+    logging.basicConfig(level=logging.DEBUG)
+    name = dbus.service.BusName(os.environ.get("DBUS_NAME", "com.redhat.dnsconfd"), dbus.SystemBus())
+    ctx = DnsconfdContext("/org/freedesktop/resolve1", name)
+    signal.signal(signal.SIGTERM, lambda signum, frame: ctx.signal_handler(signum))
+    signal.signal(signal.SIGINT, lambda signum, frame: ctx.signal_handler(signum))
+    logging.info("Starting")
+    ctx.start_service()
+    GLib.MainLoop().run()
