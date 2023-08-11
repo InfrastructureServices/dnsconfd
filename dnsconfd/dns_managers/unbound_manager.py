@@ -103,6 +103,58 @@ remote-control:
         proc = subprocess.run(control_args)
         return proc.returncode
 
+    def update(self, interfaces: dict[InterfaceConfiguration]):
+        lgr.debug("Unbound manager processing update")
+        new_zones_to_servers = {}
+
+        for interface in interfaces.values():
+            lgr.debug(f"Processing interface {interface}")
+            interface: InterfaceConfiguration
+            this_interface_zones = interface.domains
+            if interface.is_default:
+                lgr.debug("Interface is default appending . as its zone")
+                this_interface_zones.append(".")
+            for zone in this_interface_zones:
+                lgr.debug(f"Handling zone {zone} of the interface")
+                new_zones_to_servers[zone] = new_zones_to_servers.get(zone, [])
+                for server in interface.servers:
+                    lgr.debug(f"Handling server {server}")
+                    found_server = [a for a in new_zones_to_servers[zone] if server == a]
+                    if len(found_server) > 0:
+                        lgr.debug(f"Server {server} already in zone, handling priority")
+                        found_server[0].priority = max(found_server.priority, server.priority)
+                    else:
+                        lgr.debug(f"appending server {server} to zone {zone}")
+                        new_zones_to_servers[zone].append(server)
+
+        for zone in new_zones_to_servers.keys():
+            new_zones_to_servers[zone].sort(key=lambda x: x.priority, reverse=True)
+
+        added_zones = [zone for zone in new_zones_to_servers.keys() if zone not in self.zones_to_servers.keys()]
+        removed_zones = [zone for zone in self.zones_to_servers.keys() if zone not in new_zones_to_servers.keys()]
+        stable_zones = [zone for zone in new_zones_to_servers.keys() if zone in self.zones_to_servers.keys()]
+
+        lgr.debug(f"Update added zones {added_zones}")
+        lgr.debug(f"Update removed zones {removed_zones}")
+        lgr.debug(f"Zones that were in both configurations {stable_zones}")
+
+        for zone in removed_zones:
+            self._execute_cmd(f"forward_remove {zone}")
+        for zone in added_zones:
+            servers_strings = [srv.to_unbound_string() for srv in new_zones_to_servers[zone]]
+            self._execute_cmd(f"forward_add {zone} {' '.join(servers_strings)}")
+        for zone in stable_zones:
+            if (self.zones_to_servers == new_zones_to_servers[zone]):
+                lgr.debug(f"Zone {zone} is the same in old and new config thus skipping it")
+                continue
+            lgr.debug(f"Updating zone {zone}")
+            self._execute_cmd(f"forward_remove {zone}")
+            servers_strings = [srv.to_unbound_string() for srv in new_zones_to_servers[zone]]
+            self._execute_cmd(f"forward_add {zone} {' '.join(servers_strings)}")
+
+        self.zones_to_servers = new_zones_to_servers
+        
+    """
     def update_interface(self, old_interface_config: InterfaceConfiguration,
                          new_interface_config: InterfaceConfiguration):
         lgr.debug(f"Unbound updating interface {old_interface_config} "
@@ -141,7 +193,7 @@ remote-control:
             self._add_servers_to_zones(added_domains, new_interface_config.servers)
             self._remove_servers_from_zones(stable_domains, removed_servers)
             self._add_servers_to_zones(stable_domains, added_servers)
-
+    
     def _remove_servers_from_zones(self, zones: list[str], servers: list[ServerDescription]):
         if len(servers) == 0:
             return
@@ -156,7 +208,7 @@ remote-control:
                 self._execute_cmd(f"forward_add {zone} {srvs}")
             else:
                 self.zones_to_servers.pop(zone)
-    
+
     def _add_servers_to_zones(self, zones: list[str], servers: list[ServerDescription]):
         if len(servers) == 0:
             return
@@ -169,3 +221,4 @@ remote-control:
             self._execute_cmd(f"forward_remove {zone}")
             srvs = " ".join([a.to_unbound_string() for a in self.zones_to_servers[zone]])
             self._execute_cmd(f"forward_add {zone} {srvs}")
+    """
