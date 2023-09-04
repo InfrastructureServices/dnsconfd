@@ -1,5 +1,5 @@
 import socket
-import os
+import os.path
 
 
 class InterfaceConfiguration:
@@ -41,6 +41,6 @@ class InterfaceConfiguration:
     def isInterfaceWireless(self):
         name = socket.if_indextoname(self._interface_index)
         try:
-            return os.isdir(f"/sys/class/net/{name}/wireless")
+            return os.path.isdir(f"/sys/class/net/{name}/wireless")
         except OSError:
             return False

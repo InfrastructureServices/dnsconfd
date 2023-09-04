@@ -47,7 +47,7 @@ server:
 	max-udp-size: 3072
 	edns-tcp-keepalive: yes
 	chroot: ""
-	username: "unbound"
+	username: "dnsconfd"
 	directory: "{self.temp_dir_path}"
 	log-time-ascii: yes
     use-syslog: no
@@ -124,7 +124,7 @@ remote-control:
                         lgr.debug(f"Server {server} already in zone, handling priority")
                         found_server[0].priority = max(found_server.priority, server.priority)
                     else:
-                        lgr.debug(f"appending server {server} to zone {zone}")
+                        lgr.debug(f"Appending server {server} to zone {zone}")
                         new_zones_to_servers[zone].append(server)
 
         for zone in new_zones_to_servers.keys():
@@ -144,7 +144,7 @@ remote-control:
             servers_strings = [srv.to_unbound_string() for srv in new_zones_to_servers[zone]]
             self._execute_cmd(f"forward_add {zone} {' '.join(servers_strings)}")
         for zone in stable_zones:
-            if (self.zones_to_servers == new_zones_to_servers[zone]):
+            if (self.zones_to_servers[zone] == new_zones_to_servers[zone]):
                 lgr.debug(f"Zone {zone} is the same in old and new config thus skipping it")
                 continue
             lgr.debug(f"Updating zone {zone}")
@@ -153,72 +153,3 @@ remote-control:
             self._execute_cmd(f"forward_add {zone} {' '.join(servers_strings)}")
 
         self.zones_to_servers = new_zones_to_servers
-        
-    """
-    def update_interface(self, old_interface_config: InterfaceConfiguration,
-                         new_interface_config: InterfaceConfiguration):
-        lgr.debug(f"Unbound updating interface {old_interface_config} "
-                  + f"with {new_interface_config}")
-        if old_interface_config is None:
-            # this update only interests unbound only if the interface is supposed to handle
-            # some domains or it is considered default
-            zones = []
-            if new_interface_config.is_default:
-                lgr.debug("New interface configuration is default and thus adding . to its domains")
-                zones.append(".")
-            zones.extend(new_interface_config.domains)
-            self._add_servers_to_zones(zones, new_interface_config.servers)
-        else:
-            # now find out if there is a difference between domains of old config and new config
-            added_domains = list(filter(lambda x: x not in old_interface_config.domains,
-                                   new_interface_config.domains))
-            removed_domains = list(filter(lambda x: x not in new_interface_config.domains,
-                                     old_interface_config.domains))
-            stable_domains = [a for a in new_interface_config.domains if a in old_interface_config.domains]
-            added_servers = list(filter(lambda x: x not in old_interface_config.servers,
-                                   new_interface_config.servers))
-            removed_servers = list(filter(lambda x: x not in new_interface_config.servers,
-                                     old_interface_config.servers))
-
-            if old_interface_config.is_default:
-                # this interface servers have to be removed from root forward zone
-                if new_interface_config.is_default:
-                    stable_domains.append(".")
-                else:
-                    removed_domains.append(".")
-            elif new_interface_config.is_default:
-                added_domains.append(".")
-
-            self._remove_servers_from_zones(removed_domains, old_interface_config.servers)
-            self._add_servers_to_zones(added_domains, new_interface_config.servers)
-            self._remove_servers_from_zones(stable_domains, removed_servers)
-            self._add_servers_to_zones(stable_domains, added_servers)
-    
-    def _remove_servers_from_zones(self, zones: list[str], servers: list[ServerDescription]):
-        if len(servers) == 0:
-            return
-        for zone in zones:
-            lgr.debug(f"Removing servers {servers} from zone {zone}")
-            for server in servers:
-                self.zones_to_servers: dict[list[ServerDescription]]
-                self.zones_to_servers[zone].remove(server)
-            self._execute_cmd(f"forward_remove {zone}")
-            if len(self.zones_to_servers[zone]) != 0:
-                srvs = " ".join([a.to_unbound_string() for a in self.zones_to_servers[zone]])
-                self._execute_cmd(f"forward_add {zone} {srvs}")
-            else:
-                self.zones_to_servers.pop(zone)
-
-    def _add_servers_to_zones(self, zones: list[str], servers: list[ServerDescription]):
-        if len(servers) == 0:
-            return
-        for zone in zones:
-            lgr.debug(f"Adding servers {servers} to zone {zone}")
-            self.zones_to_servers[zone] = self.zones_to_servers.get(zone, [])
-            for server in servers:
-                self.zones_to_servers: dict[list[ServerDescription]]
-                self.zones_to_servers[zone].append(server)
-            self._execute_cmd(f"forward_remove {zone}")
-            srvs = " ".join([a.to_unbound_string() for a in self.zones_to_servers[zone]])
-            self._execute_cmd(f"forward_add {zone} {srvs}")
-    """

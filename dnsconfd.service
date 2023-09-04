@@ -7,7 +7,7 @@ Conflicts=systemd-resolved.service
 [Service]
 Type=dbus
 EnvironmentFile=/etc/sysconfig/dnsconfd
-BusName=com.redhat.dnsconfd
+BusName=org.freedesktop.resolve1
 ExecStart=/usr/sbin/dnsconfd
 EnvironmentFile=/etc/sysconfig/dnsconfd
 

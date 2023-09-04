@@ -1,11 +1,12 @@
 Name:           dnsconfd                                                   
 Version:        0.0.1
-Release:        1%{?dist}
+Release:        17%{?dist}
 Summary:        local DNS cache configuration daemon
 License:        MIT
 Source0:        %{name}-%{version}.tar.gz
 Source1:        com.redhat.dnsconfd.conf
 Source2:        dnsconfd.service
+Source3:        dnsconfd.sysusers
 
 BuildArch:      noarch
 
@@ -15,8 +16,11 @@ BuildRequires:  python3-setuptools
 BuildRequires:  python3-rpm-macros
 BuildRequires:  python3-pip
 BuildRequires:  systemd
+BuildRequires:  systemd-rpm-macros
+%{?sysusers_requires_compat}
 
 Requires: unbound
+Conflicts: systemd-resolved
 
 %?python_enable_dependency_generator                                            
 
@@ -40,10 +44,20 @@ mkdir   -m 0755 -p %{buildroot}/var/log/dnsconfd
 install -m 0644 -p %{SOURCE1} %{buildroot}%{_sysconfdir}/dbus-1/system.d/com.redhat.dnsconfd.conf
 install -m 0644 -p %{SOURCE2} %{buildroot}%{_unitdir}/dnsconfd.service
 
-echo "DBUS_NAME=com.redhat.dnsconfd" > %{buildroot}%{_sysconfdir}/sysconfig/dnsconfd
+echo "DBUS_NAME=org.freedesktop.resolve1" > %{buildroot}%{_sysconfdir}/sysconfig/dnsconfd
 touch %{buildroot}/var/log/dnsconfd/unbound.log
 
 mv %{buildroot}%{_bindir}/dnsconfd %{buildroot}%{_sbindir}/dnsconfd
+
+install -p -D -m 0644 %{SOURCE3} %{buildroot}%{_sysusersdir}/dnsconfd.conf
+
+%pre
+%sysusers_create_compat %{SOURCE3}
+# This is neccessary because of NetworkManager.
+# It checks whether /etc/resolv.conf is a link and in case, it is not
+# it overwrites it, thus overwrites our configuration
+rm -f /etc/resolv.conf
+ln -s /usr/lib/systemd/resolv.conf /etc/resolv.conf
 
 %post
 %systemd_post dnsconfd.service
@@ -58,7 +72,8 @@ mv %{buildroot}%{_bindir}/dnsconfd %{buildroot}%{_sbindir}/dnsconfd
 %{_sysconfdir}/dbus-1/system.d/com.redhat.dnsconfd.conf
 %config(noreplace) %{_sysconfdir}/sysconfig/dnsconfd
 %{_unitdir}/dnsconfd.service
-/var/log/dnsconfd
+%attr(0755,dnsconfd,dnsconfd) /var/log/dnsconfd
+%{_sysusersdir}/dnsconfd.conf
 
 %changelog
 * Tue Aug 01 2023 Tomas Korbar <tkorbar@redhat.com> - 0.0.1-1
