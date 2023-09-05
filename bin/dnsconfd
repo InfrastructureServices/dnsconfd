@@ -1,19 +1,33 @@
 #!/usr/bin/python3
 
 from dnsconfd import DnsconfdContext
+from dnsconfd import DnsconfdArgumentParser as argparser
+
 import signal
 import logging
-
 from gi.repository import GLib
 import dbus
 import dbus.mainloop.glib
-import os
+from dbus import DBusException
 
 if __name__ == "__main__":
+    parser = argparser(prog='dnsconfd', description='local DNS cache configuration daemon')
+    args = parser.parse_args()
+
+    if args.status:
+        bus = dbus.SystemBus()
+        try:
+            dnsconfd_object = bus.get_object(args.dbus_name, "/org/freedesktop/resolve1")
+        except DBusException as e:
+            print("Dnsconfd is not running")
+            exit(1)
+        print(dnsconfd_object.Status())
+        exit(0)
+
     dbus.mainloop.glib.DBusGMainLoop(set_as_default=True)
-    logging.basicConfig(level=logging.DEBUG)
-    name = dbus.service.BusName(os.environ.get("DBUS_NAME", "com.redhat.dnsconfd"), dbus.SystemBus())
-    ctx = DnsconfdContext("/org/freedesktop/resolve1", name)
+    logging.basicConfig(level=logging.getLevelName(args.log_level))
+    name = dbus.service.BusName(args.dbus_name, dbus.SystemBus())
+    ctx = DnsconfdContext("/org/freedesktop/resolve1", name, vars(args))
     signal.signal(signal.SIGTERM, lambda signum, frame: ctx.signal_handler(signum))
     signal.signal(signal.SIGINT, lambda signum, frame: ctx.signal_handler(signum))
     logging.info("Starting")

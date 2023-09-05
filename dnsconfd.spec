@@ -1,6 +1,6 @@
 Name:           dnsconfd                                                   
 Version:        0.0.1
-Release:        17%{?dist}
+Release:        37%{?dist}
 Summary:        local DNS cache configuration daemon
 License:        MIT
 Source0:        %{name}-%{version}.tar.gz
@@ -20,6 +20,7 @@ BuildRequires:  systemd-rpm-macros
 %{?sysusers_requires_compat}
 
 Requires: unbound
+Requires: python3-gobject
 Conflicts: systemd-resolved
 
 %?python_enable_dependency_generator                                            
@@ -55,9 +56,13 @@ install -p -D -m 0644 %{SOURCE3} %{buildroot}%{_sysusersdir}/dnsconfd.conf
 %sysusers_create_compat %{SOURCE3}
 # This is neccessary because of NetworkManager.
 # It checks whether /etc/resolv.conf is a link and in case, it is not
-# it overwrites it, thus overwrites our configuration
-rm -f /etc/resolv.conf
-ln -s /usr/lib/systemd/resolv.conf /etc/resolv.conf
+# it overwrites it, thus overwrites our configuration.
+# The test of mountpoint ensures that we wont try to overwrite resolv.conf
+# in container
+if ! mountpoint /etc/resolv.conf &> /dev/null; then
+    rm -f /etc/resolv.conf
+    ln -s /usr/lib/systemd/resolv.conf /etc/resolv.conf
+fi
 
 %post
 %systemd_post dnsconfd.service

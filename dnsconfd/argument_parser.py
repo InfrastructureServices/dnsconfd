@@ -1,0 +1,30 @@
+from argparse import ArgumentParser
+import os
+
+class DnsconfdArgumentParser(ArgumentParser):
+    def __init__(self, *args, **kwargs) -> None:
+        super(DnsconfdArgumentParser, self).__init__(*args, **kwargs)
+        self.add_argument("-s", "--status",
+                        action="store_true",
+                        help="Print status of already running instance if any",
+                        default=False)
+        self.add_argument("--dbus-name",
+                        help="DBUS name that dnsconfd should use",
+                        default=None)
+        self.add_argument("--log-level",
+                        help="Log level of dnsconfd",
+                        default="INFO", choices=["DEBUG", "INFO", "WARN"])
+        self.add_argument("--resolv-conf-path",
+                        help="Path to resolv.conf that the dnsconfd should manage",
+                        default=None)
+
+    def parse_args(self, *args, **kwargs):
+        parsed = super(DnsconfdArgumentParser, self).parse_args(*args, **kwargs)
+
+        if parsed.dbus_name is None:
+            parsed.dbus_name = os.environ.get("DBUS_NAME", "com.redhat.dnsconfd")
+        if parsed.resolv_conf_path is None:
+            parsed.resolv_conf_path = os.environ.get("RESOLV_CONF_PATH",
+                                                     "/usr/lib/systemd/resolv.conf")
+
+        return parsed

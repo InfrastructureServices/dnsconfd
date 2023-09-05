@@ -1,0 +1,2 @@
+- Make NetworkManager recognize that dnsconfd manages resolv.conf even without the symlink
+- Add option to NetworkManager so it can change dbus name of systemd-resolved

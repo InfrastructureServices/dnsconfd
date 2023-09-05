@@ -1,6 +1,5 @@
 from dnsconfd.dns_managers.dns_manager import DnsManager
 from dnsconfd.configuration import InterfaceConfiguration
-from dnsconfd.configuration import ServerDescription
 
 import subprocess
 import tempfile
@@ -9,6 +8,8 @@ import logging as lgr
 
 
 class UnboundManager(DnsManager):
+    service_name = "unbound"
+
     def __init__(self):
         self.temp_dir_path = None
         self.process = None
@@ -23,7 +24,7 @@ class UnboundManager(DnsManager):
 
     def start(self):
         unbound_args = ["/usr/sbin/unbound", "-d", "-p", "-c", f"{self.temp_dir_path}/unbound.conf"]
-        lgr.info(f"Starting unbound process as {' '.join(unbound_args)}")
+        lgr.debug(f"Starting unbound process as {' '.join(unbound_args)}")
         self.process = subprocess.Popen(args=unbound_args)
 
     def _constructConfigurationFile(self) -> str:
@@ -99,8 +100,8 @@ remote-control:
 
     def _execute_cmd(self, command: str):
         control_args = ["unbound-control", "-c", f"{self.temp_dir_path}/unbound.conf", f'{command}']
-        lgr.info(f"Executing unbound-control as {' '.join(control_args)}")
-        proc = subprocess.run(control_args)
+        lgr.debug(f"Executing unbound-control as {' '.join(control_args)}")
+        proc = subprocess.run(control_args, stdout=subprocess.DEVNULL)
         return proc.returncode
 
     def update(self, interfaces: dict[InterfaceConfiguration]):
@@ -112,7 +113,7 @@ remote-control:
             interface: InterfaceConfiguration
             this_interface_zones = interface.domains
             if interface.is_default:
-                lgr.debug("Interface is default appending . as its zone")
+                lgr.debug("Interface is default, appending . as its zone")
                 this_interface_zones.append(".")
             for zone in this_interface_zones:
                 lgr.debug(f"Handling zone {zone} of the interface")
@@ -153,3 +154,10 @@ remote-control:
             self._execute_cmd(f"forward_add {zone} {' '.join(servers_strings)}")
 
         self.zones_to_servers = new_zones_to_servers
+        lgr.info(f"Unbound updated to configuration: {self.get_status()}")
+
+    def get_status(self):
+        status={}
+        for zone, servers in self.zones_to_servers.items():
+            status[zone] = [str(srv) for srv in servers]
+        return status
