@@ -1,0 +1,17 @@
+summary: Run integration tests with tmt
+discover:
+  how: fmf
+provision:
+    how: virtual
+execute:
+    how: tmt
+prepare:
+  - name: packages
+    how: install
+    package:
+      - podman
+      - podman-compose
+      - fedpkg
+  - name: build
+    how: shell
+    script: ./tests/build_images.sh
