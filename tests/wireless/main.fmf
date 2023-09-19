@@ -1,0 +1,9 @@
+summary: |
+  Start the container, add one normal interface and one mocked wireless interface, set different
+  DNS servers for each of them and verify that the normal has higher priority than the wireless one.
+test: ./test.sh
+framework: beakerlib
+recommends:
+  - podman
+tag:
+  - integration

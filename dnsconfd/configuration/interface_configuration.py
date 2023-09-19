@@ -18,7 +18,8 @@ class InterfaceConfiguration:
                         (Highest priority), defaults to False
     :type is_default: bool, optional
     """
-    def __init__(self, interface_index: int, domains = [], servers = [], dns_over_tls = False, dnssec = False, is_default = False):
+    def __init__(self, interface_index: int, domains: list[tuple[str, bool]] = [], servers = [],
+                 dns_over_tls = False, dnssec = False, is_default = False):
         self.domains = domains
         self.servers = servers
         self.dns_over_tls = dns_over_tls

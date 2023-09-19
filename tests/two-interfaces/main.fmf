@@ -1,3 +1,9 @@
-summary: Concise summary describing what the test does
+summary: | 
+  Start the container, connect it to two networks and set DNS for each of them, verify that DNSCONFD
+  handled the update and name resolution works as expected
 test: ./test.sh
 framework: beakerlib
+recommends:
+  - podman
+tag:
+  - integration

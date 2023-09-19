@@ -2,12 +2,10 @@
 
 set -e
 
-python3 setup.py sdist
-mv ./dist/*.tar.gz ./
-fedpkg --release=f38 mockbuild
-mv ./results_dnsconfd/0.0.1/37.fc38/*.noarch.rpm ./tests
+python3 setup.py sdist -d ./
+fedpkg local
+mv ./noarch/*.noarch.rpm ./tests
 
-pushd tests
-podman build . -f dnsconfd.Dockerfile -t dnsconfd_testing
-podman build . -f dnsmasq.Dockerfile -t dnsconfd_dnsmasq
-popd
+podman build ./tests -f ./tests/dnsconfd.Dockerfile -t dnsconfd_testing
+podman build ./tests -f ./tests/dnsmasq.Dockerfile -t dnsconfd_dnsmasq
+podman build ./tests -f ./tests/dhcp.Dockerfile -t dnsconfd_dhcp

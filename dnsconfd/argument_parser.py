@@ -13,7 +13,7 @@ class DnsconfdArgumentParser(ArgumentParser):
                         default=None)
         self.add_argument("--log-level",
                         help="Log level of dnsconfd",
-                        default="INFO", choices=["DEBUG", "INFO", "WARN"])
+                        default=None, choices=["DEBUG", "INFO", "WARN"])
         self.add_argument("--resolv-conf-path",
                         help="Path to resolv.conf that the dnsconfd should manage",
                         default=None)
@@ -26,5 +26,7 @@ class DnsconfdArgumentParser(ArgumentParser):
         if parsed.resolv_conf_path is None:
             parsed.resolv_conf_path = os.environ.get("RESOLV_CONF_PATH",
                                                      "/usr/lib/systemd/resolv.conf")
+        if parsed.log_level is None:
+            parsed.log_level = os.environ.get("LOG_LEVEL", "INFO")
 
         return parsed

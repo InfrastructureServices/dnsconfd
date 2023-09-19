@@ -1,6 +1,7 @@
 summary: Run integration tests with tmt
 discover:
   how: fmf
+  filter: tag:integration
 provision:
     how: virtual
 execute:
@@ -10,8 +11,15 @@ prepare:
     how: install
     package:
       - podman
-      - podman-compose
       - fedpkg
+      - beakerlib
+      - python3-devel
+      - python3-setuptools
+      - python3-setuptools
+      - python3-rpm-macros
+      - python3-pip
+      - systemd
+      - systemd-rpm-macros
   - name: build
     how: shell
     script: ./tests/build_images.sh

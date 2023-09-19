@@ -3,7 +3,7 @@ Description=Start
 [Service]
 Type=simple
 RemainAfterExit=yes
-ExecStart=rm -f /etc/resolv.conf && ln -s /usr/lib/systemd/resolv.conf /etc/resolv.conf
+ExecStart=/bin/bash -c "rm -f /etc/resolv.conf && ln -s /usr/lib/systemd/resolv.conf /etc/resolv.conf"
 TimeoutStartSec=0
 [Install]
 WantedBy=default.target

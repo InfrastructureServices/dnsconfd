@@ -1,0 +1,9 @@
+summary: |
+  Start the container, connect it to network, wait for it to get configuration from DHCP and verify
+  correct address resolution
+test: ./test.sh
+framework: beakerlib
+recommends:
+  - podman
+tag:
+  - integration

@@ -3,3 +3,5 @@ test: ./test.sh
 framework: beakerlib
 recommends:
   - podman
+tag:
+  - integration

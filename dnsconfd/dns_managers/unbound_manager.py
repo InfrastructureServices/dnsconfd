@@ -1,5 +1,5 @@
 from dnsconfd.dns_managers.dns_manager import DnsManager
-from dnsconfd.configuration import InterfaceConfiguration
+from dnsconfd.configuration import ServerDescription
 
 import subprocess
 import tempfile
@@ -104,32 +104,8 @@ remote-control:
         proc = subprocess.run(control_args, stdout=subprocess.DEVNULL)
         return proc.returncode
 
-    def update(self, interfaces: dict[InterfaceConfiguration]):
+    def update(self, new_zones_to_servers: dict[list[ServerDescription]]):
         lgr.debug("Unbound manager processing update")
-        new_zones_to_servers = {}
-
-        for interface in interfaces.values():
-            lgr.debug(f"Processing interface {interface}")
-            interface: InterfaceConfiguration
-            this_interface_zones = interface.domains
-            if interface.is_default:
-                lgr.debug("Interface is default, appending . as its zone")
-                this_interface_zones.append(".")
-            for zone in this_interface_zones:
-                lgr.debug(f"Handling zone {zone} of the interface")
-                new_zones_to_servers[zone] = new_zones_to_servers.get(zone, [])
-                for server in interface.servers:
-                    lgr.debug(f"Handling server {server}")
-                    found_server = [a for a in new_zones_to_servers[zone] if server == a]
-                    if len(found_server) > 0:
-                        lgr.debug(f"Server {server} already in zone, handling priority")
-                        found_server[0].priority = max(found_server.priority, server.priority)
-                    else:
-                        lgr.debug(f"Appending server {server} to zone {zone}")
-                        new_zones_to_servers[zone].append(server)
-
-        for zone in new_zones_to_servers.keys():
-            new_zones_to_servers[zone].sort(key=lambda x: x.priority, reverse=True)
 
         added_zones = [zone for zone in new_zones_to_servers.keys() if zone not in self.zones_to_servers.keys()]
         removed_zones = [zone for zone in self.zones_to_servers.keys() if zone not in new_zones_to_servers.keys()]

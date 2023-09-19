@@ -42,7 +42,11 @@ class DnsconfdContext(dbus.service.Object):
     def SetLinkDNS(self, interface_index: int, addresses: list[(int, bytearray)]):
         lgr.debug(f"SetLinkDNS called, interface index: {interface_index}, addresses: {addresses}")
         interface_cfg = self.interfaces.get(interface_index, InterfaceConfiguration(interface_index))
-        prio = 50 if interface_cfg.isInterfaceWireless() else 100
+        if interface_cfg.isInterfaceWireless():
+            prio = 50
+            lgr.debug(f"Interface {interface_index} is wireless")
+        else:
+            prio = 100
         servers = [ServerDescription(addr, address_family=fam, priority=prio) for fam, addr in addresses]
         interface_cfg.servers = servers
         self.interfaces[interface_index] = interface_cfg
@@ -51,7 +55,11 @@ class DnsconfdContext(dbus.service.Object):
                          in_signature='ia(iayqs)', out_signature='')
     def SetLinkDNSEx(self, interface_index: int, addresses: list[(int, bytearray, int, str)]):
         lgr.debug(f"SetLinkDNSEx called, interface index: {interface_index}, addresses: {addresses}")
-        prio = 50 if interface_cfg.isInterfaceWireless() else 100
+        if interface_cfg.isInterfaceWireless():
+            prio = 50
+            lgr.debug(f"Interface {interface_index} is wireless")
+        else:
+            prio = 100
         interface_cfg = self.interfaces.get(interface_index, InterfaceConfiguration(interface_index))
         servers = [ServerDescription(addr, port, sni, fam, prio) for fam, addr, port, sni in addresses]
         interface_cfg.servers = servers
@@ -62,7 +70,7 @@ class DnsconfdContext(dbus.service.Object):
     def SetLinkDomains(self, interface_index: int, domains: list[(str, bool)]):
         lgr.debug(f"SetLinkDomains called, interface index: {interface_index}, domains: {domains}")
         interface_cfg = self.interfaces.get(interface_index, InterfaceConfiguration(interface_index))
-        interface_cfg.domains = [domain for domain, search in domains if not search]
+        interface_cfg.domains = [(str(domain), bool(is_routing)) for domain, is_routing in domains]
         self.interfaces[interface_index] = interface_cfg
 
     @dbus.service.method(dbus_interface='org.freedesktop.resolve1.Manager',
@@ -82,7 +90,6 @@ class DnsconfdContext(dbus.service.Object):
     @dbus.service.method(dbus_interface='org.freedesktop.resolve1.Manager',
                          in_signature='is', out_signature='')
     def SetLinkMulticastDNS(self, interface_index: int, mode: str):
-        # unbound does not support LLMNR
         lgr.debug("SetLinkMulticastDNS called, and ignored")
 
     @dbus.service.method(dbus_interface='org.freedesktop.resolve1.Manager',
@@ -92,7 +99,7 @@ class DnsconfdContext(dbus.service.Object):
         interface_cfg: InterfaceConfiguration = self.interfaces[interface_index]
         interface_cfg.dns_over_tls = True if mode == "yes" or mode == "opportunistic" else False
         # now let dns manager deal with update in its own way
-        self.dns_mgr.update(self.interfaces)
+        self._update()
 
     @dbus.service.method(dbus_interface='org.freedesktop.resolve1.Manager',
                          in_signature='is', out_signature='')
@@ -120,3 +127,35 @@ class DnsconfdContext(dbus.service.Object):
         status["service"] = self.dns_mgr.service_name if self.dns_mgr is not None else ""
         status["config"] = self.dns_mgr.get_status() if self.dns_mgr is not None else ""
         return json.dumps(status)
+
+    def _update(self):
+        new_zones_to_servers = {}
+
+        search_domains = []
+
+        for interface in self.interfaces.values():
+            lgr.debug(f"Processing interface {interface}")
+            interface: InterfaceConfiguration
+            this_interface_zones = [domain[0] for domain in interface.domains if domain[1]]
+            search_domains.extend([domain[0] for domain in interface.domains if not domain[1]])
+            if interface.is_default:
+                lgr.debug("Interface is default, appending . as its zone")
+                this_interface_zones.append(".")
+            for zone in this_interface_zones:
+                lgr.debug(f"Handling zone {zone} of the interface")
+                new_zones_to_servers[zone] = new_zones_to_servers.get(zone, [])
+                for server in interface.servers:
+                    lgr.debug(f"Handling server {server}")
+                    found_server = [a for a in new_zones_to_servers[zone] if server == a]
+                    if len(found_server) > 0:
+                        lgr.debug(f"Server {server} already in zone, handling priority")
+                        found_server[0].priority = max(found_server.priority, server.priority)
+                    else:
+                        lgr.debug(f"Appending server {server} to zone {zone}")
+                        new_zones_to_servers[zone].append(server)
+
+        for zone in new_zones_to_servers.keys():
+            new_zones_to_servers[zone].sort(key=lambda x: x.priority, reverse=True)
+
+        self.sys_mgr.updateResolvconf(search_domains)
+        self.dns_mgr.update(new_zones_to_servers)
