@@ -115,10 +115,13 @@ remote-control:
         lgr.debug(f"Update removed zones {removed_zones}")
         lgr.debug(f"Zones that were in both configurations {stable_zones}")
 
+        # NOTE: unbound does not support forwarding server priority, so we need to strip any server
+        # that has lower priority than the highest occured priority
+        # TODO: This has to be documented
         for zone in removed_zones:
             self._execute_cmd(f"forward_remove {zone}")
         for zone in added_zones:
-            servers_strings = [srv.to_unbound_string() for srv in new_zones_to_servers[zone]]
+            servers_strings = [srv.to_unbound_string() for srv in new_zones_to_servers[zone] if srv.priority == new_zones_to_servers[zone][0].priority]
             self._execute_cmd(f"forward_add {zone} {' '.join(servers_strings)}")
         for zone in stable_zones:
             if (self.zones_to_servers[zone] == new_zones_to_servers[zone]):
@@ -126,7 +129,7 @@ remote-control:
                 continue
             lgr.debug(f"Updating zone {zone}")
             self._execute_cmd(f"forward_remove {zone}")
-            servers_strings = [srv.to_unbound_string() for srv in new_zones_to_servers[zone]]
+            servers_strings = [srv.to_unbound_string() for srv in new_zones_to_servers[zone] if srv.priority == new_zones_to_servers[zone][0].priority]
             self._execute_cmd(f"forward_add {zone} {' '.join(servers_strings)}")
 
         self.zones_to_servers = new_zones_to_servers

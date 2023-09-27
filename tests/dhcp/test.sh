@@ -22,7 +22,7 @@ rlJournalStart
     rlPhaseStartTest
         sleep 3
         # This elaborative change of eth0 connection causes that NetworkManager will receive
-        # the exact same address from dhcp that podman assigned to the continer. Without this,
+        # the exact same address from dhcp that podman assigned to the container. Without this,
         # routing tables that podman creates would not be correct and we would face error during
         # clean up after the container
         rlRun "podman exec $dnsconfd_cid nmcli connection mod eth0 ipv4.gateway '' ipv4.addr '' ipv4.method auto" 0 "Setting eth0 to autoconfiguration"

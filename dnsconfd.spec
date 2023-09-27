@@ -32,7 +32,7 @@ Dnsconfd configures local DNS cache services.
 %autosetup -n %{name}-%{version}
 
 %build
-%py3_build                                                                      
+%py3_build
 
 %install
 %py3_install
