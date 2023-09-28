@@ -39,7 +39,12 @@ class InterfaceConfiguration:
         description += f"is_default: {self.is_default}}}"
         return  description
 
-    def isInterfaceWireless(self):
+    def isInterfaceWireless(self) -> bool:
+        """ Get whether the interface that this instance represents is wireless or not
+
+        :return: True if interface is wireless, otherwise False
+        :rtype: bool
+        """
         name = socket.if_indextoname(self._interface_index)
         try:
             return os.path.isdir(f"/sys/class/net/{name}/wireless")

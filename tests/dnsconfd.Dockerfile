@@ -3,7 +3,6 @@ FROM quay.io/fedora/fedora:38
 COPY ./*.noarch.rpm ./
 COPY ./dnsconfd_start.service /etc/systemd/system/start.service
 RUN dnf install -y --setopt=install_weak_deps=False systemd NetworkManager dhcp-client iproute ./*.rpm openvpn NetworkManager-openvpn
-RUN mkdir /etc/openvpn/easy-rsa
 RUN systemctl enable dnsconfd start.service
 
 # we will replace the path in code only for testing purposes

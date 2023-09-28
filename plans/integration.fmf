@@ -3,7 +3,7 @@ discover:
   how: fmf
   filter: tag:integration
 provision:
-    how: virtual
+    how: local
 execute:
     how: tmt
 prepare:
@@ -22,4 +22,4 @@ prepare:
       - systemd-rpm-macros
   - name: build
     how: shell
-    script: ./tests/build_images.sh
+    script: ./tests/build_images.sh -q

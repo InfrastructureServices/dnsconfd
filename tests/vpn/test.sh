@@ -14,21 +14,18 @@ rlJournalStart
         rlRun "podman network create dnsconfd_network -d=bridge --gateway=192.168.6.1 --subnet=192.168.6.0/24"
         # dns=none is neccessary, because otherwise resolv.conf is created and
         # mounted by podman as read-only
-        rlRun "dhcp_cid=\$(podman run -d --cap-add=NET_RAW --network dnsconfd_network:ip=192.168.6.20 dnsconfd_dhcp:latest)" 0 "Starting dhcpd container"
-        # unfortunately, vpn needs to access the tun device so the easiest way to achieve this is to run
-        # the container as privileged
-        rlRun "vpn_cid=\$(podman run -d --privileged --network dnsconfd_network:ip=192.168.6.30 dnsconfd_vpn:latest)"
-        sleep 2
-        rlRun "dnsconfd_cid=\$(podman run -d --privileged --dns='none' --network dnsconfd_network:ip=192.168.6.2 dnsconfd_testing:latest)" 0 "Starting dnsconfd container"
-        rlRun "dnsmasq1_cid=\$(podman run -d --dns='none' --network dnsconfd_network:ip=192.168.6.3 dnsconfd_dnsmasq:latest --listen-address=192.168.6.3 --address=/first-address.test.com/192.168.6.3)" 0 "Starting first dnsmasq container"
-        rlRun "dnsmasq2_cid=\$(podman run -d --dns='none' --network dnsconfd_network:ip=192.168.6.4 dnsconfd_dnsmasq:latest --listen-address=192.168.6.4 --address=/second-address.test.com/192.168.6.4)" 0 "Starting second dnsmasq container"
-        rlRun "dnsmasq3_cid=\$(podman run -d --dns='none' --network dnsconfd_network:ip=192.168.6.5 dnsconfd_dnsmasq:latest --listen-address=192.168.6.5 --address=/dummy.vpndomain.com/192.168.6.5)" 0 "Starting third dnsmasq container"
+        rlRun "dhcp_cid=\$(podman run -d --cap-add=NET_RAW --network dnsconfd_network:ip=192.168.6.20 localhost/dnsconfd_utilities:latest dhcp_entry.sh)" 0 "Starting dhcpd container"
+        rlRun "vpn_cid=\$(podman run -d --cap-add=NET_ADMIN --cap-add=NET_RAW --security-opt label=disable --device=/dev/net/tun --network dnsconfd_network:ip=192.168.6.30 localhost/dnsconfd_utilities:latest vpn_entry.sh)"
+        rlRun "dnsconfd_cid=\$(podman run -d --cap-add=NET_ADMIN --cap-add=NET_RAW --security-opt label=disable --device=/dev/net/tun --dns='none' --network dnsconfd_network:ip=192.168.6.2 dnsconfd_testing:latest)" 0 "Starting dnsconfd container"
+        rlRun "dnsmasq1_cid=\$(podman run -d --dns='none' --network dnsconfd_network:ip=192.168.6.3 localhost/dnsconfd_utilities:latest dnsmasq_entry.sh --listen-address=192.168.6.3 --address=/first-address.test.com/192.168.6.3)" 0 "Starting first dnsmasq container"
+        rlRun "dnsmasq2_cid=\$(podman run -d --dns='none' --network dnsconfd_network:ip=192.168.6.4 localhost/dnsconfd_utilities:latest dnsmasq_entry.sh --listen-address=192.168.6.4 --address=/second-address.test.com/192.168.6.4)" 0 "Starting second dnsmasq container"
+        rlRun "dnsmasq3_cid=\$(podman run -d --dns='none' --network dnsconfd_network:ip=192.168.6.5 localhost/dnsconfd_utilities:latest dnsmasq_entry.sh --listen-address=192.168.6.5 --address=/dummy.vpndomain.com/192.168.6.5)" 0 "Starting third dnsmasq container"
     rlPhaseEnd
 
     rlPhaseStartTest
-        sleep 3
+        sleep 2
         rlRun "podman exec $dnsconfd_cid nmcli connection mod eth0 connection.autoconnect yes ipv4.gateway '' ipv4.addr '' ipv4.method auto" 0 "Setting eth0 to autoconfiguration"
-        sleep 5
+        sleep 2
         rlRun "podman exec $dnsconfd_cid dnsconfd --dbus-name=$DBUS_NAME -s > status1" 0 "Getting status of dnsconfd"
         # in this test we are verifying that the DNS of non-wireless interface has higher priority
         # than the wireless one
@@ -40,10 +37,10 @@ rlJournalStart
         rlRun "podman exec $vpn_cid bash -c 'cd /etc/openvpn/easy-rsa && ./easyrsa --no-pass --batch build-client-full dummy'"
         rlRun "podman cp $vpn_cid:/etc/openvpn/easy-rsa/pki/issued/dummy.crt $dnsconfd_cid:/etc/openvpn/client/dummy.crt"
         rlRun "podman cp $vpn_cid:/etc/openvpn/easy-rsa/pki/private/dummy.key $dnsconfd_cid:/etc/openvpn/client/dummy.key"
-        rlRun "podman cp $vpn_cid:/etc/openvpn/keys/ca.crt $dnsconfd_cid:/etc/openvpn/client/ca.crt"
+        rlRun "podman cp $vpn_cid:/etc/openvpn/easy-rsa/pki/ca.crt $dnsconfd_cid:/etc/openvpn/client/ca.crt"
         rlRun "podman exec $dnsconfd_cid nmcli connection add type vpn vpn-type openvpn ipv4.method auto ipv4.never-default yes vpn.data '$VPN_SETTINGS'" 0 "Creating vpn connection"
         rlRun "podman exec $dnsconfd_cid nmcli connection up vpn" 0 "Connecting to vpn"
-        sleep 3
+        sleep 2
         rlRun "podman exec $dnsconfd_cid dnsconfd --dbus-name=$DBUS_NAME -s > status2" 0 "Getting status of dnsconfd"
         rlAssertNotDiffer status2 expected_status2.json
         rlRun "podman exec $dnsconfd_cid getent hosts dummy | grep 192.168.6.5" 0 "Verifying correct address resolution"

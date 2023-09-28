@@ -14,16 +14,16 @@ rlJournalStart
         # dns=none is neccessary, because otherwise resolv.conf is created and
         # mounted by podman as read-only
         rlRun "dnsconfd_cid=\$(podman run -d --dns='none' --network dnsconfd_network:ip=192.168.6.2 --network dnsconfd_network2:ip=192.168.7.2 dnsconfd_testing:latest)" 0 "Starting dnsconfd container"
-        rlRun "dnsmasq1_cid=\$(podman run -d --dns='none' --network dnsconfd_network:ip=192.168.6.3 dnsconfd_dnsmasq:latest --listen-address=192.168.6.3 --address=/first-address.test.com/192.168.6.3)" 0 "Starting first dnsmasq container"
-        rlRun "dnsmasq2_cid=\$(podman run -d --dns='none' --network dnsconfd_network2:ip=192.168.7.3 dnsconfd_dnsmasq:latest --listen-address=192.168.7.3 --address=/first-address.test.com/192.168.7.3 --address=/second-address.test.com/192.168.8.3)" 0 "Starting first dnsmasq container"
+        rlRun "dnsmasq1_cid=\$(podman run -d --dns='none' --network dnsconfd_network:ip=192.168.6.3 localhost/dnsconfd_utilities:latest dnsmasq_entry.sh --listen-address=192.168.6.3 --address=/first-address.test.com/192.168.6.3)" 0 "Starting first dnsmasq container"
+        rlRun "dnsmasq2_cid=\$(podman run -d --dns='none' --network dnsconfd_network2:ip=192.168.7.3 localhost/dnsconfd_utilities:latest dnsmasq_entry.sh --listen-address=192.168.7.3 --address=/first-address.test.com/192.168.7.3 --address=/second-address.test.com/192.168.8.3)" 0 "Starting first dnsmasq container"
     rlPhaseEnd
 
     rlPhaseStartTest
-        sleep 3
+        sleep 2
         rlRun "podman exec $dnsconfd_cid mkdir -p /tmp/is_wireless/eth1/wireless" 0 "Mocking wireless interface"
         rlRun "podman exec $dnsconfd_cid nmcli connection mod eth1 ipv4.dns 192.168.6.3" 0 "Adding dns server to the first NM active profile"
         rlRun "podman exec $dnsconfd_cid nmcli connection mod eth0 ipv4.dns 192.168.7.3" 0 "Adding dns server to the second NM active profile"
-        sleep 5
+        sleep 2
         rlRun "podman exec $dnsconfd_cid dnsconfd --dbus-name=$DBUS_NAME -s > status1" 0 "Getting status of dnsconfd"
         # in this test we are verifying that the DNS of non-wireless interface has higher priority
         # than the wireless one

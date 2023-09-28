@@ -8,6 +8,11 @@ mv ./noarch/*.noarch.rpm ./tests
 
 podman build tests -f tests/dnsconfd.Dockerfile -t dnsconfd_testing
 
-podman build tests -f tests/dnsmasq.Dockerfile -t dnsconfd_dnsmasq
-podman build tests -f tests/dhcp.Dockerfile -t dnsconfd_dhcp
-podman build tests -f tests/vpn.Dockerfile -t dnsconfd_vpn
+if [ "$1" = "-q" ]; then
+    echo "Using images from quay"
+    podman pull quay.io/tkorbar/dnsconfd_utilities:latest
+    podman tag quay.io/tkorbar/dnsconfd_utilities:latest localhost/dnsconfd_utilities:latest
+else
+    echo "Rebuilding testing container image"
+    podman build tests -f tests/dnsconfd-test-utilities.Dockerfile -t localhost/dnsconfd_utilities:latest
+fi
