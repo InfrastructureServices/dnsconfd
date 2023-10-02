@@ -36,6 +36,7 @@ class DnsconfdContext(dbus.service.Object):
     # the following sequence: SetLinkDomains, SetLinkDefaultRoute, SetLinkMulticastDNS,
     # SetLinkLLMNR, SetLinkDNS, SetLinkDNSOverTLS
     # until proven otherwise, we will expect this to be true at all cases
+    # but TODO ensure consistent state of service during partial updates
 
     @dbus.service.method(dbus_interface='org.freedesktop.resolve1.Manager',
                          in_signature='ia(iay)', out_signature='')

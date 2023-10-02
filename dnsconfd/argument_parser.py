@@ -5,18 +5,18 @@ class DnsconfdArgumentParser(ArgumentParser):
     def __init__(self, *args, **kwargs) -> None:
         super(DnsconfdArgumentParser, self).__init__(*args, **kwargs)
         self.add_argument("-s", "--status",
-                        action="store_true",
-                        help="Print status of already running instance if any",
-                        default=False)
+                          action="store_true",
+                          help="Print status of already running instance if any",
+                          default=False)
         self.add_argument("--dbus-name",
-                        help="DBUS name that dnsconfd should use",
-                        default=None)
+                          help="DBUS name that dnsconfd should use",
+                          default=None)
         self.add_argument("--log-level",
-                        help="Log level of dnsconfd",
-                        default=None, choices=["DEBUG", "INFO", "WARN"])
+                          help="Log level of dnsconfd",
+                          default=None, choices=["DEBUG", "INFO", "WARN"])
         self.add_argument("--resolv-conf-path",
-                        help="Path to resolv.conf that the dnsconfd should manage",
-                        default=None)
+                          help="Path to resolv.conf that the dnsconfd should manage",
+                          default=None)
 
     def parse_args(self, *args, **kwargs):
         parsed = super(DnsconfdArgumentParser, self).parse_args(*args, **kwargs)
@@ -25,7 +25,7 @@ class DnsconfdArgumentParser(ArgumentParser):
             parsed.dbus_name = os.environ.get("DBUS_NAME", "com.redhat.dnsconfd")
         if parsed.resolv_conf_path is None:
             parsed.resolv_conf_path = os.environ.get("RESOLV_CONF_PATH",
-                                                     "/usr/lib/systemd/resolv.conf")
+                                                     "/etc/resolv.conf")
         if parsed.log_level is None:
             parsed.log_level = os.environ.get("LOG_LEVEL", "INFO")
 

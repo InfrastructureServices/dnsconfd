@@ -48,7 +48,7 @@ server:
 	max-udp-size: 3072
 	edns-tcp-keepalive: yes
 	chroot: ""
-	username: "dnsconfd"
+	username: ""
 	directory: "{self.temp_dir_path}"
 	log-time-ascii: yes
     use-syslog: no

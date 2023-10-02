@@ -3,7 +3,7 @@ summary: |
   DNS servers for each of them and verify that the normal has higher priority than the wireless one.
 test: ./test.sh
 framework: beakerlib
-recommends:
+recommend:
   - podman
 tag:
   - integration

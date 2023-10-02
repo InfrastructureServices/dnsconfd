@@ -1,0 +1,2 @@
+/usr/sbin/dnsconfd         gen_context(system_u:object_r:dnsconfd_exec_t,s0)
+/var/log/dnsconfd(/.*)?    gen_context(system_u:object_r:dnsconfd_log_t,s0)

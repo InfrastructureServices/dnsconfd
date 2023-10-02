@@ -1,0 +1,5 @@
+summary: Start the service and verify that it is running correctly
+test: ./test.sh
+framework: beakerlib
+tag:
+  - distribution

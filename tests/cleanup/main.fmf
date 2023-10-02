@@ -1,0 +1,9 @@
+summary: |
+    Start container, set 1 DNS server, verify correct address resolution, stop Dnsconfd and
+    verify that system works after our cleanup
+test: ./test.sh
+framework: beakerlib
+recommend:
+  - podman
+tag:
+  - integration

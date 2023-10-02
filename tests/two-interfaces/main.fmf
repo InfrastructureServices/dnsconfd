@@ -3,7 +3,7 @@ summary: |
   handled the update and name resolution works as expected
 test: ./test.sh
 framework: beakerlib
-recommends:
+recommend:
   - podman
 tag:
   - integration

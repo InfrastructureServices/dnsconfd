@@ -3,7 +3,7 @@ summary: |
   it to VPN and verify correct address resolution
 test: ./test.sh
 framework: beakerlib
-recommends:
+recommend:
   - podman
 tag:
   - integration

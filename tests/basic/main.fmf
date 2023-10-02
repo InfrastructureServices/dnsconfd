@@ -1,7 +1,7 @@
 summary: Start container, set 1 DNS server and verify that dnsconfd handled the update
 test: ./test.sh
 framework: beakerlib
-recommends:
+recommend:
   - podman
 tag:
   - integration

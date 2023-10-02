@@ -1,0 +1,5 @@
+summary: Start the service and verify that non-root user can ask its status
+test: ./test.sh
+framework: beakerlib
+tag:
+  - distribution

@@ -2,11 +2,11 @@
 # vim: dict+=/usr/share/beakerlib/dictionary.vim cpt=.,w,b,u,t,i,k
 . /usr/share/beakerlib/beakerlib.sh || exit 1
 DBUS_NAME=org.freedesktop.resolve1
-ORIG_DIR=$(pwd)
 
 rlJournalStart
     rlPhaseStartSetup
         rlRun "tmp=\$(mktemp -d)" 0 "Create tmp directory"
+        rlRun "cp expected_status.json $tmp"
         rlRun "pushd $tmp"
         rlRun "set -o pipefail"
         rlRun "podman network create dnsconfd_network -d=bridge --gateway=192.168.6.1 --subnet=192.168.6.0/24"
@@ -18,11 +18,20 @@ rlJournalStart
 
     rlPhaseStartTest
         sleep 2
-        rlRun "podman exec $dnsconfd_cid nmcli connection mod eth0 ipv4.dns 192.168.6.3" 0 "Adding dns server to NM active profile"
+        rlRun "podman exec $dnsconfd_cid nmcli connection mod eth0 ipv4.dns 192.168.6.3" \
+            0 "Adding dns server to NM active profile"
         sleep 2
-        rlRun "podman exec $dnsconfd_cid dnsconfd --dbus-name=$DBUS_NAME -s > status1" 0 "Getting status of dnsconfd"
-        rlAssertNotDiffer status1 $ORIG_DIR/expected_status.json
-        rlRun "podman exec $dnsconfd_cid getent hosts address.test.com | grep 192.168.6.3" 0 "Verifying correct address resolution"
+        rlRun "podman exec $dnsconfd_cid dnsconfd --dbus-name=$DBUS_NAME -s > status1" \
+            0 "Getting status of dnsconfd"
+        rlAssertNotDiffer status1 expected_status.json
+        rlRun "podman exec $dnsconfd_cid getent hosts address.test.com | grep 192.168.6.3" \
+            0 "Verifying correct address resolution"
+        rlRun "podman exec $dnsconfd_cid systemctl stop dnsconfd" 0 "Stopping dnsconfd"
+        rlRun "podman exec $dnsconfd_cid systemctl restart NetworkManager" \
+            0 "Restarting NetworkManager"
+        sleep 2
+        rlRun "podman exec $dnsconfd_cid getent hosts address.test.com | grep 192.168.6.3" \
+            0 "Verifying correct address resolution after cleanup"
     rlPhaseEnd
 
     rlPhaseStartCleanup

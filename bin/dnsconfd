@@ -19,9 +19,12 @@ if __name__ == "__main__":
         try:
             dnsconfd_object = bus.get_object(args.dbus_name, "/org/freedesktop/resolve1")
         except DBusException as e:
-            print("Dnsconfd is not running")
+            print(f"Dnsconfd is not listening on name {args.dbus_name}")
             exit(1)
-        print(dnsconfd_object.Status())
+        try:
+            print(dnsconfd_object.Status(dbus_interface='org.freedesktop.resolve1.Dnsconfd'))
+        except DBusException as e:
+            print("Was not able to call Status method, check your DBus policy")
         exit(0)
 
     dbus.mainloop.glib.DBusGMainLoop(set_as_default=True)

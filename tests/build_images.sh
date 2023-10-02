@@ -2,10 +2,6 @@
 
 set -e
 
-python3 setup.py sdist -d ./
-fedpkg local
-mv ./noarch/*.noarch.rpm ./tests
-
 podman build tests -f tests/dnsconfd.Dockerfile -t dnsconfd_testing
 
 if [ "$1" = "-q" ]; then

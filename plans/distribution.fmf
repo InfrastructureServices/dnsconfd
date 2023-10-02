@@ -1,9 +1,9 @@
-summary: Run integration tests with tmt
+summary: Run distribution tests with tmt
 discover:
   how: fmf
-  filter: tag:integration
+  filter: tag:distribution
 provision:
-    how: local
+    how: virtual
 execute:
     how: tmt
 prepare:
@@ -21,11 +21,19 @@ prepare:
       - python3-pip
       - systemd
       - systemd-rpm-macros
+      - selinux-policy-devel
+      - selinux-policy-targeted
+      - audit
+      - dbus-tools
   - name: build-package
     order: 2
     how: shell
     script: ./tests/build_package.sh
-  - name: build-images
+  - name: remove-systemd-resolved
     order: 3
     how: shell
-    script: ./tests/build_images.sh -q
+    script: dnf remove -y systemd-resolved
+  - name: install-package
+    order: 4
+    how: shell
+    script: dnf install -y ./tests/*.rpm

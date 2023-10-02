@@ -1,12 +1,19 @@
+# NOTE: sysusers installation disabled until NetworkManager problems are resolved
+
+%global modulename dnsconfd
+%global selinuxtype targeted
+
 Name:           dnsconfd                                                   
 Version:        0.0.1
-Release:        37%{?dist}
+Release:        1%{?dist}
 Summary:        local DNS cache configuration daemon
 License:        MIT
 Source0:        %{name}-%{version}.tar.gz
 Source1:        com.redhat.dnsconfd.conf
 Source2:        dnsconfd.service
-Source3:        dnsconfd.sysusers
+#Source3:        dnsconfd.sysusers
+Source4:        dnsconfd.fc
+Source5:        dnsconfd.te
 
 BuildArch:      noarch
 
@@ -19,11 +26,25 @@ BuildRequires:  systemd
 BuildRequires:  systemd-rpm-macros
 %{?sysusers_requires_compat}
 
-Requires: unbound
-Requires: python3-gobject
+Requires:  (%{name}-selinux if selinux-policy-%{selinuxtype})
+Requires:  unbound
+Requires:  python3-gobject
+
 Conflicts: systemd-resolved
 
 %?python_enable_dependency_generator                                            
+
+# SELinux subpackage
+%package selinux
+Summary:             dnsconfd SELinux policy
+BuildArch:           noarch
+Requires:            selinux-policy-%{selinuxtype}
+Requires(post):      selinux-policy-%{selinuxtype}
+BuildRequires:       selinux-policy-devel
+%{?selinux_requires}
+
+%description selinux
+Dnsconfd SELinux policy module.
 
 %description
 Dnsconfd configures local DNS cache services.
@@ -33,6 +54,13 @@ Dnsconfd configures local DNS cache services.
 
 %build
 %py3_build
+
+mkdir selinux
+cp -p %{SOURCE4} selinux/
+cp -p %{SOURCE5} selinux/
+
+make -f %{_datadir}/selinux/devel/Makefile %{modulename}.pp
+bzip2 -9 %{modulename}.pp
 
 %install
 %py3_install
@@ -50,10 +78,26 @@ touch %{buildroot}/var/log/dnsconfd/unbound.log
 
 mv %{buildroot}%{_bindir}/dnsconfd %{buildroot}%{_sbindir}/dnsconfd
 
-install -p -D -m 0644 %{SOURCE3} %{buildroot}%{_sysusersdir}/dnsconfd.conf
+install -D -m 0644 %{modulename}.pp.bz2 %{buildroot}%{_datadir}/selinux/packages/%{selinuxtype}/%{modulename}.pp.bz2
+
+#install -p -D -m 0644 %{SOURCE3} %{buildroot}%{_sysusersdir}/dnsconfd.conf
+
+%pre selinux
+%selinux_relabel_pre -s %{selinuxtype}
+
+%post selinux
+%selinux_modules_install -s %{selinuxtype} %{_datadir}/selinux/packages/%{selinuxtype}/%{modulename}.pp.bz2
+
+%postun selinux
+if [ $1 -eq 0 ]; then
+    %selinux_modules_uninstall -s %{selinuxtype} %{modulename}
+fi
+
+%posttrans selinux
+%selinux_relabel_post -s %{selinuxtype}
 
 %pre
-%sysusers_create_compat %{SOURCE3}
+#%sysusers_create_compat %{SOURCE3}
 # This is neccessary because of NetworkManager.
 # It checks whether /etc/resolv.conf is a link and in case, it is not
 # it overwrites it, thus overwrites our configuration.
@@ -66,6 +110,7 @@ fi
 
 %post
 %systemd_post dnsconfd.service
+systemctl enable dnsconfd.service &>/dev/null
 
 %postun
 %systemd_postun dnsconfd.service
@@ -77,8 +122,12 @@ fi
 %{_sysconfdir}/dbus-1/system.d/com.redhat.dnsconfd.conf
 %config(noreplace) %{_sysconfdir}/sysconfig/dnsconfd
 %{_unitdir}/dnsconfd.service
-%attr(0755,dnsconfd,dnsconfd) /var/log/dnsconfd
-%{_sysusersdir}/dnsconfd.conf
+%attr(0755,root,root) /var/log/dnsconfd
+#%{_sysusersdir}/dnsconfd.conf
+
+%files selinux
+%{_datadir}/selinux/packages/%{selinuxtype}/%{modulename}.pp.*
+%ghost %verify(not md5 size mode mtime) %{_sharedstatedir}/selinux/%{selinuxtype}/active/modules/200/%{modulename}
 
 %changelog
 * Tue Aug 01 2023 Tomas Korbar <tkorbar@redhat.com> - 0.0.1-1
