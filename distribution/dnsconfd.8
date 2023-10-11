@@ -1,0 +1,56 @@
+.TH "dnsconfd" "8" "10 Oct 2023" "dnsconfd-0.0.1" ""
+
+.SH NAME
+
+Dnsconfd - local DNS cache configuration daemon
+
+.SH SYNOPSIS
+
+dnsconfd [-h] [-s] [--dbus-name DBUS_NAME] [--log-level {DEBUG,INFO,WARN}] [--resolv-conf-path RESOLV_CONF_PATH]
+
+.SH DESCRIPTION
+
+Dnsconfd is a local cache configuration daemon. It implements DBus interface of systemd-resolved
+and translates it's use to dns service's configuration.
+
+.SH OPTIONS
+
+.IP "-h, --help"
+Show help message and exit
+.IP "-s, --status"
+Print status of already running instance if any
+.IP "--dbus-name DBUS_NAME"
+DBus name that dnsconfd should use
+.IP "--log-level {DEBUG,INFO,WARN}"
+Log level of dnsconfd
+.IP "--resolv-conf-path RESOLV_CONF_PATH"
+Path to resolv.conf that the dnsconfd should manage
+
+.SH "EXIT STATUS"
+.IP 0
+No error has occured. When status was requested, dnsconfd has been able to retrieve it successfully.
+.IP 1
+Error has occured or dnsconfd was not able to retrieve status successfully.
+
+.SH ENVIRONMENT
+Environment variables are overriden if their argument counterparts are used.
+
+.IP DBUS_NAME
+DBus name that dnsconfd should use
+.IP RESOLV_CONF_PATH
+Path to resolv.conf that the dnsconfd should manage
+.IP LOG_LEVEL
+Log level of dnsconfd
+
+.SH FILES
+Dnsconfd manages resolv.conf to route domain name resolution to local cache service.
+
+.SH NOTES
+The only currently supported backend is Unbound.
+
+.SH "REPORTING BUGS"
+Please for reporting bugs use Github repository https://github.com/InfrastructureServices/dnsconfd
+
+.SH COPYRIGHT
+
+Copyright (c) 2023 Red Hat, Inc.

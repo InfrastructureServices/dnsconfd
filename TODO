@@ -4,3 +4,4 @@
   using root, because without it we can not access resolv.conf or any other stub resolv.conf
   location
 - Improve logging. Improve logging prefixes.
+- Add option for altering behaviour while handling wireless interfaces.

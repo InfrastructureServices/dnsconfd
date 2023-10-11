@@ -14,6 +14,8 @@ Source2:        dnsconfd.service
 #Source3:        dnsconfd.sysusers
 Source4:        dnsconfd.fc
 Source5:        dnsconfd.te
+Source6:        LICENSE
+Source7:        dnsconfd.8
 
 BuildArch:      noarch
 
@@ -69,6 +71,7 @@ mkdir   -m 0755 -p %{buildroot}%{_unitdir}
 mkdir   -m 0755 -p %{buildroot}%{_sysconfdir}/sysconfig
 mkdir   -m 0755 -p %{buildroot}%{_sbindir}
 mkdir   -m 0755 -p %{buildroot}/var/log/dnsconfd
+mkdir   -m 0755 -p %{buildroot}/%{_mandir}/man8
 
 install -m 0644 -p %{SOURCE1} %{buildroot}%{_sysconfdir}/dbus-1/system.d/com.redhat.dnsconfd.conf
 install -m 0644 -p %{SOURCE2} %{buildroot}%{_unitdir}/dnsconfd.service
@@ -79,6 +82,8 @@ touch %{buildroot}/var/log/dnsconfd/unbound.log
 mv %{buildroot}%{_bindir}/dnsconfd %{buildroot}%{_sbindir}/dnsconfd
 
 install -D -m 0644 %{modulename}.pp.bz2 %{buildroot}%{_datadir}/selinux/packages/%{selinuxtype}/%{modulename}.pp.bz2
+
+install -m 0644 -p %{SOURCE7} %{buildroot}/%{_mandir}/man8/dnsconfd.8
 
 #install -p -D -m 0644 %{SOURCE3} %{buildroot}%{_sysusersdir}/dnsconfd.conf
 
@@ -116,6 +121,7 @@ systemctl enable dnsconfd.service &>/dev/null
 %systemd_postun dnsconfd.service
 
 %files
+%license LICENSE
 %{_sbindir}/dnsconfd
 %{python3_sitelib}/dnsconfd/
 %{python3_sitelib}/dnsconfd-%{version}*
@@ -123,6 +129,7 @@ systemctl enable dnsconfd.service &>/dev/null
 %config(noreplace) %{_sysconfdir}/sysconfig/dnsconfd
 %{_unitdir}/dnsconfd.service
 %attr(0755,root,root) /var/log/dnsconfd
+%{_mandir}/man8/dnsconfd.8*
 #%{_sysusersdir}/dnsconfd.conf
 
 %files selinux
