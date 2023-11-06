@@ -39,7 +39,7 @@ server:
 	extended-statistics: yes
 	num-threads: 4
 	interface-automatic: no
-    interface: 127.0.0.53
+    interface: 127.0.0.1
 	outgoing-port-permit: 32768-60999
 	outgoing-port-avoid: 0-32767
 	outgoing-port-avoid: 61000-65535
