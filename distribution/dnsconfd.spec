@@ -31,16 +31,20 @@ BuildRequires:  systemd-rpm-macros
 
 Requires:  (%{name}-selinux if selinux-policy-%{selinuxtype})
 Requires:  unbound
-Requires:  python3-gobject
+#Requires:  python3-gobject
 
 #Conflicts: systemd-resolved
 
 %?python_enable_dependency_generator                                            
 
+%description
+Dnsconfd configures local DNS cache services.
+
 # SELinux subpackage
 %package selinux
 Summary:             dnsconfd SELinux policy
 BuildArch:           noarch
+Requires:            %{name} = %{version}-%{release}
 Requires:            selinux-policy-%{selinuxtype}
 Requires(post):      selinux-policy-%{selinuxtype}
 BuildRequires:       selinux-policy-devel
@@ -49,8 +53,14 @@ BuildRequires:       selinux-policy-devel
 %description selinux
 Dnsconfd SELinux policy module.
 
-%description
-Dnsconfd configures local DNS cache services.
+%package unbound
+Summary:             dnsconfd unbound module
+BuildArch:           noarch
+Requires:            %{name} = %{version}-%{release}
+Requires:            unbound
+
+%description unbound
+Dnsconfd management of unbound server
 
 %prep
 %autosetup -n %{name}-%{version}
@@ -118,7 +128,7 @@ fi
 
 %post
 %systemd_post dnsconfd.service
-systemctl enable dnsconfd.service &>/dev/null
+#systemctl enable dnsconfd.service &>/dev/null
 
 %postun
 %systemd_postun dnsconfd.service
