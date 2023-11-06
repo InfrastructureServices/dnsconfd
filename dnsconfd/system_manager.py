@@ -1,9 +1,10 @@
 import logging as lgr
 
 class SystemManager:
-    def __init__(self, resolv_conf_path):
+    def __init__(self, resolv_conf_path, my_address):
         self._backup = None
         self._resolv_conf_path = resolv_conf_path
+        self.my_address = my_address
         self.resolvconf_altered = False
 
     def setResolvconf(self):
@@ -14,7 +15,7 @@ class SystemManager:
         self.resolvconf_altered = True
 
     def _getResolvconfString(self, search_domains = []):
-        conf = "nameserver 127.0.0.1\n"
+        conf = f"nameserver {self.my_address}\n"
         if len(search_domains):
             conf += f"search {' '.join(search_domains)}\n"
         return conf
