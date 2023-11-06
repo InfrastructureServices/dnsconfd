@@ -14,7 +14,7 @@ class SystemManager:
         self.resolvconf_altered = True
 
     def _getResolvconfString(self, search_domains = []):
-        conf = "nameserver 127.0.0.53\n"
+        conf = "nameserver 127.0.0.1\n"
         if len(search_domains):
             conf += f"search {' '.join(search_domains)}\n"
         return conf
