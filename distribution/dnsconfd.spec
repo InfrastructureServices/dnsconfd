@@ -33,7 +33,7 @@ Requires:  (%{name}-selinux if selinux-policy-%{selinuxtype})
 Requires:  unbound
 Requires:  python3-gobject
 
-Conflicts: systemd-resolved
+#Conflicts: systemd-resolved
 
 %?python_enable_dependency_generator                                            
 
