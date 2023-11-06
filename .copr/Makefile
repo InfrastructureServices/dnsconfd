@@ -1,0 +1,2 @@
+srpm:
+	packit srpm
