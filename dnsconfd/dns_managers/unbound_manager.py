@@ -15,10 +15,12 @@ class UnboundManager(DnsManager):
         self.process = None
         self.zones_to_servers = {}
 
-    def configure(self):
+    def configure(self, my_address):
         if self.temp_dir_path is None:
             self.temp_dir_path = tempfile.mkdtemp()
+        self.my_address = my_address
         lgr.debug(f"Constructing Unbound configuration into {self.temp_dir_path}/unbound.conf")
+        lgr.debug(f"DNS cache is listening on {self.my_address}")
         with open(f"{self.temp_dir_path}/unbound.conf", "w") as conf_file:
             conf_file.write(self._constructConfigurationFile())
 
@@ -39,7 +41,7 @@ server:
 	extended-statistics: yes
 	num-threads: 4
 	interface-automatic: no
-    interface: 127.0.0.1
+    interface: {self.my_address}
 	outgoing-port-permit: 32768-60999
 	outgoing-port-avoid: 0-32767
 	outgoing-port-avoid: 61000-65535

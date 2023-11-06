@@ -17,6 +17,9 @@ class DnsconfdArgumentParser(ArgumentParser):
         self.add_argument("--resolv-conf-path",
                           help="Path to resolv.conf that the dnsconfd should manage",
                           default=None)
+        self.add_argument("--listen-address",
+                          help="Address on which local resolver listens",
+                          default="127.0.0.1")
 
     def parse_args(self, *args, **kwargs):
         parsed = super(DnsconfdArgumentParser, self).parse_args(*args, **kwargs)
