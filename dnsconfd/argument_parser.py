@@ -20,6 +20,12 @@ class DnsconfdArgumentParser(ArgumentParser):
         self.add_argument("--listen-address",
                           help="Address on which local resolver listens",
                           default="127.0.0.1")
+        self.add_argument("--enable",
+                          help="Activate this service",
+                          default=False, const=True, nargs='?')
+        self.add_argument("--disable",
+                          help="Deactivate this service",
+                          default=False, const=True, nargs='?')
 
     def parse_args(self, *args, **kwargs):
         parsed = super(DnsconfdArgumentParser, self).parse_args(*args, **kwargs)
