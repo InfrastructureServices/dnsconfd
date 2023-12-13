@@ -13,8 +13,8 @@ EnvironmentFile=/etc/sysconfig/dnsconfd
 # As long as NetworkManager uses only symlink check to find out
 # whether the service is running, we will have to create the symlink on start and remove it
 # on stop
-ExecStartPre=/bin/bash -c "rm -f /etc/resolv.conf && ln -s /usr/lib/systemd/resolv.conf /etc/resolv.conf"
-ExecStopPost=/bin/bash -c "rm -f /etc/resolv.conf && touch /etc/resolv.conf"
+#ExecStartPre=/bin/bash -c "rm -f /etc/resolv.conf && ln -s /usr/lib/systemd/resolv.conf /etc/resolv.conf"
+#ExecStopPost=/bin/bash -c "rm -f /etc/resolv.conf && touch /etc/resolv.conf"
 
 [Install]
 WantedBy=multi-user.target
