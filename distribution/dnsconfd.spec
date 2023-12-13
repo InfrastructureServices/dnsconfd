@@ -121,10 +121,10 @@ fi
 # it overwrites it, thus overwrites our configuration.
 # The test of mountpoint ensures that we wont try to overwrite resolv.conf
 # in container
-if ! mountpoint /etc/resolv.conf &> /dev/null; then
-    rm -f /etc/resolv.conf
-    ln -s /usr/lib/systemd/resolv.conf /etc/resolv.conf
-fi
+#if ! mountpoint /etc/resolv.conf &> /dev/null; then
+#    rm -f /etc/resolv.conf
+#    ln -s /usr/lib/systemd/resolv.conf /etc/resolv.conf
+#fi
 
 %post
 %systemd_post dnsconfd.service
