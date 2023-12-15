@@ -80,4 +80,13 @@ allow dnsconfd_t systemd_userdbd_t:unix_stream_socket connectto;
 allow dnsconfd_t tmp_t:dir { add_name create remove_name write read rmdir};
 allow dnsconfd_t tmp_t:file { create unlink write open};
 allow dnsconfd_t tmpfs_t:file { execute read write map };
+
+# Neccessary for Fedora >= 39
+# tempfile module unfortunately transitively imports libgomp,
+# which tries to find out how many CPUs are available on the system by reading
+# /sys/devices/system/cpu/possible file
+# tracked in Fedora selinux upstream https://github.com/fedora-selinux/selinux-policy/issues/1974
+# TODO: Add more fine graded permission
+allow dnsconfd_t sysfs_t:file { read open };
+
 allow unconfined_t dnsconfd_t:dbus send_msg;
