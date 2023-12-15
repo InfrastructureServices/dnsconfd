@@ -8,7 +8,8 @@ Version:        0.0.1
 Release:        1%{?dist}
 Summary:        local DNS cache configuration daemon
 License:        MIT
-Source0:        %{name}-%{version}.tar.gz
+URL:            https://github.com/InfrastructureServices/dnsconfd
+Source0:        %{url}/archive/%{version}/%{name}-%{version}.tar.gz
 Source1:        com.redhat.dnsconfd.conf
 Source2:        dnsconfd.service
 #Source3:        dnsconfd.sysusers
@@ -30,16 +31,20 @@ BuildRequires:  systemd-rpm-macros
 
 Requires:  (%{name}-selinux if selinux-policy-%{selinuxtype})
 Requires:  unbound
-Requires:  python3-gobject
+#Requires:  python3-gobject
 
-Conflicts: systemd-resolved
+#Conflicts: systemd-resolved
 
 %?python_enable_dependency_generator                                            
+
+%description
+Dnsconfd configures local DNS cache services.
 
 # SELinux subpackage
 %package selinux
 Summary:             dnsconfd SELinux policy
 BuildArch:           noarch
+Requires:            %{name} = %{version}-%{release}
 Requires:            selinux-policy-%{selinuxtype}
 Requires(post):      selinux-policy-%{selinuxtype}
 BuildRequires:       selinux-policy-devel
@@ -48,8 +53,14 @@ BuildRequires:       selinux-policy-devel
 %description selinux
 Dnsconfd SELinux policy module.
 
-%description
-Dnsconfd configures local DNS cache services.
+%package unbound
+Summary:             dnsconfd unbound module
+BuildArch:           noarch
+Requires:            %{name} = %{version}-%{release}
+Requires:            unbound
+
+%description unbound
+Dnsconfd management of unbound server
 
 %prep
 %autosetup -n %{name}-%{version}
@@ -85,7 +96,9 @@ install -D -m 0644 %{modulename}.pp.bz2 %{buildroot}%{_datadir}/selinux/packages
 
 install -m 0644 -p %{SOURCE7} %{buildroot}/%{_mandir}/man8/dnsconfd.8
 
-#install -p -D -m 0644 %{SOURCE3} %{buildroot}%{_sysusersdir}/dnsconfd.conf
+%dnl install -p -D -m 0644 %{SOURCE3} %{buildroot}%{_sysusersdir}/dnsconfd.conf
+install -p -D -m 0644 /dev/null %{buildroot}%{_sysusersdir}/dnsconfd.conf
+
 
 %pre selinux
 %selinux_relabel_pre -s %{selinuxtype}
@@ -102,7 +115,7 @@ fi
 %selinux_relabel_post -s %{selinuxtype}
 
 %pre
-#%sysusers_create_compat %{SOURCE3}
+%dnl %sysusers_create_compat %{SOURCE3}
 # This is neccessary because of NetworkManager.
 # It checks whether /etc/resolv.conf is a link and in case, it is not
 # it overwrites it, thus overwrites our configuration.
@@ -115,7 +128,7 @@ fi
 
 %post
 %systemd_post dnsconfd.service
-systemctl enable dnsconfd.service &>/dev/null
+#systemctl enable dnsconfd.service &>/dev/null
 
 %postun
 %systemd_postun dnsconfd.service
@@ -130,7 +143,7 @@ systemctl enable dnsconfd.service &>/dev/null
 %{_unitdir}/dnsconfd.service
 %attr(0755,root,root) /var/log/dnsconfd
 %{_mandir}/man8/dnsconfd.8*
-#%{_sysusersdir}/dnsconfd.conf
+%ghost %{_sysusersdir}/dnsconfd.conf
 
 %files selinux
 %{_datadir}/selinux/packages/%{selinuxtype}/%{modulename}.pp.*

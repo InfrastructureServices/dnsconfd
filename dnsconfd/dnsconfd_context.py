@@ -14,7 +14,8 @@ class DnsconfdContext(dbus.service.Object):
     def __init__(self, object_path, bus_name, config: dict):
         super().__init__(object_path=object_path, bus_name=bus_name)
         self.dns_mgr = None
-        self.sys_mgr = SystemManager(config["resolv_conf_path"])
+        self.my_address = config["listen_address"]
+        self.sys_mgr = SystemManager(config["resolv_conf_path"], self.my_address)
         self.interfaces: dict[InterfaceConfiguration] = {}
 
     def signal_handler(self, signum):
@@ -28,7 +29,7 @@ class DnsconfdContext(dbus.service.Object):
 
     def start_service(self):
         self.dns_mgr = UnboundManager()
-        self.dns_mgr.configure()
+        self.dns_mgr.configure(self.my_address)
         self.dns_mgr.start()
         self.sys_mgr.setResolvconf()
 
