@@ -9,105 +9,55 @@ import logging as lgr
 
 class UnboundManager(DnsManager):
     service_name = "unbound"
+    systemctl = "systemctl"
 
     def __init__(self):
         self.temp_dir_path = None
         self.process = None
         self.zones_to_servers = {}
+        self.validation = False
 
-    def configure(self, my_address):
+    def configure(self, my_address, validation = False):
         if self.temp_dir_path is None:
             self.temp_dir_path = tempfile.mkdtemp()
         self.my_address = my_address
-        lgr.debug(f"Constructing Unbound configuration into {self.temp_dir_path}/unbound.conf")
-        lgr.debug(f"DNS cache is listening on {self.my_address}")
-        with open(f"{self.temp_dir_path}/unbound.conf", "w") as conf_file:
-            conf_file.write(self._constructConfigurationFile())
+        self.validation = validation
+        lgr.debug(f"DNS cache should be listening on {self.my_address}")
 
     def start(self):
-        unbound_args = ["/usr/sbin/unbound", "-d", "-p", "-c", f"{self.temp_dir_path}/unbound.conf"]
-        lgr.debug(f"Starting unbound process as {' '.join(unbound_args)}")
-        self.process = subprocess.Popen(args=unbound_args)
-
-    def _constructConfigurationFile(self) -> str:
-        # TODO adapt this setting to number of working cpus
-        # TODO configuration of validator and debug messages
-        # about the upstream server not supporting DNSSEC
-        conf = f"""
-server:
-	verbosity: 1
-	statistics-interval: 0
-	statistics-cumulative: no
-	extended-statistics: yes
-	num-threads: 4
-	interface-automatic: no
-    interface: {self.my_address}
-	outgoing-port-permit: 32768-60999
-	outgoing-port-avoid: 0-32767
-	outgoing-port-avoid: 61000-65535
-	so-reuseport: yes
-	ip-transparent: yes
-	max-udp-size: 3072
-	edns-tcp-keepalive: yes
-	chroot: ""
-	username: ""
-	directory: "{self.temp_dir_path}"
-	log-time-ascii: yes
-    use-syslog: no
-    logfile: "/var/log/dnsconfd/unbound.log"
-	harden-glue: yes
-	harden-dnssec-stripped: yes
-	harden-below-nxdomain: yes
-	harden-referral-path: yes
-	qname-minimisation: yes
-	aggressive-nsec: yes
-	unwanted-reply-threshold: 10000000
-	prefetch: yes
-	prefetch-key: yes
-	deny-any: yes
-	rrset-roundrobin: yes
-	minimal-responses: yes
-	module-config: "ipsecmod iterator"
-	trust-anchor-signaling: yes
-	root-key-sentinel: yes
-	trusted-keys-file: /etc/unbound/keys.d/*.key
-	auto-trust-anchor-file: "/var/lib/unbound/root.key"
-	val-clean-additional: yes
-	val-permissive-mode: no
-	serve-expired: yes
-	serve-expired-ttl: 14400
-	val-log-level: 1
-	tls-ciphers: "PROFILE=SYSTEM"
-	ede: yes
-	ede-serve-expired: yes
-	ipsecmod-enabled: no
-	ipsecmod-hook:/usr/libexec/ipsec/_unbound-hook
-remote-control:
-	control-enable: yes
-	control-use-cert: "no"
-        """
-        return conf
+        lgr.info(f"Starting {self.service_name}")
+        self._execute_systemctl("start", [self.service_name])
 
     def stop(self):
-        if self.process is None:
-            return
-        lgr.info("Stoping Unbound")
-        self.process.kill()
-        self.process = None
+        lgr.info(f"Stoping {self.service_name}")
+        self._execute_systemctl("stop", [self.service_name])
 
     def clean(self):
+        # FIXME: remove
         lgr.debug("Performing cleanup after unbound")
-        shutil.rmtree(self.temp_dir_path)
         self.temp_dir_path = None
 
     def _execute_cmd(self, command: str):
-        control_args = ["unbound-control", "-c", f"{self.temp_dir_path}/unbound.conf", f'{command}']
+        control_args = ["unbound-control", f'{command}']
         lgr.debug(f"Executing unbound-control as {' '.join(control_args)}")
-        proc = subprocess.run(control_args, stdout=subprocess.DEVNULL)
+        proc = subprocess.run(control_args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        lgr.debug(f"Returned code {proc.returncode}, stdout:\"{proc.stdout}\", stderr:\"{proc.stderr}\"")
+        return proc.returncode
+
+    # TODO: move out to common classes
+    def _execute_systemctl(self, command: str, args: list):
+        control_args = [self.systemctl, command]
+        control_args.extend(args)
+        lgr.debug(f"Executing systemctl as {' '.join(control_args)}")
+        proc = subprocess.run(control_args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        lgr.debug(f"Returned code {proc.returncode}, stdout:\"{proc.stdout}\", stderr:\"{proc.stderr}\"")
         return proc.returncode
 
     def update(self, new_zones_to_servers: dict[list[ServerDescription]]):
         lgr.debug("Unbound manager processing update")
+        insecure = "+i"
+        if self.validation:
+            insecure = ""
 
         added_zones = [zone for zone in new_zones_to_servers.keys() if zone not in self.zones_to_servers.keys()]
         removed_zones = [zone for zone in self.zones_to_servers.keys() if zone not in new_zones_to_servers.keys()]
@@ -124,7 +74,7 @@ remote-control:
             self._execute_cmd(f"forward_remove {zone}")
         for zone in added_zones:
             servers_strings = [srv.to_unbound_string() for srv in new_zones_to_servers[zone] if srv.priority == new_zones_to_servers[zone][0].priority]
-            self._execute_cmd(f"forward_add {zone} {' '.join(servers_strings)}")
+            self._execute_cmd(f"forward_add {insecure} {zone} {' '.join(servers_strings)}")
         for zone in stable_zones:
             if (self.zones_to_servers[zone] == new_zones_to_servers[zone]):
                 lgr.debug(f"Zone {zone} is the same in old and new config thus skipping it")
@@ -132,7 +82,7 @@ remote-control:
             lgr.debug(f"Updating zone {zone}")
             self._execute_cmd(f"forward_remove {zone}")
             servers_strings = [srv.to_unbound_string() for srv in new_zones_to_servers[zone] if srv.priority == new_zones_to_servers[zone][0].priority]
-            self._execute_cmd(f"forward_add {zone} {' '.join(servers_strings)}")
+            self._execute_cmd(f"forward_add {insecure} {zone} {' '.join(servers_strings)}")
 
         self.zones_to_servers = new_zones_to_servers
         lgr.info(f"Unbound updated to configuration: {self.get_status()}")
