@@ -17,6 +17,7 @@ Source4:        dnsconfd.fc
 Source5:        dnsconfd.te
 Source6:        LICENSE
 Source7:        dnsconfd.8
+Source8:        dnsconfd.sysconfig
 
 BuildArch:      noarch
 
@@ -86,8 +87,8 @@ mkdir   -m 0755 -p %{buildroot}/%{_mandir}/man8
 
 install -m 0644 -p %{SOURCE1} %{buildroot}%{_sysconfdir}/dbus-1/system.d/com.redhat.dnsconfd.conf
 install -m 0644 -p %{SOURCE2} %{buildroot}%{_unitdir}/dnsconfd.service
+install -m 0644 -p %{SOURCE8} %{buildroot}%{_sysconfdir}/sysconfig/dnsconfd
 
-echo "DBUS_NAME=org.freedesktop.resolve1" > %{buildroot}%{_sysconfdir}/sysconfig/dnsconfd
 touch %{buildroot}/var/log/dnsconfd/unbound.log
 
 mv %{buildroot}%{_bindir}/dnsconfd %{buildroot}%{_sbindir}/dnsconfd
