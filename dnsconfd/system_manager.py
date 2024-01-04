@@ -1,4 +1,6 @@
 import logging as lgr
+import os
+import os.path
 
 class SystemManager:
     """Maintain /etc/resolv.conf including backups."""
@@ -8,17 +10,27 @@ class SystemManager:
     OPTIONS = "edns0 trust-ad"
 
     def __init__(self, resolv_conf_path, my_address):
+        # File contents
         self._backup = None
+        # Original symlink destination
+        self._backup_link = None
         self._resolv_conf_path = resolv_conf_path
         self.my_address = my_address
         self.resolvconf_altered = False
 
     def setResolvconf(self):
         try:
-            with open(self._resolv_conf_path, "r") as orig_resolv:
-                self._backup = orig_resolv.read()
+            if os.path.islink(self._resolv_conf_path):
+                self._backup_link = os.readlink(self._resolv_conf_path)
+                lgr.debug(f"Resolvconf is symlink to {self._backup_link}")
+                os.unlink(self._resolv_conf_path)
+            else:
+                lgr.debug(f"Resolvconf is plain file")
+                with open(self._resolv_conf_path, "r") as orig_resolv:
+                    self._backup = orig_resolv.read()
         except FileNotFoundError as e:
             lgr.debug(f"Not present resolvconf: {e}")
+
         with open(self._resolv_conf_path, "w") as new_resolv:
             new_resolv.write(self._getResolvconfString())
         self.resolvconf_altered = True
@@ -33,9 +45,14 @@ class SystemManager:
         return conf
 
     def revertResolvconf(self):
-        with open(self._resolv_conf_path, "w") as new_resolv:
-            new_resolv.write(self._backup)
-        self.resolvconf_altered = False
+        if self._backup is not None:
+            with open(self._resolv_conf_path, "w") as new_resolv:
+                new_resolv.write(self._backup)
+            self.resolvconf_altered = False
+        elif self._backup_link is not None:
+            os.unlink(self._resolv_conf_path)
+            os.symlink(self._backup_link, self._resolv_conf_path)
+            self.resolvconf_altered = False
 
     def updateResolvconf(self, search_domains):
         lgr.debug(f"Updating resolvconf with domains {search_domains}")
