@@ -8,8 +8,11 @@ class SystemManager:
         self.resolvconf_altered = False
 
     def setResolvconf(self):
-        with open(self._resolv_conf_path, "r") as orig_resolv:
-            self._backup = orig_resolv.read()
+        try:
+            with open(self._resolv_conf_path, "r") as orig_resolv:
+                self._backup = orig_resolv.read()
+        except FileNotFoundError as e:
+            lgr.debug(f"Not present resolvconf: {e}")
         with open(self._resolv_conf_path, "w") as new_resolv:
             new_resolv.write(self._getResolvconfString())
         self.resolvconf_altered = True
