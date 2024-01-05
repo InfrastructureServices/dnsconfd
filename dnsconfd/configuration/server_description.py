@@ -1,8 +1,8 @@
 import socket
 
 class ServerDescription:
-    def __init__(self, address, port=53, sni=None, address_family=2, priority = 50):
-        self.address_family = address_family
+    def __init__(self, af, address, port=None, sni=None, priority = 50):
+        self.address_family = af
         self.address = address
         self.port = port
         self.sni = sni
