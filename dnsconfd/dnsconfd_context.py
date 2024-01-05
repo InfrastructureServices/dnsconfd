@@ -34,25 +34,31 @@ class DnsconfdContext(dbus.service.Object):
         self.dns_mgr.start()
         self.sys_mgr.setResolvconf()
 
-    def ifname(self, interface_index):
+    def ifname(self, interface_index: int):
         try:
             return socket.if_indextoname(interface_index)
         except OSError as e:
             lgr.error(f"No interface name for {interface_index}: {e}")
             return str(interface_index)
 
-    def log_servers(self, interface_index, servers):
+    def log_servers(self, interface_index: int, servers: list[ServerDescription]):
+        """Log user friendly representation of servers."""
         ifname = self.ifname(interface_index)
         nice_servers = ' '.join([str(server) for server in servers])
         lgr.info(f"Incoming DNS servers on {ifname}: {nice_servers}")
 
-    def ifprio(self, interface_cfg):
+    def ifprio(self, interface_cfg: InterfaceConfiguration):
         if interface_cfg.isInterfaceWireless():
             lgr.debug(f"Interface {interface_index} is wireless")
             prio = 50
         else:
             prio = 100
         return prio
+
+    def iface_config(self, interface_index: int):
+        """Get existing or create new default interface configuration."""
+        return self.interfaces.setdefault(interface_index, InterfaceConfiguration(interface_index))
+
 
     # From network manager code investigation it seems that these methods are called in
     # the following sequence: SetLinkDomains, SetLinkDefaultRoute, SetLinkMulticastDNS,
@@ -68,39 +74,35 @@ class DnsconfdContext(dbus.service.Object):
                          in_signature='ia(iay)', out_signature='')
     def SetLinkDNS(self, interface_index: int, addresses: list[(int, bytearray)]):
         lgr.debug(f"SetLinkDNS called, interface index: {interface_index}, addresses: {addresses}")
-        interface_cfg = self.interfaces.get(interface_index, InterfaceConfiguration(interface_index))
+        interface_cfg = self.iface_config(interface_index)
         prio = self.ifprio(interface_cfg)
         servers = [ServerDescription(addr, address_family=fam, priority=prio) for fam, addr in addresses]
         interface_cfg.servers = servers
         self.log_servers(interface_index, servers)
-        self.interfaces[interface_index] = interface_cfg
 
     @dbus.service.method(dbus_interface='org.freedesktop.resolve1.Manager',
                          in_signature='ia(iayqs)', out_signature='')
     def SetLinkDNSEx(self, interface_index: int, addresses: list[(int, bytearray, int, str)]):
         lgr.debug(f"SetLinkDNSEx called, interface index: {interface_index}, addresses: {addresses}")
-        interface_cfg = self.interfaces.get(interface_index, InterfaceConfiguration(interface_index))
+        interface_cfg = self.iface_config(interface_index)
         prio = self.ifprio(interface_cfg)
         servers = [ServerDescription(addr, port, sni, fam, prio) for fam, addr, port, sni in addresses]
         interface_cfg.servers = servers
         self.log_servers(interface_index, servers)
-        self.interfaces[interface_index] = interface_cfg
 
     @dbus.service.method(dbus_interface='org.freedesktop.resolve1.Manager',
                          in_signature='ia(sb)', out_signature='')
     def SetLinkDomains(self, interface_index: int, domains: list[(str, bool)]):
         lgr.debug(f"SetLinkDomains called, interface index: {interface_index}, domains: {domains}")
-        interface_cfg = self.interfaces.get(interface_index, InterfaceConfiguration(interface_index))
+        interface_cfg = self.iface_config(interface_index)
         interface_cfg.domains = [(str(domain), bool(is_routing)) for domain, is_routing in domains]
-        self.interfaces[interface_index] = interface_cfg
 
     @dbus.service.method(dbus_interface='org.freedesktop.resolve1.Manager',
                          in_signature='ib', out_signature='')
     def SetLinkDefaultRoute(self, interface_index: int, is_default: bool):
         lgr.debug(f"SetLinkDefaultRoute called, interface index: {interface_index}, is_default: {is_default}")
-        interface_cfg = self.interfaces.get(interface_index, InterfaceConfiguration(interface_index))
+        interface_cfg = self.iface_config(interface_index)
         interface_cfg.is_default = is_default
-        self.interfaces[interface_index] = interface_cfg
 
     @dbus.service.method(dbus_interface='org.freedesktop.resolve1.Manager',
                          in_signature='is', out_signature='')
@@ -126,9 +128,8 @@ class DnsconfdContext(dbus.service.Object):
                          in_signature='is', out_signature='')
     def SetLinkDNSSEC(self, interface_index: int, mode: str):
         lgr.debug(f"SetLinkDNSSEC called and ignored, interface index: {interface_index}, mode: {mode}")
-        interface_cfg = self.interfaces.get(interface_index, InterfaceConfiguration(interface_index))
+        interface_cfg = self.iface_config(interface_index)
         interface_cfg.dns_over_tls = False if mode == "no" or mode == "allow-downgrade" else True
-        self.interfaces[interface_index] = interface_cfg
 
     @dbus.service.method(dbus_interface='org.freedesktop.resolve1.Manager',
                          in_signature='ias', out_signature='')
@@ -143,6 +144,7 @@ class DnsconfdContext(dbus.service.Object):
     @dbus.service.method(dbus_interface='org.freedesktop.resolve1.Manager',
                          in_signature='', out_signature='')
     def FlushCaches(self):
+        # TODO: we need ability to flush just a subtree, not always all records
         lgr.debug(f"FlushCaches called and ignored")
 
     @dbus.service.method(dbus_interface='org.freedesktop.resolve1.Dnsconfd',
