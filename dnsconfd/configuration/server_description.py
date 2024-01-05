@@ -10,7 +10,8 @@ class ServerDescription:
 
     def to_unbound_string(self) -> str:
         srv_string = socket.inet_ntop(self.address_family, self.address)
-        srv_string += f"@{self.port}"
+        if self.port:
+            srv_string += f"@{self.port}"
         if self.sni:
             srv_string += f"#{self.sni}"
         return srv_string

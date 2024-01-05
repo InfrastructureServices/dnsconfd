@@ -50,6 +50,7 @@ class DnsconfdContext(dbus.service.Object):
         else:
             prio = 100
         servers = [ServerDescription(addr, address_family=fam, priority=prio) for fam, addr in addresses]
+        lgr.debug(f"SetLinkDNS called, interface index: {interface_index}, servers: {servers}")
         interface_cfg.servers = servers
         self.interfaces[interface_index] = interface_cfg
 
@@ -64,6 +65,7 @@ class DnsconfdContext(dbus.service.Object):
             prio = 100
         interface_cfg = self.interfaces.get(interface_index, InterfaceConfiguration(interface_index))
         servers = [ServerDescription(addr, port, sni, fam, prio) for fam, addr, port, sni in addresses]
+        lgr.debug(f"SetLinkDNSEx called, interface index: {interface_index}, servers: {servers}")
         interface_cfg.servers = servers
         self.interfaces[interface_index] = interface_cfg
 
@@ -97,7 +99,7 @@ class DnsconfdContext(dbus.service.Object):
     @dbus.service.method(dbus_interface='org.freedesktop.resolve1.Manager',
                          in_signature='is', out_signature='')
     def SetLinkDNSOverTLS(self, interface_index: int, mode: str):
-        lgr.debug(f"SetLinkDNSOverTLS called, interface index: {interface_index}, mode: {mode}")
+        lgr.debug(f"SetLinkDNSOverTLS called, interface index: {interface_index}, mode: '{mode}'")
         interface_cfg: InterfaceConfiguration = self.interfaces[interface_index]
         interface_cfg.dns_over_tls = True if mode == "yes" or mode == "opportunistic" else False
         # now let dns manager deal with update in its own way
