@@ -130,6 +130,11 @@ class DnsconfdContext(dbus.service.Object):
     def RevertLink(self, interface_index: int):
         lgr.debug(f"RevertLink called and ignored, interface index: {interface_index}")
 
+    @dbus.service.method(dbus_interface='org.freedesktop.resolve1.Manager',
+                         in_signature='', out_signature='')
+    def FlushCaches(self):
+        lgr.debug(f"FlushCaches called and ignored")
+
     @dbus.service.method(dbus_interface='org.freedesktop.resolve1.Dnsconfd',
                          in_signature='', out_signature='s')
     def Status(self):
