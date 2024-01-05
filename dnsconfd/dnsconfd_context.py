@@ -43,9 +43,16 @@ class DnsconfdContext(dbus.service.Object):
 
     def log_servers(self, interface_index, servers):
         ifname = self.ifname(interface_index)
-        nice_servers = [str(server) for server in servers]
-        lgr.info("Incoming DNS servers on {ifname}: {servers}".format(
-            ifname=ifname, servers=' '.join(nice_servers)))
+        nice_servers = ' '.join([str(server) for server in servers])
+        lgr.info(f"Incoming DNS servers on {ifname}: {nice_servers}")
+
+    def ifprio(self, interface_cfg):
+        if interface_cfg.isInterfaceWireless():
+            lgr.debug(f"Interface {interface_index} is wireless")
+            prio = 50
+        else:
+            prio = 100
+        return prio
 
     # From network manager code investigation it seems that these methods are called in
     # the following sequence: SetLinkDomains, SetLinkDefaultRoute, SetLinkMulticastDNS,
@@ -62,11 +69,7 @@ class DnsconfdContext(dbus.service.Object):
     def SetLinkDNS(self, interface_index: int, addresses: list[(int, bytearray)]):
         lgr.debug(f"SetLinkDNS called, interface index: {interface_index}, addresses: {addresses}")
         interface_cfg = self.interfaces.get(interface_index, InterfaceConfiguration(interface_index))
-        if interface_cfg.isInterfaceWireless():
-            prio = 50
-            lgr.debug(f"Interface {interface_index} is wireless")
-        else:
-            prio = 100
+        prio = self.ifprio(interface_cfg)
         servers = [ServerDescription(addr, address_family=fam, priority=prio) for fam, addr in addresses]
         interface_cfg.servers = servers
         self.log_servers(interface_index, servers)
@@ -76,12 +79,8 @@ class DnsconfdContext(dbus.service.Object):
                          in_signature='ia(iayqs)', out_signature='')
     def SetLinkDNSEx(self, interface_index: int, addresses: list[(int, bytearray, int, str)]):
         lgr.debug(f"SetLinkDNSEx called, interface index: {interface_index}, addresses: {addresses}")
-        if interface_cfg.isInterfaceWireless():
-            prio = 50
-            lgr.debug(f"Interface {interface_index} is wireless")
-        else:
-            prio = 100
         interface_cfg = self.interfaces.get(interface_index, InterfaceConfiguration(interface_index))
+        prio = self.ifprio(interface_cfg)
         servers = [ServerDescription(addr, port, sni, fam, prio) for fam, addr, port, sni in addresses]
         interface_cfg.servers = servers
         self.log_servers(interface_index, servers)
