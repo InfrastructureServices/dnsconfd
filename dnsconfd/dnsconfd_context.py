@@ -33,11 +33,18 @@ class DnsconfdContext(dbus.service.Object):
         self.dns_mgr.start()
         self.sys_mgr.setResolvconf()
 
+    def log_servers(self, interface_index, servers):
+        lgr.info(f"Incoming DNS servers on {interface_index}: {servers}")
+
     # From network manager code investigation it seems that these methods are called in
     # the following sequence: SetLinkDomains, SetLinkDefaultRoute, SetLinkMulticastDNS,
     # SetLinkLLMNR, SetLinkDNS, SetLinkDNSOverTLS
     # until proven otherwise, we will expect this to be true at all cases
     # but TODO ensure consistent state of service during partial updates
+
+    # Implements systemd-resolved interfaces defined at:
+    # https://www.freedesktop.org/software/systemd/man/latest/org.freedesktop.resolve1.html
+    # or man 5 org.freedesktop.resolve1
 
     @dbus.service.method(dbus_interface='org.freedesktop.resolve1.Manager',
                          in_signature='ia(iay)', out_signature='')
@@ -50,8 +57,8 @@ class DnsconfdContext(dbus.service.Object):
         else:
             prio = 100
         servers = [ServerDescription(addr, address_family=fam, priority=prio) for fam, addr in addresses]
-        lgr.debug(f"SetLinkDNS called, interface index: {interface_index}, servers: {servers}")
         interface_cfg.servers = servers
+        self.log_servers(interface_index, servers)
         self.interfaces[interface_index] = interface_cfg
 
     @dbus.service.method(dbus_interface='org.freedesktop.resolve1.Manager',
@@ -65,8 +72,8 @@ class DnsconfdContext(dbus.service.Object):
             prio = 100
         interface_cfg = self.interfaces.get(interface_index, InterfaceConfiguration(interface_index))
         servers = [ServerDescription(addr, port, sni, fam, prio) for fam, addr, port, sni in addresses]
-        lgr.debug(f"SetLinkDNSEx called, interface index: {interface_index}, servers: {servers}")
         interface_cfg.servers = servers
+        self.log_servers(interface_index, servers)
         self.interfaces[interface_index] = interface_cfg
 
     @dbus.service.method(dbus_interface='org.freedesktop.resolve1.Manager',
