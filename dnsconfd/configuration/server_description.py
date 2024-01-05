@@ -26,3 +26,8 @@ class ServerDescription:
 
     def __str__(self) -> str:
         return self.to_unbound_string()
+
+    @classmethod
+    def servers_string(cls, servers: list, separator=' '):
+        """Return nice formatted string of list of servers."""
+        return separator.join([str(server) for server in servers])
