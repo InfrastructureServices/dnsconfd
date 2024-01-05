@@ -25,7 +25,7 @@ class InterfaceConfiguration:
         self.dns_over_tls = dns_over_tls
         self.dnssec = dnssec
         self.is_default = is_default
-        self._interface_index = interface_index
+        self.interface_index = interface_index
 
     def __str__(self) -> str:
         """ Create string representation of instance
@@ -35,7 +35,8 @@ class InterfaceConfiguration:
         :return: String representation of this instance
         :rtype: str
         """
-        description = f"{{index {self._interface_index}, domains: {self.domains}, servers: {self.servers}, "
+        ifname = self.ifname()
+        description = f"{{iface {ifname} (#{self.interface_index}), domains: {self.domains}, servers: {self.servers}, "
         description += f"is_default: {self.is_default}}}"
         return  description
 
@@ -45,8 +46,14 @@ class InterfaceConfiguration:
         :return: True if interface is wireless, otherwise False
         :rtype: bool
         """
-        name = socket.if_indextoname(self._interface_index)
         try:
+            name = socket.if_indextoname(self.interface_index)
             return os.path.isdir(f"/sys/class/net/{name}/wireless")
         except OSError:
             return False
+
+    def ifname(self) -> str:
+        try:
+            return socket.if_indextoname(self.interface_index)
+        except OSError as e:
+            return str(self.interface_index)

@@ -34,17 +34,9 @@ class DnsconfdContext(dbus.service.Object):
         self.dns_mgr.start()
         self.sys_mgr.setResolvconf()
 
-    def ifname(self, interface_index: int):
-        try:
-            return socket.if_indextoname(interface_index)
-        except OSError as e:
-            lgr.error(f"No interface name for {interface_index}: {e}")
-            return str(interface_index)
-
-    def log_servers(self, interface_index: int, servers: list[ServerDescription]):
+    def log_servers(self, ifname: str, servers: list[ServerDescription]):
         """Log user friendly representation of servers."""
-        ifname = self.ifname(interface_index)
-        nice_servers = ' '.join([str(server) for server in servers])
+        nice_servers = ServerDescription.servers_string(servers)
         lgr.info(f"Incoming DNS servers on {ifname}: {nice_servers}")
 
     def ifprio(self, interface_cfg: InterfaceConfiguration):
@@ -78,7 +70,7 @@ class DnsconfdContext(dbus.service.Object):
         prio = self.ifprio(interface_cfg)
         servers = [ServerDescription(addr, address_family=fam, priority=prio) for fam, addr in addresses]
         interface_cfg.servers = servers
-        self.log_servers(interface_index, servers)
+        self.log_servers(interface_cfg.ifname(), servers)
 
     @dbus.service.method(dbus_interface='org.freedesktop.resolve1.Manager',
                          in_signature='ia(iayqs)', out_signature='')
@@ -88,7 +80,7 @@ class DnsconfdContext(dbus.service.Object):
         prio = self.ifprio(interface_cfg)
         servers = [ServerDescription(addr, port, sni, fam, prio) for fam, addr, port, sni in addresses]
         interface_cfg.servers = servers
-        self.log_servers(interface_index, servers)
+        self.log_servers(interface_cfg.ifname(), servers)
 
     @dbus.service.method(dbus_interface='org.freedesktop.resolve1.Manager',
                          in_signature='ia(sb)', out_signature='')
