@@ -19,6 +19,7 @@ Source6:        LICENSE
 Source7:        dnsconfd.8
 Source8:        dnsconfd.sysconfig
 Source9:        dnsconfd.service.d-unbound.conf
+Source10:       unbound-dnsconfd.conf
 
 BuildArch:      noarch
 
@@ -81,6 +82,7 @@ bzip2 -9 %{modulename}.pp
 %install
 %py3_install
 mkdir   -m 0755 -p %{buildroot}%{_sysconfdir}/dbus-1/system.d/
+mkdir   -m 0755 -p %{buildroot}%{_sysconfdir}/unbound/conf.d/
 mkdir   -m 0755 -p %{buildroot}%{_unitdir}/dnsconfd.service.d
 mkdir   -m 0755 -p %{buildroot}%{_sysconfdir}/sysconfig
 mkdir   -m 0755 -p %{buildroot}%{_sbindir}
@@ -91,6 +93,7 @@ install -m 0644 -p %{SOURCE1} %{buildroot}%{_sysconfdir}/dbus-1/system.d/com.red
 install -m 0644 -p %{SOURCE8} %{buildroot}%{_sysconfdir}/sysconfig/dnsconfd
 install -m 0644 -p %{SOURCE2} %{buildroot}%{_unitdir}/dnsconfd.service
 install -m 0644 -p %{SOURCE9} %{buildroot}%{_unitdir}/dnsconfd.service.d/unbound.conf
+install -m 0644 -p %{SOURCE10} %{buildroot}%{_sysconfdir}/unbound/conf.d/unbound.conf
 
 touch %{buildroot}%{_var}/log/dnsconfd/unbound.log
 
@@ -146,6 +149,7 @@ fi
 
 %files unbound
 %{_unitdir}/dnsconfd.service.d/unbound.conf
+%config(noreplace) %{_sysconfdir}/unbound/conf.d/unbound.conf
 
 %changelog
 * Tue Aug 01 2023 Tomas Korbar <tkorbar@redhat.com> - 0.0.1-1
