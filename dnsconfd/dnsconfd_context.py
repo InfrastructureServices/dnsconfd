@@ -34,13 +34,18 @@ class DnsconfdContext(dbus.service.Object):
         self.dns_mgr.start()
         self.sys_mgr.setResolvconf()
 
-    def log_servers(self, interface_index, servers):
+    def ifname(self, interface_index):
         try:
-            ifname = socket.if_indextoname(interface_index)
+            return socket.if_indextoname(interface_index)
         except OSError as e:
             lgr.error(f"No interface name for {interface_index}: {e}")
-            ifname = str(interface_index)
-        lgr.info(f"Incoming DNS servers on {ifname}: {servers}")
+            return str(interface_index)
+
+    def log_servers(self, interface_index, servers):
+        ifname = self.ifname(interface_index)
+        nice_servers = [str(server) for server in servers]
+        lgr.info("Incoming DNS servers on {ifname}: {servers}".format(
+            ifname=ifname, servers=' '.join(nice_servers)))
 
     # From network manager code investigation it seems that these methods are called in
     # the following sequence: SetLinkDomains, SetLinkDefaultRoute, SetLinkMulticastDNS,
