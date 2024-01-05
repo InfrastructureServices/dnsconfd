@@ -3,7 +3,7 @@ import socket
 class ServerDescription:
     def __init__(self, af, address, port=None, sni=None, priority = 50):
         self.address_family = af
-        self.address = address
+        self.address = bytes(address)
         self.port = port
         self.sni = sni
         self.priority = priority
