@@ -68,7 +68,7 @@ class DnsconfdContext(dbus.service.Object):
         lgr.debug(f"SetLinkDNS called, interface index: {interface_index}, addresses: {addresses}")
         interface_cfg = self.iface_config(interface_index)
         prio = self.ifprio(interface_cfg)
-        servers = [ServerDescription(addr, address_family=fam, priority=prio) for fam, addr in addresses]
+        servers = [ServerDescription(fam, addr, priority=prio) for fam, addr in addresses]
         interface_cfg.servers = servers
         self.log_servers(interface_cfg.ifname(), servers)
 
@@ -78,7 +78,7 @@ class DnsconfdContext(dbus.service.Object):
         lgr.debug(f"SetLinkDNSEx called, interface index: {interface_index}, addresses: {addresses}")
         interface_cfg = self.iface_config(interface_index)
         prio = self.ifprio(interface_cfg)
-        servers = [ServerDescription(addr, port, sni, fam, prio) for fam, addr, port, sni in addresses]
+        servers = [ServerDescription(fam, addr, port, sni, prio) for fam, addr, port, sni in addresses]
         interface_cfg.servers = servers
         self.log_servers(interface_cfg.ifname(), servers)
 
