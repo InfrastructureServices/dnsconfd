@@ -26,11 +26,13 @@ class UnboundManager(DnsManager):
 
     def start(self):
         lgr.info(f"Starting {self.service_name}")
-        self._execute_systemctl("start", [self.service_name])
+        # Rely on systemd snippet to bring it up
+        self._execute_cmd("status")
+        #self._execute_systemctl("start", [self.service_name])
 
     def stop(self):
         lgr.info(f"Stoping {self.service_name}")
-        self._execute_systemctl("stop", [self.service_name])
+        #self._execute_systemctl("stop", [self.service_name])
 
     def clean(self):
         # FIXME: remove
