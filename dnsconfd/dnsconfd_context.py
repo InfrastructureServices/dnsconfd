@@ -8,6 +8,7 @@ import logging as lgr
 import sys
 import json
 import dbus.service
+import socket
 
 
 class DnsconfdContext(dbus.service.Object):
@@ -34,7 +35,12 @@ class DnsconfdContext(dbus.service.Object):
         self.sys_mgr.setResolvconf()
 
     def log_servers(self, interface_index, servers):
-        lgr.info(f"Incoming DNS servers on {interface_index}: {servers}")
+        try:
+            ifname = socket.if_indextoname(interface_index)
+        except OSError as e:
+            lgr.error(f"No interface name for {interface_index}: {e}")
+            ifname = str(interface_index)
+        lgr.info(f"Incoming DNS servers on {ifname}: {servers}")
 
     # From network manager code investigation it seems that these methods are called in
     # the following sequence: SetLinkDomains, SetLinkDefaultRoute, SetLinkMulticastDNS,
