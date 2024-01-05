@@ -32,8 +32,8 @@ BuildRequires:  systemd-rpm-macros
 %{?sysusers_requires_compat}
 
 Requires:  (%{name}-selinux if selinux-policy-%{selinuxtype})
-Requires:  unbound
-#Requires:  python3-gobject
+Requires:  %{name}-cache
+Suggests:  %{name}-unbound
 
 #Conflicts: systemd-resolved
 
