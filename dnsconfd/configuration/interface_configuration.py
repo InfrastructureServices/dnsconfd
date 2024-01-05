@@ -1,6 +1,7 @@
 import socket
 import os.path
 
+from dnsconfd.configuration import ServerDescription
 
 class InterfaceConfiguration:
     """ Object holding configuration of interface as systemd-resolved would describe it
@@ -36,7 +37,9 @@ class InterfaceConfiguration:
         :rtype: str
         """
         ifname = self.ifname()
-        description = f"{{iface {ifname} (#{self.interface_index}), domains: {self.domains}, servers: {self.servers}, "
+        domains_str = ' '.join(self.domains)
+        servers_str = ServerDescription.servers_string(self.servers)
+        description = f"{{iface {ifname} (#{self.interface_index}), domains: {domains_str}, servers: {servers_str}, "
         description += f"is_default: {self.is_default}}}"
         return  description
 
