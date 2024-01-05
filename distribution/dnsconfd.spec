@@ -120,19 +120,9 @@ fi
 
 %pre
 %dnl %sysusers_create_compat %{SOURCE3}
-# This is neccessary because of NetworkManager.
-# It checks whether /etc/resolv.conf is a link and in case, it is not
-# it overwrites it, thus overwrites our configuration.
-# The test of mountpoint ensures that we wont try to overwrite resolv.conf
-# in container
-#if ! mountpoint /etc/resolv.conf &> /dev/null; then
-#    rm -f /etc/resolv.conf
-#    ln -s /usr/lib/systemd/resolv.conf /etc/resolv.conf
-#fi
 
 %post
 %systemd_post dnsconfd.service
-#systemctl enable dnsconfd.service &>/dev/null
 
 %postun
 %systemd_postun dnsconfd.service
