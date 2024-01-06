@@ -40,8 +40,9 @@ purposes by executing `$ ./tests/build_package.sh`
 ## Known limitations
 
  - Unfortunately, intergration with NetworkManager is now only possible
-   when Dnsconfd is allowed to own org.freedesktop.resolve1 DBus name,
-   as NetworkManager does not support use of any another.
+   when Dnsconfd is allowed to own
+   [org.freedesktop.resolve1](https://www.freedesktop.org/software/systemd/man/latest/org.freedesktop.resolve1.html)
+   DBus name, as NetworkManager does not support use of any another.
 
  - Dnsconfd has to run as a root user, because NetworkManager forces us
    to use one of currently known resolv.conf stub files locations and
@@ -49,13 +50,17 @@ purposes by executing `$ ./tests/build_package.sh`
 
  - DNSSEC validation is turned off to prevent potential problems. On well
    working networks it should work correctly. It disables validation even when
-   dnsconfd.service is not started.
+   *dnsconfd.service* is not started.
 
 ## Plans for future
 
- - Support more cache backends, at least BIND9 and dnsmasq.
+ - Support more cache backends, at least *BIND9* and *dnsmasq*.
  - Have special handling of captive portals. Take inspiration from dnssec-trigger.
  - Have working DNS over TLS configured via NM.
  - Implement own NM dns plugin, allowing us to not conflict with systemd-resolved
+ - Have a nice frontend ``dnsconfctl``, similar to ``resolvectl``. Present current
+   configuration in it, have it even localized.
  - Support for chain of servers, such as dnsmasq+dnsdist to provide DoT uplink even
    for dnsmasq or BIND 9.16 and earlier, which do not support it natively.
+ - Support configuration from alternative network configuration daemons, like
+   *systemd-networkd* or *dhcpcd*.
