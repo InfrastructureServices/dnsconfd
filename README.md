@@ -15,7 +15,7 @@ together with *systemd-resolved.service* at the same time.
 
 - ``systemctl disable --now systemd-resolved``
 - ``systemctl mask systemd-resolved`` - prevents conflict of dbus service names
-- ``dnsconfd --enable`` - modifies NetworkManager to explicitly use systemd-resolved dbus API
+- ``dnsconfd config nm_enable`` - modifies NetworkManager to explicitly use systemd-resolved dbus API
 - ``systemctl enable --now dnsconfd``
 
 ## Testing
