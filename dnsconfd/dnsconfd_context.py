@@ -41,7 +41,7 @@ class DnsconfdContext(dbus.service.Object):
 
     def ifprio(self, interface_cfg: InterfaceConfiguration):
         if interface_cfg.isInterfaceWireless():
-            lgr.debug(f"Interface {interface_index} is wireless")
+            lgr.debug(f"Interface {interface_cfg.interface_index} is wireless")
             prio = 50
         else:
             prio = 100
