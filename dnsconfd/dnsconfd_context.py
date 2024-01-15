@@ -8,8 +8,6 @@ import logging as lgr
 import sys
 import json
 import dbus.service
-import socket
-
 
 class DnsconfdContext(dbus.service.Object):
     def __init__(self, object_path, bus_name, config: dict):

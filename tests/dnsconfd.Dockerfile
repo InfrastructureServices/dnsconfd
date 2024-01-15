@@ -1,4 +1,4 @@
-FROM quay.io/fedora/fedora:38
+FROM quay.io/fedora/fedora:37
 
 COPY ./*.noarch.rpm ./
 RUN dnf install -y --setopt=install_weak_deps=False --setopt=tsflags=nodocs systemd \
@@ -10,5 +10,9 @@ RUN dnf install -y --setopt=install_weak_deps=False --setopt=tsflags=nodocs syst
 # this may be a bit of a hack but it is safer
 RUN sed -i "s#/sys/class/net/#/tmp/is_wireless/#" /usr/lib/python3.11/site-packages/dnsconfd/configuration/interface_configuration.py \
     && echo 'LOG_LEVEL=DEBUG' >> /etc/sysconfig/dnsconfd
+
+RUN printf "[main]\ndns=systemd-resolved\nrc-manager=unmanaged\n" > /etc/NetworkManager/conf.d/dnsconf.conf
+# enable dnsconfd
+RUN systemctl enable dnsconfd
 
 ENTRYPOINT /usr/sbin/init

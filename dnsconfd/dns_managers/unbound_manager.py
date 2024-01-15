@@ -26,9 +26,7 @@ class UnboundManager(DnsManager):
 
     def start(self):
         lgr.info(f"Starting {self.service_name}")
-        # Rely on systemd snippet to bring it up
-        self._execute_cmd("status")
-        #self._execute_systemctl("start", [self.service_name])
+        self._execute_systemctl("start", ["unbound"])
 
     def stop(self):
         lgr.info(f"Stoping {self.service_name}")
@@ -48,8 +46,7 @@ class UnboundManager(DnsManager):
 
     # TODO: move out to common classes
     def _execute_systemctl(self, command: str, args: list):
-        control_args = [self.systemctl, command]
-        control_args.extend(args)
+        control_args = [self.systemctl, command] + args
         lgr.debug(f"Executing systemctl as {' '.join(control_args)}")
         proc = subprocess.run(control_args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         lgr.debug(f"Returned code {proc.returncode}, stdout:\"{proc.stdout}\", stderr:\"{proc.stderr}\"")

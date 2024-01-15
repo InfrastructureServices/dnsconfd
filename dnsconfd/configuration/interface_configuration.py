@@ -37,7 +37,7 @@ class InterfaceConfiguration:
         :rtype: str
         """
         ifname = self.ifname()
-        domains_str = ' '.join(self.domains)
+        domains_str = ' '.join([domain for (domain, is_routing) in self.domains])
         servers_str = ServerDescription.servers_string(self.servers)
         description = f"{{iface {ifname} (#{self.interface_index}), domains: {domains_str}, servers: {servers_str}, "
         description += f"is_default: {self.is_default}}}"

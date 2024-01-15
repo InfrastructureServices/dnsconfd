@@ -1,6 +1,8 @@
+from dnsconfd.network_manager import NetworkManager
+
 from dbus import DBusException
-from nm import NetworkManager
 import dbus
+
 
 class CLI_Commands:
     @staticmethod

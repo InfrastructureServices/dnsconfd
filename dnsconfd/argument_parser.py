@@ -8,6 +8,7 @@ class DnsconfdArgumentParser(ArgumentParser):
         super(DnsconfdArgumentParser, self).__init__(*args, **kwargs)
         self._parsed = None
 
+    def addArguments(self):
         self.add_argument("--dbus-name",
                           help="DBUS name that dnsconfd should use",
                           default=None)
@@ -22,11 +23,12 @@ class DnsconfdArgumentParser(ArgumentParser):
                           default="127.0.0.1")
         self.set_defaults(func=lambda: None)
 
+    def addCommands(self):
         subparsers = self.add_subparsers(help="Subcommands")
         
         status_parser = subparsers.add_parser("status",
                                               help="Print status if there is a running instance")
-        status_parser.set_defaults(func=lambda: CLI_Commands.status(self._parsed.dbus_name))
+        status_parser.set_defaults(func=self._print_status)
 
         config_parser = subparsers.add_parser("config",
                                               help="Change configuration of service or host")
@@ -37,10 +39,13 @@ class DnsconfdArgumentParser(ArgumentParser):
         nm_enable_parser = config_subparsers.add_parser("nm_enable",
                                                         help="Config network manager to use dnsconfd")
         nm_enable_parser.set_defaults(func=lambda: CLI_Commands.nmConfig(True))
-        
+
         nm_disable_parser = config_subparsers.add_parser("nm_disable",
                                                          help="Config network manager to not use dnsconfd")
         nm_disable_parser.set_defaults(func=lambda: CLI_Commands.nmConfig(False))
+
+    def _print_status(self):
+        CLI_Commands.status(self._parsed.dbus_name)
 
     def parse_args(self, *args, **kwargs):
         self._parsed = super(DnsconfdArgumentParser, self).parse_args(*args, **kwargs)
