@@ -20,7 +20,7 @@ class DnsconfdContext(dbus.service.Object):
     def signal_handler(self, signum):
         lgr.info(f"Caught signal {signal.strsignal(signum)}, shutting down")
         if self.sys_mgr.resolvconf_altered:
-            self.sys_mgr.revertResolvconf()
+            self.sys_mgr.revert_resolvconf()
         if self.dns_mgr is not None:
             self.dns_mgr.stop()
             self.dns_mgr.clean()
@@ -38,17 +38,14 @@ class DnsconfdContext(dbus.service.Object):
         lgr.info(f"Incoming DNS servers on {ifname}: {nice_servers}")
 
     def ifprio(self, interface_cfg: InterfaceConfiguration):
-        if interface_cfg.isInterfaceWireless():
+        if interface_cfg.is_interface_wireless():
             lgr.debug(f"Interface {interface_cfg.interface_index} is wireless")
-            prio = 50
-        else:
-            prio = 100
-        return prio
+            return 50
+        return 100
 
     def iface_config(self, interface_index: int):
         """Get existing or create new default interface configuration."""
         return self.interfaces.setdefault(interface_index, InterfaceConfiguration(interface_index))
-
 
     # From network manager code investigation it seems that these methods are called in
     # the following sequence: SetLinkDomains, SetLinkDefaultRoute, SetLinkMulticastDNS,
@@ -68,7 +65,7 @@ class DnsconfdContext(dbus.service.Object):
         prio = self.ifprio(interface_cfg)
         servers = [ServerDescription(fam, addr, priority=prio) for fam, addr in addresses]
         interface_cfg.servers = servers
-        self.log_servers(interface_cfg.ifname(), servers)
+        self.log_servers(interface_cfg.get_ifname(), servers)
 
     @dbus.service.method(dbus_interface='org.freedesktop.resolve1.Manager',
                          in_signature='ia(iayqs)', out_signature='')
@@ -78,7 +75,7 @@ class DnsconfdContext(dbus.service.Object):
         prio = self.ifprio(interface_cfg)
         servers = [ServerDescription(fam, addr, port, sni, prio) for fam, addr, port, sni in addresses]
         interface_cfg.servers = servers
-        self.log_servers(interface_cfg.ifname(), servers)
+        self.log_servers(interface_cfg.get_ifname(), servers)
 
     @dbus.service.method(dbus_interface='org.freedesktop.resolve1.Manager',
                          in_signature='ia(sb)', out_signature='')
@@ -175,5 +172,5 @@ class DnsconfdContext(dbus.service.Object):
         for zone in new_zones_to_servers.keys():
             new_zones_to_servers[zone].sort(key=lambda x: x.priority, reverse=True)
 
-        self.sys_mgr.updateResolvconf(search_domains)
+        self.sys_mgr.update_resolvconf(search_domains)
         self.dns_mgr.update(new_zones_to_servers)

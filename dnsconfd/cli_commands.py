@@ -21,7 +21,7 @@ class CLI_Commands:
         exit(0)
 
     @staticmethod
-    def nmConfig(enable: bool):
+    def nm_config(enable: bool):
         try:
             if enable:
                 NetworkManager().enable()

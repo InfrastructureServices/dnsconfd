@@ -1,2 +1,2 @@
-from .server_description import ServerDescription
 from .interface_configuration import InterfaceConfiguration
+from .server_description import ServerDescription

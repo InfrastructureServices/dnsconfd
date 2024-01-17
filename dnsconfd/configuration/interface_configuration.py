@@ -1,8 +1,6 @@
 import socket
 import os.path
 
-from dnsconfd.configuration import ServerDescription
-
 class InterfaceConfiguration:
     """ Object holding configuration of interface as systemd-resolved would describe it
         
@@ -36,14 +34,14 @@ class InterfaceConfiguration:
         :return: String representation of this instance
         :rtype: str
         """
-        ifname = self.ifname()
+        ifname = self.get_ifname()
         domains_str = ' '.join([domain for (domain, is_routing) in self.domains])
-        servers_str = ServerDescription.servers_string(self.servers)
+        servers_str = ' '.join([str(server) for server in self.servers])
         description = f"{{iface {ifname} (#{self.interface_index}), domains: {domains_str}, servers: {servers_str}, "
         description += f"is_default: {self.is_default}}}"
         return  description
 
-    def isInterfaceWireless(self) -> bool:
+    def is_interface_wireless(self) -> bool:
         """ Get whether the interface that this instance represents is wireless or not
 
         :return: True if interface is wireless, otherwise False
@@ -55,7 +53,7 @@ class InterfaceConfiguration:
         except OSError:
             return False
 
-    def ifname(self) -> str:
+    def get_ifname(self) -> str:
         try:
             return socket.if_indextoname(self.interface_index)
         except OSError as e:

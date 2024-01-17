@@ -11,8 +11,8 @@ import dbus.mainloop.glib
 
 if __name__ == "__main__":
     parser = argparser(prog='dnsconfd', description='local DNS cache configuration daemon')
-    parser.addArguments()
-    parser.addCommands()
+    parser.add_arguments()
+    parser.add_commands()
     args = parser.parse_args()
     # This ensures that proper handler is called if command is provided, else
     # noop and execution returns here

@@ -32,10 +32,10 @@ class SystemManager:
             lgr.debug(f"Not present resolvconf: {e}")
 
         with open(self._resolv_conf_path, "w") as new_resolv:
-            new_resolv.write(self._getResolvconfString())
+            new_resolv.write(self._get_resolvconf_string())
         self.resolvconf_altered = True
 
-    def _getResolvconfString(self, search_domains = []):
+    def _get_resolvconf_string(self, search_domains = []):
         conf = self.HEADER
         if self.OPTIONS:
             conf += f"options {self.OPTIONS}\n"
@@ -44,7 +44,7 @@ class SystemManager:
             conf += f"search {' '.join(search_domains)}\n"
         return conf
 
-    def revertResolvconf(self):
+    def revert_resolvconf(self):
         if self._backup is not None:
             with open(self._resolv_conf_path, "w") as new_resolv:
                 new_resolv.write(self._backup)
@@ -54,7 +54,7 @@ class SystemManager:
             os.symlink(self._backup_link, self._resolv_conf_path)
             self.resolvconf_altered = False
 
-    def updateResolvconf(self, search_domains):
+    def update_resolvconf(self, search_domains):
         lgr.debug(f"Updating resolvconf with domains {search_domains}")
         with open(self._resolv_conf_path, "w") as new_resolv:
-            new_resolv.write(self._getResolvconfString(search_domains))
+            new_resolv.write(self._get_resolvconf_string(search_domains))
