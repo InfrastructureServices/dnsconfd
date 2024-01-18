@@ -32,3 +32,9 @@ class CLI_Commands:
         except Exception as e:
             print(f"Dnsconfd was unable to configure Network Manager: {str(e)}")
             exit(1)
+
+    @staticmethod
+    def unbound_config(enable: bool):
+        with open("dnsconfd.service.d-unbound.conf", "w") as f:
+            # TODO: have own plugin in NM
+            f.writelines([self.HEADER, "[main]\n", "dns=systemd-resolved\n", "rc-manager=unmanaged\n"])

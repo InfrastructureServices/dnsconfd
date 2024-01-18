@@ -36,18 +36,19 @@ class UnboundManager(DnsManager):
             return True
         except dbus.DBusException as e:
             lgr.error("Systemd is not listening on name org.freedesktop.systemd1")
-            lgr.error(f"{str(e)}")
+            lgr.error(str(e))
         return False
 
     def _service_start_finished(self, *args):
         if self._service_start_job is not None and int(args[0]) == self._service_start_job:
             lgr.debug("Unbound start job finished")
             self._started = True
-            interface = self._get_systemd_interface("org.freedesktop.systemd1.Manager")
-            interface.Unsubscribe()
+            # we do not want to receive info about jobs anymore
+            self._get_systemd_interface("org.freedesktop.systemd1.Manager").Unsubscribe()
+            # better way to find out whether unbound is ready was not found
             while self._execute_cmd("status") != 0:
+                lgr.debug("Start job finished but unbound still not ready, waiting")
                 time.sleep(1)
-
             if self._buffer:
                 lgr.debug("Found derefered update, pushing to unbound now")
                 self.update(self._buffer)
@@ -111,9 +112,11 @@ class UnboundManager(DnsManager):
 
     def update(self, new_zones_to_servers: dict[list[ServerDescription]]):
         if self._started == False:
+            # deep copy is needed, because otherwise we could touch referenced dict from
+            # context manager in inconsistent state
             self._buffer = copy.deepcopy(new_zones_to_servers)
-            lgr.debug("Unbound manager tried to process update but unbound is not running")
-            lgr.debug("Derefering")
+            lgr.debug("Unbound manager tried to process update but unbound is not running,"
+                      + " derefering")
             return
         lgr.debug("Unbound manager processing update")
         insecure = "+i"
