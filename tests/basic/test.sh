@@ -27,7 +27,7 @@ rlJournalStart
 
     rlPhaseStartCleanup
         rlRun "popd"
-        rlRun "podman stop $dnsconfd_cid $dnsmasq_cid" 0 "Stopping containers"
+        rlRun "podman stop -t 2 $dnsconfd_cid $dnsmasq_cid" 0 "Stopping containers"
         rlRun "podman container rm $dnsconfd_cid $dnsmasq_cid" 0 "Removing containers"
         rlRun "podman network rm dnsconfd_network" 0 "Removing networks"
         rlRun "rm -r $tmp" 0 "Remove tmp directory"

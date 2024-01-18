@@ -26,7 +26,7 @@ class CLI_Commands:
             if enable:
                 NetworkManager().enable()
             else:
-                NetworkManager.disable()
+                NetworkManager().disable()
             print(f"Network Manager will {'use' if enable else 'not use'} dnsconfd now")
             exit(0)
         except Exception as e:

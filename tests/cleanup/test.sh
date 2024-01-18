@@ -27,8 +27,9 @@ rlJournalStart
         rlRun "podman exec $dnsconfd_cid getent hosts address.test.com | grep 192.168.6.3" \
             0 "Verifying correct address resolution"
         rlRun "podman exec $dnsconfd_cid systemctl stop dnsconfd" 0 "Stopping dnsconfd"
-        rlRun "podman exec $dnsconfd_cid systemctl restart NetworkManager" \
-            0 "Restarting NetworkManager"
+        sleep 2
+        rlRun "podman exec $dnsconfd_cid dnsconfd --dbus-name=org.freedesktop.resolve1 config nm_disable" \
+            0 "disabling dnsconfd in Network Manager"
         sleep 2
         rlRun "podman exec $dnsconfd_cid getent hosts address.test.com | grep 192.168.6.3" \
             0 "Verifying correct address resolution after cleanup"
@@ -36,7 +37,7 @@ rlJournalStart
 
     rlPhaseStartCleanup
         rlRun "popd"
-        rlRun "podman stop $dnsconfd_cid $dnsmasq_cid" 0 "Stopping containers"
+        rlRun "podman stop -t 2 $dnsconfd_cid $dnsmasq_cid" 0 "Stopping containers"
         rlRun "podman container rm $dnsconfd_cid $dnsmasq_cid" 0 "Removing containers"
         rlRun "podman network rm dnsconfd_network" 0 "Removing networks"
         rlRun "rm -r $tmp" 0 "Remove tmp directory"
