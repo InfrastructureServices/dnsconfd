@@ -3,4 +3,3 @@ test: ./test.sh
 framework: beakerlib
 tag:
   - distribution
-duration: 1d
