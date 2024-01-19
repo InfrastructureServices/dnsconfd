@@ -25,5 +25,6 @@ if __name__ == "__main__":
     signal.signal(signal.SIGTERM, lambda signum, frame: ctx.signal_handler(signum))
     signal.signal(signal.SIGINT, lambda signum, frame: ctx.signal_handler(signum))
     logging.info("Starting")
-    ctx.start_service()
+    if not ctx.start_service():
+        exit(1)
     GLib.MainLoop().run()

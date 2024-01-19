@@ -44,7 +44,7 @@ class UnboundManager(DnsManager):
             lgr.debug("Unbound start job finished")
             self._started = True
             # we do not want to receive info about jobs anymore
-            self._get_systemd_interface("org.freedesktop.systemd1.Manager").Unsubscribe()
+            dbus.Interface(self._systemd_object, "org.freedesktop.systemd1.Manager").Unsubscribe()
             # better way to find out whether unbound is ready was not found
             while self._execute_cmd("status") != 0:
                 lgr.debug("Start job finished but unbound still not ready, waiting")
@@ -55,25 +55,22 @@ class UnboundManager(DnsManager):
                 self._buffer = None
 
     def _subscribe_systemd_signals(self):
-        interface = self._get_systemd_interface("org.freedesktop.systemd1.Manager")
-        interface.Subscribe()
-        interface.connect_to_signal("JobRemoved", self._service_start_finished)
-
-    def _get_systemd_interface(self, interface: str) -> dbus.Interface:
         try:
-            return dbus.Interface(self._systemd_object, interface)
+            interface = dbus.Interface(self._systemd_object, "org.freedesktop.systemd1.Manager")
+            interface.Subscribe()
+            interface.connect_to_signal("JobRemoved", self._service_start_finished)
+            return True
         except dbus.DBusException as e:
-            lgr.error(f"Was not able to acquire {interface} interface")
+            lgr.error("Systemd is not listening on name org.freedesktop.systemd1")
             lgr.error(str(e))
-        return None
+        return False
 
     def start(self):
         lgr.info(f"Starting {self.service_name}")
-        if not self._connect_systemd():
+        if not self._connect_systemd() or not self._subscribe_systemd_signals():
             return False
-        self._subscribe_systemd_signals()
+        interface = dbus.Interface(self._systemd_object, "org.freedesktop.systemd1.Manager")
         try:
-            interface = self._get_systemd_interface("org.freedesktop.systemd1.Manager")
             self._service_start_job = interface.ReloadOrRestartUnit(f"{self.service_name}.service",
                                                                     "replace").split('/')[-1]
             self._service_start_job = int(self._service_start_job)
@@ -87,8 +84,8 @@ class UnboundManager(DnsManager):
 
     def stop(self):
         lgr.info(f"Stoping {self.service_name}")
+        interface = dbus.Interface(self._systemd_object, "org.freedesktop.systemd1.Manager")
         try:
-            interface = self._get_systemd_interface("org.freedesktop.systemd1.Manager")
             interface.StopUnit(f"{self.service_name}.service", "replace")
             return True
         except dbus.DBusException as e:

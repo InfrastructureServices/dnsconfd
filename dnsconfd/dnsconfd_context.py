@@ -29,8 +29,10 @@ class DnsconfdContext(dbus.service.Object):
     def start_service(self):
         self.dns_mgr = UnboundManager()
         self.dns_mgr.configure(self.my_address)
-        self.dns_mgr.start()
+        if not self.dns_mgr.start():
+            return False
         self.sys_mgr.setResolvconf()
+        return True
 
     def log_servers(self, ifname: str, servers: list[ServerDescription]):
         """Log user friendly representation of servers."""
