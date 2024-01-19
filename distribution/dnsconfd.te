@@ -22,6 +22,8 @@ require {
     type systemd_userdbd_runtime_t;
     type systemd_userdbd_t;
     type unconfined_t;
+    type named_unit_file_t;
+    type init_t;
     class dbus { send_msg acquire_svc };
 }
 
@@ -100,3 +102,10 @@ allow dnsconfd_t tmpfs_t:file { execute read write map };
 allow dnsconfd_t sysfs_t:file { read open };
 
 allow unconfined_t dnsconfd_t:dbus send_msg;
+
+allow dnsconfd_t init_t:dbus send_msg;
+allow dnsconfd_t init_t:system status;
+allow dnsconfd_t named_unit_file_t:service { start stop };
+allow init_t dnsconfd_t:dbus send_msg;
+allow dnsconfd_t named_conf_t:dir search;
+allow dnsconfd_t named_conf_t:file read;
