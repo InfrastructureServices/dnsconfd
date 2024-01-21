@@ -2,6 +2,7 @@ policy_module(dnsconfd, 1.0)
 
 require {
     type bin_t;
+    type etc_t;
     type sssd_var_lib_t;
     type system_dbusd_var_run_t;
     type passwd_file_t;
@@ -12,6 +13,7 @@ require {
     type dns_port_t;
     type kernel_t;
     type lib_t;
+    type named_conf_t;
     type named_exec_t;
     type net_conf_t;
     type node_t;
@@ -20,6 +22,8 @@ require {
     type systemd_userdbd_runtime_t;
     type systemd_userdbd_t;
     type unconfined_t;
+    type named_unit_file_t;
+    type init_t;
     class dbus { send_msg acquire_svc };
 }
 
@@ -51,10 +55,18 @@ allow dnsconfd_t cert_t:file { getattr open read };
 allow dnsconfd_t dns_port_t:tcp_socket name_bind;
 allow dnsconfd_t dns_port_t:udp_socket name_bind;
 allow dnsconfd_t kernel_t:unix_stream_socket connectto;
+# /etc/resolv.conf modifications
+allow dnsconfd_t etc_t:dir { add_name create remove_name write read};
+allow dnsconfd_t etc_t:lnk_file { getattr read write create unlink };
+allow dnsconfd_t etc_t:file { getattr open read write create unlink };
 allow dnsconfd_t lib_t:file write;
 allow dnsconfd_t named_exec_t:file { execute execute_no_trans open read map};
+# Required by unbound-control
+allow dnsconfd_t named_conf_t:dir { getattr open read };
+allow dnsconfd_t named_conf_t:file { getattr ioctl open };
 
-allow dnsconfd_t net_conf_t:lnk_file read;
+allow dnsconfd_t net_conf_t:lnk_file { getattr read write unlink };
+allow dnsconfd_t net_conf_t:file { getattr open read write create };
 allow dnsconfd_t node_t:tcp_socket node_bind;
 allow dnsconfd_t node_t:udp_socket node_bind;
 allow dnsconfd_t passwd_file_t:file { getattr open read };
@@ -90,3 +102,10 @@ allow dnsconfd_t tmpfs_t:file { execute read write map };
 allow dnsconfd_t sysfs_t:file { read open };
 
 allow unconfined_t dnsconfd_t:dbus send_msg;
+
+allow dnsconfd_t init_t:dbus send_msg;
+allow dnsconfd_t init_t:system status;
+allow dnsconfd_t named_unit_file_t:service { start stop };
+allow init_t dnsconfd_t:dbus send_msg;
+allow dnsconfd_t named_conf_t:dir search;
+allow dnsconfd_t named_conf_t:file read;

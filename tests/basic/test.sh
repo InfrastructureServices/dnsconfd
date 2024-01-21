@@ -20,14 +20,14 @@ rlJournalStart
         sleep 2
         rlRun "podman exec $dnsconfd_cid nmcli connection mod eth0 ipv4.dns 192.168.6.3" 0 "Adding dns server to NM active profile"
         sleep 2
-        rlRun "podman exec $dnsconfd_cid dnsconfd --dbus-name=$DBUS_NAME -s > status1" 0 "Getting status of dnsconfd"
+        rlRun "podman exec $dnsconfd_cid dnsconfd --dbus-name=$DBUS_NAME status > status1" 0 "Getting status of dnsconfd"
         rlAssertNotDiffer status1 $ORIG_DIR/expected_status.json
         rlRun "podman exec $dnsconfd_cid getent hosts address.test.com | grep 192.168.6.3" 0 "Verifying correct address resolution"
     rlPhaseEnd
 
     rlPhaseStartCleanup
         rlRun "popd"
-        rlRun "podman stop $dnsconfd_cid $dnsmasq_cid" 0 "Stopping containers"
+        rlRun "podman stop -t 2 $dnsconfd_cid $dnsmasq_cid" 0 "Stopping containers"
         rlRun "podman container rm $dnsconfd_cid $dnsmasq_cid" 0 "Removing containers"
         rlRun "podman network rm dnsconfd_network" 0 "Removing networks"
         rlRun "rm -r $tmp" 0 "Remove tmp directory"

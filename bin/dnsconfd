@@ -8,25 +8,15 @@ import logging
 from gi.repository import GLib
 import dbus
 import dbus.mainloop.glib
-from dbus import DBusException
 
 if __name__ == "__main__":
     parser = argparser(prog='dnsconfd', description='local DNS cache configuration daemon')
+    parser.add_arguments()
+    parser.add_commands()
     args = parser.parse_args()
-
-    if args.status:
-        bus = dbus.SystemBus()
-        try:
-            dnsconfd_object = bus.get_object(args.dbus_name, "/org/freedesktop/resolve1")
-        except DBusException as e:
-            print(f"Dnsconfd is not listening on name {args.dbus_name}")
-            exit(1)
-        try:
-            print(dnsconfd_object.Status(dbus_interface='org.freedesktop.resolve1.Dnsconfd'))
-        except DBusException as e:
-            print("Was not able to call Status method, check your DBus policy")
-            exit(1)
-        exit(0)
+    # This ensures that proper handler is called if command is provided, else
+    # noop and execution returns here
+    args.func()
 
     dbus.mainloop.glib.DBusGMainLoop(set_as_default=True)
     logging.basicConfig(level=logging.getLevelName(args.log_level))
@@ -35,5 +25,6 @@ if __name__ == "__main__":
     signal.signal(signal.SIGTERM, lambda signum, frame: ctx.signal_handler(signum))
     signal.signal(signal.SIGINT, lambda signum, frame: ctx.signal_handler(signum))
     logging.info("Starting")
-    ctx.start_service()
+    if not ctx.start_service():
+        exit(1)
     GLib.MainLoop().run()

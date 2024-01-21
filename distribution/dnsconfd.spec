@@ -17,6 +17,9 @@ Source4:        dnsconfd.fc
 Source5:        dnsconfd.te
 Source6:        LICENSE
 Source7:        dnsconfd.8
+Source8:        dnsconfd.sysconfig
+Source9:        dnsconfd.service.d-unbound.conf
+Source10:       unbound-dnsconfd.conf
 
 BuildArch:      noarch
 
@@ -30,17 +33,22 @@ BuildRequires:  systemd-rpm-macros
 %{?sysusers_requires_compat}
 
 Requires:  (%{name}-selinux if selinux-policy-%{selinuxtype})
-Requires:  unbound
-Requires:  python3-gobject
+Requires:  python3-gobject-base
+Requires:  %{name}-cache
+Suggests:  %{name}-unbound
 
-Conflicts: systemd-resolved
+#Conflicts: systemd-resolved
 
 %?python_enable_dependency_generator                                            
+
+%description
+Dnsconfd configures local DNS cache services.
 
 # SELinux subpackage
 %package selinux
 Summary:             dnsconfd SELinux policy
 BuildArch:           noarch
+Requires:            %{name} = %{version}-%{release}
 Requires:            selinux-policy-%{selinuxtype}
 Requires(post):      selinux-policy-%{selinuxtype}
 BuildRequires:       selinux-policy-devel
@@ -49,8 +57,15 @@ BuildRequires:       selinux-policy-devel
 %description selinux
 Dnsconfd SELinux policy module.
 
-%description
-Dnsconfd configures local DNS cache services.
+%package unbound
+Summary:             dnsconfd unbound module
+BuildArch:           noarch
+Requires:            %{name} = %{version}-%{release}
+Requires:            unbound
+Provides:            %{name}-cache = %{version}-%{release}
+
+%description unbound
+Dnsconfd management of unbound server
 
 %prep
 %autosetup -n %{name}-%{version}
@@ -68,17 +83,20 @@ bzip2 -9 %{modulename}.pp
 %install
 %py3_install
 mkdir   -m 0755 -p %{buildroot}%{_sysconfdir}/dbus-1/system.d/
+mkdir   -m 0755 -p %{buildroot}%{_sysconfdir}/unbound/conf.d/
 mkdir   -m 0755 -p %{buildroot}%{_unitdir}
 mkdir   -m 0755 -p %{buildroot}%{_sysconfdir}/sysconfig
 mkdir   -m 0755 -p %{buildroot}%{_sbindir}
-mkdir   -m 0755 -p %{buildroot}/var/log/dnsconfd
+mkdir   -m 0755 -p %{buildroot}%{_var}/log/dnsconfd
 mkdir   -m 0755 -p %{buildroot}/%{_mandir}/man8
 
 install -m 0644 -p %{SOURCE1} %{buildroot}%{_sysconfdir}/dbus-1/system.d/com.redhat.dnsconfd.conf
+install -m 0644 -p %{SOURCE8} %{buildroot}%{_sysconfdir}/sysconfig/dnsconfd
 install -m 0644 -p %{SOURCE2} %{buildroot}%{_unitdir}/dnsconfd.service
+#install -m 0644 -p %{SOURCE9} %{buildroot}%{_unitdir}/dnsconfd.service.d/unbound.conf
+install -m 0644 -p %{SOURCE10} %{buildroot}%{_sysconfdir}/unbound/conf.d/unbound.conf
 
-echo "DBUS_NAME=org.freedesktop.resolve1" > %{buildroot}%{_sysconfdir}/sysconfig/dnsconfd
-touch %{buildroot}/var/log/dnsconfd/unbound.log
+touch %{buildroot}%{_var}/log/dnsconfd/unbound.log
 
 mv %{buildroot}%{_bindir}/dnsconfd %{buildroot}%{_sbindir}/dnsconfd
 
@@ -106,19 +124,9 @@ fi
 
 %pre
 %dnl %sysusers_create_compat %{SOURCE3}
-# This is neccessary because of NetworkManager.
-# It checks whether /etc/resolv.conf is a link and in case, it is not
-# it overwrites it, thus overwrites our configuration.
-# The test of mountpoint ensures that we wont try to overwrite resolv.conf
-# in container
-if ! mountpoint /etc/resolv.conf &> /dev/null; then
-    rm -f /etc/resolv.conf
-    ln -s /usr/lib/systemd/resolv.conf /etc/resolv.conf
-fi
 
 %post
 %systemd_post dnsconfd.service
-systemctl enable dnsconfd.service &>/dev/null
 
 %postun
 %systemd_postun dnsconfd.service
@@ -131,13 +139,18 @@ systemctl enable dnsconfd.service &>/dev/null
 %{_sysconfdir}/dbus-1/system.d/com.redhat.dnsconfd.conf
 %config(noreplace) %{_sysconfdir}/sysconfig/dnsconfd
 %{_unitdir}/dnsconfd.service
-%attr(0755,root,root) /var/log/dnsconfd
+#%dir %{_unitdir}/dnsconfd.service.d
+%attr(0755,root,root) %{_var}/log/dnsconfd
 %{_mandir}/man8/dnsconfd.8*
 %ghost %{_sysusersdir}/dnsconfd.conf
 
 %files selinux
 %{_datadir}/selinux/packages/%{selinuxtype}/%{modulename}.pp.*
 %ghost %verify(not md5 size mode mtime) %{_sharedstatedir}/selinux/%{selinuxtype}/active/modules/200/%{modulename}
+
+%files unbound
+#%{_unitdir}/dnsconfd.service.d/unbound.conf
+%config(noreplace) %{_sysconfdir}/unbound/conf.d/unbound.conf
 
 %changelog
 * Tue Aug 01 2023 Tomas Korbar <tkorbar@redhat.com> - 0.0.1-1
