@@ -143,6 +143,7 @@ fi
 %attr(0755,root,root) %{_var}/log/dnsconfd
 %{_mandir}/man8/dnsconfd.8*
 %ghost %{_sysusersdir}/dnsconfd.conf
+%doc README.md
 
 %files selinux
 %{_datadir}/selinux/packages/%{selinuxtype}/%{modulename}.pp.*
