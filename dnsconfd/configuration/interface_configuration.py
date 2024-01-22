@@ -25,6 +25,7 @@ class InterfaceConfiguration:
         self.dnssec = dnssec
         self.is_default = is_default
         self.interface_index = interface_index
+        self.finished = False
 
     def __str__(self) -> str:
         """ Create string representation of instance
@@ -54,6 +55,12 @@ class InterfaceConfiguration:
             return False
 
     def get_ifname(self) -> str:
+        """ Get interface name
+
+        :return: Name of the interface represented by this instance, if socket is unable
+                 to translate it, then string of index will be returned
+        :rtype: str
+        """
         try:
             return socket.if_indextoname(self.interface_index)
         except OSError as e:

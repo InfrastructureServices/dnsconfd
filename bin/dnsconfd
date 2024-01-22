@@ -5,7 +5,6 @@ from dnsconfd import DnsconfdArgumentParser as argparser
 
 import signal
 import logging
-from gi.repository import GLib
 import dbus
 import dbus.mainloop.glib
 
@@ -20,11 +19,20 @@ if __name__ == "__main__":
 
     dbus.mainloop.glib.DBusGMainLoop(set_as_default=True)
     logging.basicConfig(level=logging.getLevelName(args.log_level))
-    name = dbus.service.BusName(args.dbus_name, dbus.SystemBus())
-    ctx = DnsconfdContext("/org/freedesktop/resolve1", name, vars(args))
-    signal.signal(signal.SIGTERM, lambda signum, frame: ctx.signal_handler(signum))
-    signal.signal(signal.SIGINT, lambda signum, frame: ctx.signal_handler(signum))
-    logging.info("Starting")
-    if not ctx.start_service():
-        exit(1)
-    GLib.MainLoop().run()
+
+    while True:
+        ctx = DnsconfdContext(vars(args))
+        # using lambdas here allows us to not use exit in DnsconfdContext class
+        signal.signal(signal.SIGTERM, lambda signum, frame: exit(ctx.signal_handler(signum)))
+        signal.signal(signal.SIGINT, lambda signum, frame: exit(ctx.signal_handler(signum)))
+        logging.info("Starting")
+        if not ctx.start_service():
+            exit(1)
+        ctx.process_events()
+        # neccessary as dbus would not allow us to recreate the instance, since the first would
+        # be still registered as handler
+        ctx.remove_from_connection()
+        if not ctx.was_reload_requested():
+            logging.info("Shutting down")
+            exit(ctx.stop())
+        logging.info("Performing reload of dnsconfd")
