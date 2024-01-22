@@ -1,0 +1,7 @@
+summary: Start container, set 1 DNS server and verify that dnsconfd handled the update, stop unbound, let dnsconfd bring it back up and verify again
+test: ./test.sh
+framework: beakerlib
+recommend:
+  - podman
+tag:
+  - integration

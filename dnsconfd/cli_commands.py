@@ -34,7 +34,16 @@ class CLI_Commands:
             exit(1)
 
     @staticmethod
-    def unbound_config(enable: bool):
-        with open("dnsconfd.service.d-unbound.conf", "w") as f:
-            # TODO: have own plugin in NM
-            f.writelines([self.HEADER, "[main]\n", "dns=systemd-resolved\n", "rc-manager=unmanaged\n"])
+    def reload(dbus_name, plugin=None):
+        bus = dbus.SystemBus()
+        try:
+            dnsconfd_object = bus.get_object(dbus_name, "/org/freedesktop/resolve1")
+        except DBusException as e:
+            print(f"Dnsconfd is not listening on name {dbus_name}")
+            exit(1)
+        try:
+            print(dnsconfd_object.Reload(plugin, dbus_interface='org.freedesktop.resolve1.Dnsconfd'))
+        except DBusException as e:
+            print("Was not able to call Status method, check your DBus policy")
+            exit(1)
+        exit(0)

@@ -4,7 +4,7 @@
 %global selinuxtype targeted
 
 Name:           dnsconfd                                                   
-Version:        0.0.2
+Version:        0.0.3
 Release:        1%{?dist}
 Summary:        Local DNS cache configuration daemon
 License:        MIT
@@ -84,6 +84,7 @@ bzip2 -9 %{modulename}.pp
 mkdir   -m 0755 -p %{buildroot}%{_datadir}/dbus-1/system.d/
 mkdir   -m 0755 -p %{buildroot}%{_sysconfdir}/unbound/conf.d/
 mkdir   -m 0755 -p %{buildroot}%{_unitdir}
+mkdir   -m 0755 -p %{buildroot}%{_unitdir}/unbound.service.d
 mkdir   -m 0755 -p %{buildroot}%{_sysconfdir}/sysconfig
 mkdir   -m 0755 -p %{buildroot}%{_sbindir}
 mkdir   -m 0755 -p %{buildroot}%{_var}/log/dnsconfd
@@ -92,7 +93,10 @@ mkdir   -m 0755 -p %{buildroot}/%{_mandir}/man8
 install -m 0644 -p %{SOURCE1} %{buildroot}%{_datadir}/dbus-1/system.d/com.redhat.dnsconfd.conf
 install -m 0644 -p %{SOURCE8} %{buildroot}%{_sysconfdir}/sysconfig/dnsconfd
 install -m 0644 -p %{SOURCE2} %{buildroot}%{_unitdir}/dnsconfd.service
-%dnl install -m 0644 -p %{SOURCE9} %{buildroot}%{_unitdir}/dnsconfd.service.d/unbound.conf
+
+# hook to inform us about unbound stop
+install -m 0644 -p %{SOURCE9} %{buildroot}%{_unitdir}/unbound.service.d/dnsconfd.conf
+
 install -m 0644 -p %{SOURCE10} %{buildroot}%{_sysconfdir}/unbound/conf.d/unbound.conf
 
 touch %{buildroot}%{_var}/log/dnsconfd/unbound.log
@@ -152,11 +156,14 @@ fi
 %ghost %verify(not md5 size mode mtime) %{_sharedstatedir}/selinux/%{selinuxtype}/active/modules/200/%{modulename}
 
 %files unbound
-%dnl %{_unitdir}/dnsconfd.service.d/unbound.conf
+%{_unitdir}/unbound.service.d/dnsconfd.conf
 %config(noreplace) %{_sysconfdir}/unbound/conf.d/unbound.conf
 %ghost %{_var}/log/dnsconfd/unbound.log
 
 %changelog
+* Wed Jan 31 2024 Tomas Korbar <tkorbar@redhat.com> - 0.0.3-1
+- Release 0.0.3
+
 * Wed Jan 24 2024 Tomas Korbar <tkorbar@redhat.com> - 0.0.2-1
 - Release 0.0.2
 

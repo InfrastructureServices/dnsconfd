@@ -2,103 +2,49 @@ from dnsconfd.dns_managers.dns_manager import DnsManager
 from dnsconfd.configuration import ServerDescription
 
 import subprocess
-import tempfile
 import logging as lgr
-import dbus
-import copy
-import time
 
 class UnboundManager(DnsManager):
     service_name = "unbound"
-    systemctl = "systemctl"
 
     def __init__(self):
-        self.temp_dir_path = None
-        self.process = None
+        """ Object responsible for executing unbound configuration changes
+        """
+        # list of current forward zones and servers that running unbound service holds
         self.zones_to_servers = {}
         self.validation = False
-        self._systemd_object = None
-        self._service_start_job = None
-        self._started = False
-        self._buffer = None
+        # startup was finished, this means service is ready to respond to controll commands
+        self.start_finished = False
 
-    def configure(self, my_address, validation = False):
-        if self.temp_dir_path is None:
-            self.temp_dir_path = tempfile.mkdtemp()
+    def configure(self, my_address : str, validation = False):
+        """ Configure this instance
+
+        :param my_address: ddress where unbound should listen
+        :type my_address: str
+        :param validation: enable DNSSEC validation, defaults to False
+        :type validation: bool, optional
+        """
         self.my_address = my_address
         self.validation = validation
         lgr.debug(f"DNS cache should be listening on {self.my_address}")
 
-    def _connect_systemd(self):
-        try:
-            self._systemd_object = dbus.SystemBus().get_object('org.freedesktop.systemd1',
-                                                    '/org/freedesktop/systemd1')
-            return True
-        except dbus.DBusException as e:
-            lgr.error("Systemd is not listening on name org.freedesktop.systemd1")
-            lgr.error(str(e))
-        return False
+    def clear_state(self):
+        """ Clear state that this instance holds
 
-    def _service_start_finished(self, *args):
-        if self._service_start_job is not None and int(args[0]) == self._service_start_job:
-            lgr.debug("Unbound start job finished")
-            self._started = True
-            # we do not want to receive info about jobs anymore
-            dbus.Interface(self._systemd_object, "org.freedesktop.systemd1.Manager").Unsubscribe()
-            # better way to find out whether unbound is ready was not found
-            while self._execute_cmd("status") != 0:
-                lgr.debug("Start job finished but unbound still not ready, waiting")
-                time.sleep(1)
-            if self._buffer:
-                lgr.debug("Found derefered update, pushing to unbound now")
-                self.update(self._buffer)
-                self._buffer = None
+            When inconsistency could not be avoided and we need to configure
+            unbound from the start, this has to be called
+        """
+        # this forbids other calls from interupting next configuration process
+        self.start_finished = False
+        self.zones_to_servers = {}
 
-    def _subscribe_systemd_signals(self):
-        try:
-            interface = dbus.Interface(self._systemd_object, "org.freedesktop.systemd1.Manager")
-            interface.Subscribe()
-            interface.connect_to_signal("JobRemoved", self._service_start_finished)
-            return True
-        except dbus.DBusException as e:
-            lgr.error("Systemd is not listening on name org.freedesktop.systemd1")
-            lgr.error(str(e))
-        return False
+    def is_ready(self) -> bool:
+        """ Get whether unbound service is up and ready
 
-    def start(self):
-        lgr.info(f"Starting {self.service_name}")
-        if not self._connect_systemd() or not self._subscribe_systemd_signals():
-            return False
-        interface = dbus.Interface(self._systemd_object, "org.freedesktop.systemd1.Manager")
-        try:
-            self._service_start_job = interface.ReloadOrRestartUnit(f"{self.service_name}.service",
-                                                                    "replace").split('/')[-1]
-            self._service_start_job = int(self._service_start_job)
-            return True
-        except dbus.DBusException as e:
-            lgr.error("Was not able to call org.freedesktop.systemd1.Manager.ReloadOrRestartUnit"
-                      + ", check your policy")
-            lgr.error(str(e))
-        return False
-        # start or restart unbound service
-
-    def stop(self):
-        lgr.info(f"Stoping {self.service_name}")
-        interface = dbus.Interface(self._systemd_object, "org.freedesktop.systemd1.Manager")
-        try:
-            interface.StopUnit(f"{self.service_name}.service", "replace")
-            return True
-        except dbus.DBusException as e:
-            lgr.error("Was not able to call org.freedesktop.systemd1.Manager.StopUnit"
-                      + ", check your policy")
-            lgr.error(str(e))
-        return False
-        # stop unbound service
-
-    def clean(self):
-        # FIXME: remove
-        lgr.debug("Performing cleanup after unbound")
-        self.temp_dir_path = None
+        :return: True if unbound is ready to handle commands, otherwise False
+        :rtype: bool
+        """
+        return self._execute_cmd("status") == 0
 
     def _execute_cmd(self, command: str):
         control_args = ["unbound-control", f'{command}']
@@ -108,13 +54,11 @@ class UnboundManager(DnsManager):
         return proc.returncode
 
     def update(self, new_zones_to_servers: dict[list[ServerDescription]]):
-        if self._started == False:
-            # deep copy is needed, because otherwise we could touch referenced dict from
-            # context manager in inconsistent state
-            self._buffer = copy.deepcopy(new_zones_to_servers)
-            lgr.debug("Unbound manager tried to process update but unbound is not running,"
-                      + " derefering")
-            return
+        """ Update unbound running service forwarders configuration
+
+        :param new_zones_to_servers: Forwarders' configuration that should be loaded into unbound
+        :type new_zones_to_servers: dict[list[ServerDescription]]
+        """
         lgr.debug("Unbound manager processing update")
         insecure = "+i"
         if self.validation:
@@ -148,7 +92,12 @@ class UnboundManager(DnsManager):
         self.zones_to_servers = new_zones_to_servers
         lgr.info(f"Unbound updated to configuration: {self.get_status()}")
 
-    def get_status(self):
+    def get_status(self) -> dict[str, list[str]]:
+        """ Get current forwarders' configuration that this instance holds
+
+        :return: dictionary zone -> list of servers
+        :rtype: dict[str, list[str]]
+        """
         status={}
         for zone, servers in self.zones_to_servers.items():
             status[zone] = [str(srv) for srv in servers]

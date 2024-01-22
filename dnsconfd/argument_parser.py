@@ -30,6 +30,14 @@ class DnsconfdArgumentParser(ArgumentParser):
                                               help="Print status if there is a running instance")
         status_parser.set_defaults(func=self._print_status)
 
+        reload_parser = subparsers.add_parser("reload",
+                                              help="Reload either partially or fully running instance of dnsconfd")
+        reload_parser.set_defaults(func=self._reload)
+
+        reload_parser.add_argument("--plugin",
+                                   default="",
+                                   help="Name of the plugin that should be reloaded")
+
         config_parser = subparsers.add_parser("config",
                                               help="Change configuration of service or host")
         config_parser.set_defaults(func=lambda: self.print_help())
@@ -59,3 +67,6 @@ class DnsconfdArgumentParser(ArgumentParser):
             self._parsed.log_level = os.environ.get("LOG_LEVEL", "INFO")
 
         return self._parsed
+
+    def _reload(self):
+        CLI_Commands.reload(self._parsed.dbus_name, self._parsed.plugin)

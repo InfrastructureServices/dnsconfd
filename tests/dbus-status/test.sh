@@ -11,7 +11,7 @@ rlJournalStart
 
     rlPhaseStartTest
         rlServiceStart dnsconfd
-        sleep 2
+        sleep 3
         rlRun "sudo -u dummy dnsconfd --dbus-name=$DBUS_NAME status | grep unbound" 0 "Verifying status of dnsconfd as dummy user"
         # we can not simply check for a AVC until chrony issue is fixed
         rlRun "sudo -u dummy dbus-send --system --dest=org.freedesktop.resolve1 --print-reply\

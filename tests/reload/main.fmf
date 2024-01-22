@@ -1,0 +1,7 @@
+summary: Start container, set 1 DNS server, reload dnsconfd and verify status and correct address resolution
+test: ./test.sh
+framework: beakerlib
+recommend:
+  - podman
+tag:
+  - integration

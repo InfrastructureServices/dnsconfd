@@ -1,0 +1,7 @@
+summary: Start container, break unbound and verify that dnsconfd shuts down
+test: ./test.sh
+framework: beakerlib
+recommend:
+  - podman
+tag:
+  - integration

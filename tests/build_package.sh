@@ -5,5 +5,5 @@ set -e
 python3 setup.py sdist -d ./distribution
 pushd distribution
 fedpkg --release=f39 mockbuild
-mv ./results_dnsconfd/0.0.2/1.fc39/*.noarch.rpm ../tests
+mv ./results_dnsconfd/0.0.3/1.fc39/*.noarch.rpm ../tests
 popd
