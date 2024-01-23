@@ -1,3 +1,5 @@
+import dnsconfd
+import dnsconfd.dbus
 from dnsconfd.network_manager import NetworkManager
 
 from dbus import DBusException
@@ -9,12 +11,12 @@ class CLI_Commands:
     def status(dbus_name: str):
         bus = dbus.SystemBus()
         try:
-            dnsconfd_object = bus.get_object(dbus_name, "/org/freedesktop/resolve1")
+            dnsconfd_object = bus.get_object(dbus_name, dnsconfd.dbus.PATH_RESOLVED)
         except DBusException as e:
             print(f"Dnsconfd is not listening on name {dbus_name}")
             exit(1)
         try:
-            print(dnsconfd_object.Status(dbus_interface='org.freedesktop.resolve1.Dnsconfd'))
+            print(dnsconfd_object.Status(dbus_interface=dnsconfd.dbus.INT_DNSCONFD))
         except DBusException as e:
             print("Was not able to call Status method, check your DBus policy")
             exit(1)
@@ -37,12 +39,12 @@ class CLI_Commands:
     def reload(dbus_name, plugin=None):
         bus = dbus.SystemBus()
         try:
-            dnsconfd_object = bus.get_object(dbus_name, "/org/freedesktop/resolve1")
+            dnsconfd_object = bus.get_object(dbus_name, dnsconfd.dbus.PATH_RESOLVED)
         except DBusException as e:
             print(f"Dnsconfd is not listening on name {dbus_name}")
             exit(1)
         try:
-            print(dnsconfd_object.Reload(plugin, dbus_interface='org.freedesktop.resolve1.Dnsconfd'))
+            print(dnsconfd_object.Reload(plugin, dbus_interface=dnsconfd.dbus.INT_DNSCONFD))
         except DBusException as e:
             print("Was not able to call Status method, check your DBus policy")
             exit(1)

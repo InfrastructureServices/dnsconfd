@@ -1,9 +1,15 @@
 from argparse import ArgumentParser
+import dnsconfd.dbus
 from dnsconfd.cli_commands import CLI_Commands
 import os
 
 
 class DnsconfdArgumentParser(ArgumentParser):
+    #DEFAULT_DBUS_NAME = dnsconfd.dbus.DEST_DNSCONFD
+    DEFAULT_DBUS_NAME = dnsconfd.dbus.DEST_RESOLVED
+    DEFAULT_RESOLV_CONF = "/etc/resolv.conf"
+    DEFAULT_LOG_LEVEL = "INFO"
+
     def __init__(self, *args, **kwargs) -> None:
         super(DnsconfdArgumentParser, self).__init__(*args, **kwargs)
         self._parsed = None
@@ -59,12 +65,12 @@ class DnsconfdArgumentParser(ArgumentParser):
         self._parsed = super(DnsconfdArgumentParser, self).parse_args(*args, **kwargs)
 
         if self._parsed.dbus_name is None:
-            self._parsed.dbus_name = os.environ.get("DBUS_NAME", "com.redhat.dnsconfd")
+            self._parsed.dbus_name = os.environ.get("DBUS_NAME", self.DEFAULT_DBUS_NAME)
         if self._parsed.resolv_conf_path is None:
             self._parsed.resolv_conf_path = os.environ.get("RESOLV_CONF_PATH",
-                                                     "/etc/resolv.conf")
+                                                     self.DEFAULT_RESOLV_CONF)
         if self._parsed.log_level is None:
-            self._parsed.log_level = os.environ.get("LOG_LEVEL", "INFO")
+            self._parsed.log_level = os.environ.get("LOG_LEVEL", self.DEFAULT_LOG_LEVEL)
 
         return self._parsed
 
