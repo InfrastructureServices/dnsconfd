@@ -283,7 +283,13 @@ class DnsconfdContext(dbus.service.Object):
         status = {"service": self.dns_mgr.service_name, "config": self.dns_mgr.get_status()}
         return json.dumps(status)
 
-    @dbus.service.method(dbus_interface=dnsconfd.dbus.INT_DNSCONFD,
+    @dbus.service.method(dbus_interface=dbus.PROPERTIES_IFACE,
+                         in_signature='s', out_signature='a{sv}')
+    def GetAll(self, interface: str):
+        # TODO: implement useful properties generation
+        return []
+
+    @dbus.service.method(dbus_interface=dnsconfd.dbus.DNSCONFD_IFACE,
                          in_signature='s', out_signature='')
     def Reload(self, plugin: str):
         lgr.info(f"Received request for reload{' of plugin ' + plugin if plugin != '' else ''}")
