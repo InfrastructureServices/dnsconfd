@@ -160,6 +160,12 @@ class ResolveDbusInterface(dbus.service.Object):
         self.lgr.info("Received request for reload of plugin")
         return self.runtime_context.reload_service()
 
+    @dbus.service.method(dbus_interface=dbus.PROPERTIES_IFACE,
+                         in_signature='s', out_signature='a{sv}')
+    def GetAll(self, interface: str):
+        # TODO: implement useful properties generation
+        return []
+
     def _iface_config(self, interface_id: int):
         """Get existing or create new default interface network_objects."""
         return self.interfaces.setdefault(interface_id,
