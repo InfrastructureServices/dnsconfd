@@ -5,6 +5,7 @@ from dnsconfd.fsm import ContextEvent
 from dnsconfd.fsm import ContextState
 from dnsconfd import SystemManager
 from dnsconfd.fsm import ExitCode
+import dnsconfd.dbus
 
 from gi.repository import GLib
 from typing import Callable, Any
@@ -486,14 +487,13 @@ class DnsconfdContext:
         try:
             device_path = self._nm_interface.GetDeviceByIpIface(int_name)
             self.lgr.debug(f"Device path is {device_path}")
-            device_object = self.bus.get_object("org.freedesktop"
-                                                ".NetworkManager",
+            device_object = self.bus.get_object(dnsconfd.dbus.NM_NAME,
                                                 device_path)
 
             device_properties = dbus.Interface(device_object,
                                                "org.freedesktop"
                                                ".DBus.Properties").GetAll(
-                "org.freedesktop.NetworkManager.Device")
+                dnsconfd.dbus.NM_DEVICE_IFACE)
             if not 80 <= device_properties["State"] <= 100:
                 self.lgr.info(f"Interface {int_name} is not yet activated, "
                               f"state: {device_properties["State"]}, "
@@ -503,30 +503,30 @@ class DnsconfdContext:
                                          lambda: self.transition_function(upd))
                 return [], [], None
             prop_interface = "org.freedesktop.DBus.Properties"
-            ip4_object = self.bus.get_object('org.freedesktop.NetworkManager',
+            ip4_object = self.bus.get_object(dnsconfd.dbus.NM_NAME,
                                              device_properties["Ip4Config"])
-            ip6_object = self.bus.get_object('org.freedesktop.NetworkManager',
+            ip6_object = self.bus.get_object(dnsconfd.dbus.NM_NAME,
                                              device_properties["Ip6Config"])
             ip4_routes = dbus.Interface(ip4_object,
                                         prop_interface).Get(
-                "org.freedesktop.NetworkManager.IP4Config", "RouteData")
+                dnsconfd.dbus.NM_IP4CONFIG_IFACE, "RouteData")
             self.lgr.info(f"ipv4 Route data is {ip4_routes}")
             ip6_routes = dbus.Interface(ip6_object,
                                         prop_interface).Get(
-                "org.freedesktop.NetworkManager.IP6Config", "RouteData")
+                dnsconfd.dbus.NM_IP6CONFIG_IFACE, "RouteData")
             self.lgr.info(f"ipv6 Route data is {ip6_routes}")
             ip4_addresses = dbus.Interface(ip4_object,
                                            prop_interface).Get(
-                "org.freedesktop.NetworkManager.IP4Config", "Addresses")
+                dnsconfd.dbus.NM_IP4CONFIG_IFACE, "Addresses")
             ip6_addresses = dbus.Interface(ip6_object,
                                            prop_interface).Get(
-                "org.freedesktop.NetworkManager.IP6Config", "Addresses")
+                dnsconfd.dbus.NM_IP6CONFIG_IFACE, "Addresses")
             if len(ip4_addresses) == 0 and len(ip6_addresses) == 0:
                 self.lgr.info(f"interface {int_name} has no address "
                               "and thus we will not handle its routing")
                 return [], [], None
             dev_int = dbus.Interface(device_object,
-                                     "org.freedesktop.NetworkManager.Device")
+                                     dnsconfd.dbus.NM_DEVICE_IFACE)
             applied = dev_int.GetAppliedConnection(0)
             self.lgr.debug(f"Applied connection is {applied}")
         except dbus.DBusException as e:
@@ -584,20 +584,17 @@ class DnsconfdContext:
         """Get DBus proxy object of Device identified by ifname."""
         device_path = self._nm_interface.GetDeviceByIpIface(ifname)
         self.lgr.debug(f"Device path is {device_path}")
-        nm_int_str = "org.freedesktop.NetworkManager"
-        dev_int_str = "org.freedesktop.NetworkManager.Device"
-        device_object = self.bus.get_object(nm_int_str,
+        device_object = self.bus.get_object(dnsconfd.dbus.NM_NAME,
                                             device_path)
         dev_int = dbus.Interface(device_object,
-                                 dev_int_str)
+                                 dnsconfd.dbus.NM_DEVICE_IFACE)
         return dev_int
 
     def _get_nm_interface(self):
-        nm_dbus_name = "org.freedesktop.NetworkManager"
-        nm_object = self.bus.get_object(nm_dbus_name,
-                                        '/org/freedesktop/NetworkManager')
+        nm_object = self.bus.get_object(dnsconfd.dbus.NM_NAME,
+                                        dnsconfd.dbus.NM_PATH)
         self._nm_interface = dbus.Interface(nm_object,
-                                            nm_dbus_name)
+                                            dnsconfd.dbus.NM_IFACE)
         return self._nm_interface
 
     def _reapply_routes(self, ifname, connection, cver):

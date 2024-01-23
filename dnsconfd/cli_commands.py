@@ -1,5 +1,6 @@
 from dnsconfd import NetworkManager
 from dnsconfd import SystemManager
+import dnsconfd.dbus
 
 from sys import exit
 from dbus import DBusException
@@ -24,8 +25,8 @@ class CLI_Commands:
         bus = dbus.SystemBus()
         try:
             if api_choice == "resolve1":
-                object_path = "/org/freedesktop/resolve1"
-                int_name = "org.freedesktop.resolve1.Dnsconfd"
+                object_path = dnsconfd.dbus.PATH_RESOLVED
+                int_name = dnsconfd.dbus.INT_DNSCONFD # "org.freedesktop.resolve1.Dnsconfd"
             else:
                 object_path = "/com/redhat/dnsconfd"
                 int_name = "com.redhat.dnsconfd.Manager"
@@ -75,8 +76,8 @@ class CLI_Commands:
         bus = dbus.SystemBus()
         try:
             if api_choice == "resolve1":
-                object_path = "/org/freedesktop/resolve1"
-                int_name = "org.freedesktop.resolve1.Dnsconfd"
+                object_path = dnsconfd.dbus.PATH_RESOLVED
+                int_name = dnsconfd.dbus.INT_DNSCONFD
             else:
                 object_path = "/com/redhat/dnsconfd"
                 int_name = "com.redhat.dnsconfd.Manager"

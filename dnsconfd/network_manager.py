@@ -1,4 +1,5 @@
 import subprocess
+import dnsconfd.dbus
 
 
 class NetworkManager(object):
@@ -6,6 +7,9 @@ class NetworkManager(object):
     NM_CONF = NM_CONF_D + "/dnsconfd.conf"
     HEADER = "## This file is maintained by " \
              "dnsconfd tool, do not edit by hand!\n"
+    DBUS_NAME = dnsconfd.dbus.NM_NAME
+    DBUS_PATH = dnsconfd.dbus.NM_DNS_PATH
+    DBUS_INTERFACE = dnsconfd.dbus.NM_DNS_IFACE
 
     @staticmethod
     def reload():
