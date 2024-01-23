@@ -273,7 +273,8 @@ class DnsconfdContext(dbus.service.Object):
                          in_signature='', out_signature='')
     def FlushCaches(self):
         # TODO: we need ability to flush just a subtree, not always all records
-        lgr.debug(f"FlushCaches called and ignored")
+        self.dns_mgr.flush_cache()
+        lgr.debug(f"FlushCaches called")
 
     @dbus.service.method(dbus_interface=dnsconfd.dbus.INT_MANAGER,
                          in_signature='', out_signature='s')
