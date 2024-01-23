@@ -167,3 +167,6 @@ class UnboundManager(DnsManager):
         for zone, servers in self.zones_to_servers.items():
             status[zone] = [str(srv) for srv in servers]
         return status
+
+    def flush_cache(self, domain="."):
+        return self._execute_cmd("flush "+domain) == 0

@@ -30,3 +30,7 @@ class DnsManager:
         :rtype: dict[str, list[str]]
         """
         raise NotImplementedError
+
+    def flush_cache(self, domain="."):
+        """ Flush cache tree under domain """
+        raise NotImplementedError

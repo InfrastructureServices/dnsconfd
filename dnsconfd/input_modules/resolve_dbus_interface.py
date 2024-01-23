@@ -146,7 +146,8 @@ class ResolveDbusInterface(dbus.service.Object):
                          in_signature='', out_signature='')
     def FlushCaches(self):
         # TODO: we need ability to flush just a subtree, not always all records
-        self.lgr.debug("FlushCaches called and ignored")
+        self.lgr.debug("FlushCaches called")
+        self.dns_mgr.flush_cache()
 
     @dbus.service.method(dbus_interface='org.freedesktop.resolve1.Dnsconfd',
                          in_signature='b', out_signature='s')
