@@ -17,13 +17,15 @@ class DnsconfdArgumentParser(ArgumentParser):
     def add_arguments(self):
         self.add_argument("--dbus-name",
                           help="DBUS name that dnsconfd should use",
-                          default=None)
+                          default=os.environ.get("DBUS_NAME", self.DEFAULT_DBUS_NAME))
         self.add_argument("--log-level",
                           help="Log level of dnsconfd",
-                          default=None, choices=["DEBUG", "INFO", "WARN"])
+                          default=os.environ.get("LOG_LEVEL", self.DEFAULT_LOG_LEVEL),
+                          choices=["DEBUG", "INFO", "WARN"])
         self.add_argument("--resolv-conf-path",
                           help="Path to resolv.conf that the dnsconfd should manage",
-                          default=None)
+                          default=os.environ.get("RESOLV_CONF_PATH",
+                                                     self.DEFAULT_RESOLV_CONF))
         self.add_argument("--listen-address",
                           help="Address on which local resolver listens",
                           default="127.0.0.1")
@@ -63,15 +65,6 @@ class DnsconfdArgumentParser(ArgumentParser):
 
     def parse_args(self, *args, **kwargs):
         self._parsed = super(DnsconfdArgumentParser, self).parse_args(*args, **kwargs)
-
-        if self._parsed.dbus_name is None:
-            self._parsed.dbus_name = os.environ.get("DBUS_NAME", self.DEFAULT_DBUS_NAME)
-        if self._parsed.resolv_conf_path is None:
-            self._parsed.resolv_conf_path = os.environ.get("RESOLV_CONF_PATH",
-                                                     self.DEFAULT_RESOLV_CONF)
-        if self._parsed.log_level is None:
-            self._parsed.log_level = os.environ.get("LOG_LEVEL", self.DEFAULT_LOG_LEVEL)
-
         return self._parsed
 
     def _reload(self):
