@@ -5,7 +5,7 @@ specfile_path: distribution/dnsconfd.spec
 
 # add or remove files that should be synced
 files_to_sync:
-    - dnsconfd.spec
+    - distribution/dnsconfd.spec
     - .packit.yaml
 
 # name in upstream package repository or registry (e.g. in PyPI)
@@ -15,6 +15,10 @@ downstream_package_name: dnsconfd
 
 jobs:
   - job: copr_build
-    trigger: commit
+    trigger: pull_request
     targets:
       - fedora-all
+  - job: tests
+    trigger: pull_request
+    targets:
+    - fedora-39

@@ -109,3 +109,7 @@ allow dnsconfd_t named_unit_file_t:service { start stop };
 allow init_t dnsconfd_t:dbus send_msg;
 allow dnsconfd_t named_conf_t:dir search;
 allow dnsconfd_t named_conf_t:file read;
+
+# this is neccessary in testing farm, because resolv.conf seems to be
+# on a separate partition there
+dontaudit dnsconfd_t net_conf_t:file ioctl;
