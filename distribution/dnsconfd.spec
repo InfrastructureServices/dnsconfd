@@ -34,10 +34,9 @@ BuildRequires:  systemd-rpm-macros
 
 Requires:  (%{name}-selinux if selinux-policy-%{selinuxtype})
 Requires:  python3-gobject-base
+Requires:  dbus-common
 Requires:  %{name}-cache
 Suggests:  %{name}-unbound
-
-#Conflicts: systemd-resolved
 
 %?python_enable_dependency_generator                                            
 
@@ -126,10 +125,13 @@ fi
 %dnl %sysusers_create_compat %{SOURCE3}
 
 %post
-%systemd_post dnsconfd.service
+%systemd_post %{name}.service
+
+%preun
+%systemd_preun %{name}.service
 
 %postun
-%systemd_postun dnsconfd.service
+%systemd_postun_with_restart %{name}.service
 
 %files
 %license LICENSE
