@@ -6,7 +6,7 @@
 Name:           dnsconfd                                                   
 Version:        0.0.2
 Release:        1%{?dist}
-Summary:        local DNS cache configuration daemon
+Summary:        Local DNS cache configuration daemon
 License:        MIT
 URL:            https://github.com/InfrastructureServices/dnsconfd
 Source0:        %{url}/archive/%{version}/%{name}-%{version}.tar.gz
@@ -92,7 +92,7 @@ mkdir   -m 0755 -p %{buildroot}/%{_mandir}/man8
 install -m 0644 -p %{SOURCE1} %{buildroot}%{_datadir}/dbus-1/system.d/com.redhat.dnsconfd.conf
 install -m 0644 -p %{SOURCE8} %{buildroot}%{_sysconfdir}/sysconfig/dnsconfd
 install -m 0644 -p %{SOURCE2} %{buildroot}%{_unitdir}/dnsconfd.service
-#install -m 0644 -p %{SOURCE9} %{buildroot}%{_unitdir}/dnsconfd.service.d/unbound.conf
+%dnl install -m 0644 -p %{SOURCE9} %{buildroot}%{_unitdir}/dnsconfd.service.d/unbound.conf
 install -m 0644 -p %{SOURCE10} %{buildroot}%{_sysconfdir}/unbound/conf.d/unbound.conf
 
 touch %{buildroot}%{_var}/log/dnsconfd/unbound.log
@@ -141,8 +141,8 @@ fi
 %{_datadir}/dbus-1/system.d/com.redhat.dnsconfd.conf
 %config(noreplace) %{_sysconfdir}/sysconfig/dnsconfd
 %{_unitdir}/dnsconfd.service
-#%dir %{_unitdir}/dnsconfd.service.d
-%attr(0755,root,root) %{_var}/log/dnsconfd
+%dnl %dir %{_unitdir}/dnsconfd.service.d
+%dir %attr(0755,root,root) %{_var}/log/dnsconfd
 %{_mandir}/man8/dnsconfd.8*
 %ghost %{_sysusersdir}/dnsconfd.conf
 %doc README.md
@@ -152,8 +152,9 @@ fi
 %ghost %verify(not md5 size mode mtime) %{_sharedstatedir}/selinux/%{selinuxtype}/active/modules/200/%{modulename}
 
 %files unbound
-#%{_unitdir}/dnsconfd.service.d/unbound.conf
+%dnl %{_unitdir}/dnsconfd.service.d/unbound.conf
 %config(noreplace) %{_sysconfdir}/unbound/conf.d/unbound.conf
+%ghost %{_var}/log/dnsconfd/unbound.log
 
 %changelog
 * Wed Jan 24 2024 Tomas Korbar <tkorbar@redhat.com> - 0.0.2-1
