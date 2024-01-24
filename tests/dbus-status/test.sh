@@ -18,7 +18,6 @@ rlJournalStart
          --type=method_call /org/freedesktop/resolve1 \
          org.freedesktop.resolve1.Manager.RevertLink int32:1" 1 "Verify that regular user is not permitted to change DNS setting"
         rlRun "ausearch -m avc --start recent | grep dnsconfd_t" 1 "Check no AVC occured"
-        rlRun "audit2allow -a" 0 "get me new rule"
     rlPhaseEnd
 
     rlPhaseStartCleanup
