@@ -1,5 +1,6 @@
 from argparse import ArgumentParser
 from dnsconfd.cli_commands import CLI_Commands
+from dnsconfd.configuration import Files
 import os
 
 
@@ -7,6 +8,14 @@ class DnsconfdArgumentParser(ArgumentParser):
     def __init__(self, *args, **kwargs) -> None:
         super(DnsconfdArgumentParser, self).__init__(*args, **kwargs)
         self._parsed = None
+        self.config = None
+
+    def configure(self):
+        self.config = Files()
+        self.config.read_default()
+
+    def get_config(self):
+        return self.config
 
     def add_arguments(self):
         self.add_argument("--dbus-name",
