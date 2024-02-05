@@ -9,7 +9,7 @@ import dbus
 import dbus.mainloop.glib
 
 if __name__ == "__main__":
-    parser = argparser(prog='dnsconfd', description='local DNS cache configuration daemon')
+    parser = argparser(prog='dnsconfd', description='Local DNS cache configuration daemon')
     parser.add_arguments()
     parser.add_commands()
     args = parser.parse_args()
