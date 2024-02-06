@@ -6,10 +6,31 @@ from sys import exit
 from dbus import DBusException
 import dbus
 import typing
+import sys
 import json
 
 
 class CLI_Commands:
+    """Command line small action helpers."""
+
+    @staticmethod
+    def _fatal(message):
+        sys.stderr.write(message+"\n")
+        exit(1)
+
+    @staticmethod
+    def _get_object(dbus_name, api_choice):
+        if api_choice == "resolve1":
+            object_path = dnsconfd.dbus.PATH_RESOLVED
+            int_name = dnsconfd.dbus.INT_DNSCONFD
+        else:
+            object_path = "/com/redhat/dnsconfd"
+            int_name = "com.redhat.dnsconfd.Manager"
+        bus = dbus.SystemBus()
+        dnsconfd_object = bus.get_object(dbus_name,
+                                         object_path)
+        return (dnsconfd_object, int_name)
+
     @staticmethod
     def status(dbus_name: str,
                json_format: bool,
@@ -22,27 +43,17 @@ class CLI_Commands:
         :type json_format: bool
         :return: No return
         """
-        bus = dbus.SystemBus()
         try:
-            if api_choice == "resolve1":
-                object_path = dnsconfd.dbus.PATH_RESOLVED
-                int_name = dnsconfd.dbus.INT_DNSCONFD # "org.freedesktop.resolve1.Dnsconfd"
-            else:
-                object_path = "/com/redhat/dnsconfd"
-                int_name = "com.redhat.dnsconfd.Manager"
-            dnsconfd_object = bus.get_object(dbus_name,
-                                             object_path)
+            (dnsconfd_object, int_name) = CLI_Commands._get_object(dbus_name, api_choice)
         except DBusException as e:
-            print(f"Dnsconfd is not listening on name {dbus_name}, {e}")
-            exit(1)
+            CLI_Commands._fatal(f"Dnsconfd is not listening on name {dbus_name}: {e.get_dbus_message()}")
+
         try:
             print(dnsconfd_object.Status(json_format,
                                          dbus_interface=int_name))
         except DBusException as e:
-            print("Was not able to call Status method, check your DBus policy:"
-                  + f"{e}")
-            exit(1)
-        exit(0)
+            CLI_Commands._fatal(f"Error calling Status method on {dbus_name}: {e}")
+
 
     @staticmethod
     def nm_config(enable: bool) -> typing.NoReturn:
@@ -56,8 +67,7 @@ class CLI_Commands:
         else:
             success = NetworkManager().disable()
         if not success:
-            print("Dnsconfd was unable to configure Network Manager")
-            exit(1)
+            CLI_Commands._fatal(f"Dnsconfd was unable to configure Network Manager: {str(e)}")
         print(f"Network Manager will {'use' if enable else 'not use'}"
               + " dnsconfd now")
         exit(0)
@@ -73,27 +83,14 @@ class CLI_Commands:
         :type dbus_name: str
         :return: No return
         """
-        bus = dbus.SystemBus()
         try:
-            if api_choice == "resolve1":
-                object_path = dnsconfd.dbus.PATH_RESOLVED
-                int_name = dnsconfd.dbus.INT_DNSCONFD
-            else:
-                object_path = "/com/redhat/dnsconfd"
-                int_name = "com.redhat.dnsconfd.Manager"
-            dnsconfd_object = bus.get_object(dbus_name,
-                                             object_path)
-        except DBusException as e:
-            print(f"Dnsconfd is not listening on name {dbus_name}, {e}")
-            exit(1)
-        try:
+            (dnsconfd_object, int_name) = CLI_Commands._get_object(dbus_name, api_choice)
+
             all_ok, msg = dnsconfd_object.Reload(dbus_interface=int_name)
             print(msg)
             exit(0 if all_ok else 1)
         except DBusException as e:
-            print("Was not able to call Status method, check your DBus policy:"
-                  + f"{e}")
-            exit(1)
+            CLI_Commands._fatal(f"Error calling Reload method on {dbus_name}: {e}")
 
     @staticmethod
     def chown_resolvconf(config: dict, user: str) -> typing.NoReturn:
@@ -117,7 +114,6 @@ class CLI_Commands:
         """
         if (not NetworkManager().enable() or
                 not SystemManager(config).chown_resolvconf("dnsconfd")):
-            exit(1)
         exit(0)
 
     @staticmethod
