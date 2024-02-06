@@ -3,6 +3,7 @@ from dnsconfd.network_objects import ServerDescription
 from dnsconfd.fsm import DnsconfdContext
 from dnsconfd.fsm import ContextEvent
 from dnsconfd.network_objects import DnsProtocol
+import dnsconfd.dbus
 
 import logging
 import dbus.service
@@ -11,7 +12,7 @@ from dbus.service import BusName
 
 class ResolveDbusInterface(dbus.service.Object):
     def __init__(self, runtime_context: DnsconfdContext, config):
-        super().__init__(object_path="/org/freedesktop/resolve1",
+        super().__init__(object_path=dnsconfd.dbus.RESOLVED_PATH,
                          bus_name=BusName(config["dbus_name"],
                                           dbus.SystemBus()))
         self.interfaces: dict[int, InterfaceConfiguration] = {}
@@ -24,7 +25,7 @@ class ResolveDbusInterface(dbus.service.Object):
     # freedesktop.org/software/systemd/man/latest/org.freedesktop.resolve1.html
     # or man 5 org.freedesktop.resolve1
 
-    @dbus.service.method(dbus_interface='org.freedesktop.resolve1.Manager',
+    @dbus.service.method(dbus_interface=dnsconfd.dbus.RESOLVED_MANAGER_IFACE,
                          in_signature='ia(iay)', out_signature='')
     def SetLinkDNS(self,
                    interface_index: int,
@@ -44,7 +45,7 @@ class ResolveDbusInterface(dbus.service.Object):
                       f"{servers_to_string}")
         self._update_if_ready(interface_cfg)
 
-    @dbus.service.method(dbus_interface='org.freedesktop.resolve1.Manager',
+    @dbus.service.method(dbus_interface=dnsconfd.dbus.RESOLVED_MANAGER_IFACE,
                          in_signature='ia(iayqs)', out_signature='')
     def SetLinkDNSEx(self,
                      interface_index: int,
@@ -64,7 +65,7 @@ class ResolveDbusInterface(dbus.service.Object):
                       f"{servers_to_string}")
         self._update_if_ready(interface_cfg)
 
-    @dbus.service.method(dbus_interface='org.freedesktop.resolve1.Manager',
+    @dbus.service.method(dbus_interface=dnsconfd.dbus.RESOLVED_MANAGER_IFACE,
                          in_signature='ia(sb)', out_signature='')
     def SetLinkDomains(self, interface_index: int, domains: list[(str, bool)]):
         self.lgr.debug("SetLinkDomains called, interface index: "
@@ -78,7 +79,7 @@ class ResolveDbusInterface(dbus.service.Object):
                                  for domain, is_routing in domains]
         self._update_if_ready(interface_cfg)
 
-    @dbus.service.method(dbus_interface='org.freedesktop.resolve1.Manager',
+    @dbus.service.method(dbus_interface=dnsconfd.dbus.RESOLVED_MANAGER_IFACE,
                          in_signature='ib', out_signature='')
     def SetLinkDefaultRoute(self, interface_index: int, is_default: bool):
         self.lgr.debug("SetLinkDefaultRoute called, interface index: "
@@ -89,18 +90,18 @@ class ResolveDbusInterface(dbus.service.Object):
         interface_cfg.is_default = is_default
         self._update_if_ready(interface_cfg)
 
-    @dbus.service.method(dbus_interface='org.freedesktop.resolve1.Manager',
+    @dbus.service.method(dbus_interface=dnsconfd.dbus.RESOLVED_MANAGER_IFACE,
                          in_signature='is', out_signature='')
     def SetLinkLLMNR(self, interface_index: int, mode: str):
         # unbound does not support LLMNR
         self.lgr.debug("SetLinkLLMNR called, and ignored")
 
-    @dbus.service.method(dbus_interface='org.freedesktop.resolve1.Manager',
+    @dbus.service.method(dbus_interface=dnsconfd.dbus.RESOLVED_MANAGER_IFACE,
                          in_signature='is', out_signature='')
     def SetLinkMulticastDNS(self, interface_index: int, mode: str):
         self.lgr.debug("SetLinkMulticastDNS called, and ignored")
 
-    @dbus.service.method(dbus_interface='org.freedesktop.resolve1.Manager',
+    @dbus.service.method(dbus_interface=dnsconfd.dbus.RESOLVED_MANAGER_IFACE,
                          in_signature='is', out_signature='')
     def SetLinkDNSOverTLS(self, interface_index: int, mode: str):
         self.lgr.debug("SetLinkDNSOverTLS called, interface index: "
@@ -114,7 +115,7 @@ class ResolveDbusInterface(dbus.service.Object):
             interface_cfg.dns_over_tls = False
         self._update_if_ready(interface_cfg)
 
-    @dbus.service.method(dbus_interface='org.freedesktop.resolve1.Manager',
+    @dbus.service.method(dbus_interface=dnsconfd.dbus.RESOLVED_MANAGER_IFACE,
                          in_signature='is', out_signature='')
     def SetLinkDNSSEC(self, interface_index: int, mode: str):
         self.lgr.debug("SetLinkDNSSEC called, "
@@ -128,7 +129,7 @@ class ResolveDbusInterface(dbus.service.Object):
             interface_cfg.dnssec = True
         self._update_if_ready(interface_cfg)
 
-    @dbus.service.method(dbus_interface='org.freedesktop.resolve1.Manager',
+    @dbus.service.method(dbus_interface=dnsconfd.dbus.RESOLVED_MANAGER_IFACE,
                          in_signature='ias', out_signature='')
     def SetLinkDNSSECNegativeTrustAnchors(self,
                                           interface_index: int,
@@ -136,25 +137,25 @@ class ResolveDbusInterface(dbus.service.Object):
         self.lgr.debug("SetLinkDNSSECNegativeTrustAnchors called and ignored, "
                        f"interface index: {interface_index}, names: {names}")
 
-    @dbus.service.method(dbus_interface='org.freedesktop.resolve1.Manager',
+    @dbus.service.method(dbus_interface=dnsconfd.dbus.RESOLVED_MANAGER_IFACE,
                          in_signature='i', out_signature='')
     def RevertLink(self, interface_index: int):
         self.lgr.debug("RevertLink called and ignored, "
                        f"interface index: {interface_index}")
 
-    @dbus.service.method(dbus_interface='org.freedesktop.resolve1.Manager',
+    @dbus.service.method(dbus_interface=dnsconfd.dbus.RESOLVED_MANAGER_IFACE,
                          in_signature='', out_signature='')
     def FlushCaches(self):
         # TODO: we need ability to flush just a subtree, not always all records
         self.lgr.debug("FlushCaches called")
         self.dns_mgr.flush_cache()
 
-    @dbus.service.method(dbus_interface='org.freedesktop.resolve1.Dnsconfd',
+    @dbus.service.method(dbus_interface=dnsconfd.dbus.RESOLVED_DNSCONFD_IFACE,
                          in_signature='b', out_signature='s')
     def Status(self, json_format: bool):
         return self.runtime_context.get_status(json_format)
 
-    @dbus.service.method(dbus_interface='org.freedesktop.resolve1.Dnsconfd',
+    @dbus.service.method(dbus_interface=dnsconfd.dbus.RESOLVED_DNSCONFD_IFACE,
                          in_signature='', out_signature='bs')
     def Reload(self):
         self.lgr.info("Received request for reload of plugin")

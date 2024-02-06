@@ -31,7 +31,7 @@ class DnsconfdArgumentParser(ArgumentParser):
                          validation=r"DEBUG|INFO|WARNING|ERROR|CRITICAL"),
             StringOption("dbus_name",
                          "DBUS name that dnsconfd should use",
-                         dnsconfd.dbus.DEST_RESOLVED,
+                         dnsconfd.dbus.RESOLVED_NAME,
                          validation=dbus_re),
             Option("resolv_conf_path",
                    "Path to resolv.conf that the dnsconfd should manage",
