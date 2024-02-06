@@ -4,22 +4,32 @@ from dnsconfd.network_manager import NetworkManager
 
 from dbus import DBusException
 import dbus
+import sys
 
 
 class CLI_Commands:
+    """Command line small action helpers."""
+
+    @staticmethod
+    def _fatal(message):
+        sys.stderr.write(message+"\n")
+        exit(1)
+            
+    @staticmethod
+    def _get_object(dbus_name=dnsconfd.DEFAULT_DBUS_NAME, path=dnsconfd.dbus.RESOLVED_PATH, bus=dbus.SystemBus()):
+        try:
+            return bus.get_object(dbus_name, path)
+        except DBusException as e:
+            CLI_Commands._fatal(f"Dnsconfd is not listening on name {dbus_name}: {e.get_dbus_message()}")
+    
     @staticmethod
     def status(dbus_name=dnsconfd.DEFAULT_DBUS_NAME):
-        bus = dbus.SystemBus()
+        object = CLI_Commands._get_object(dbus_name)
         try:
-            dnsconfd_object = bus.get_object(dbus_name, dnsconfd.dbus.RESOLVED_PATH)
+            status = object.Status(dbus_interface=dnsconfd.dbus.DNSCONFD_IFACE)
+            print(status)
         except DBusException as e:
-            print(f"Dnsconfd is not listening on name {dbus_name}")
-            exit(1)
-        try:
-            print(dnsconfd_object.Status(dbus_interface=dnsconfd.dbus.DNSCONFD_IFACE))
-        except DBusException as e:
-            print("Was not able to call Status method, check your DBus policy")
-            exit(1)
+            CLI_Commands._fatal(f"Error calling Status method: {e}")
         exit(0)
 
     @staticmethod
@@ -27,25 +37,20 @@ class CLI_Commands:
         try:
             if enable:
                 NetworkManager().enable()
+                use = 'use'
             else:
                 NetworkManager().disable()
-            print(f"Network Manager will {'use' if enable else 'not use'} dnsconfd now")
+                use = 'not use'
+            print(f"Network Manager will {use} dnsconfd now")
             exit(0)
         except Exception as e:
-            print(f"Dnsconfd was unable to configure Network Manager: {str(e)}")
-            exit(1)
+            CLI_Commands._fatal(f"Dnsconfd was unable to configure Network Manager: {str(e)}")
 
     @staticmethod
     def reload(dbus_name=dnsconfd.DEFAULT_DBUS_NAME, plugin=None):
-        bus = dbus.SystemBus()
+        object = CLI_Commands._get_object(dbus_name) 
         try:
-            dnsconfd_object = bus.get_object(dbus_name, dnsconfd.dbus.RESOLVED_PATH)
+            print(object.Reload(plugin, dbus_interface=dnsconfd.dbus.DNSCONFD_IFACE))
         except DBusException as e:
-            print(f"Dnsconfd is not listening on name {dbus_name}")
-            exit(1)
-        try:
-            print(dnsconfd_object.Reload(plugin, dbus_interface=dnsconfd.dbus.DNSCONFD_IFACE))
-        except DBusException as e:
-            print("Was not able to call Status method, check your DBus policy")
-            exit(1)
+            CLI_Commands._fatal(f"Error calling Reload method: {e}")
         exit(0)
