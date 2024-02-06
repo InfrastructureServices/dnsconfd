@@ -8,15 +8,24 @@ import dbus
 import typing
 import sys
 import json
+import enum
 
+class Codes(enum.Enum):
+    """Return codes on command line commands."""
+    SUCCESS = 0
+    ERROR_GENERAL = 1
+    ERROR_DBUS_NAME = 2
+    ERROR_DBUS_OTHER = 3
 
 class CLI_Commands:
     """Command line small action helpers."""
 
     @staticmethod
-    def _fatal(message):
+    def _fatal(message, code=Codes.ERROR_GENERAL):
         sys.stderr.write(message+"\n")
-        exit(1)
+        if isinstance(code, Codes):
+            code = code.value
+        exit(code)
 
     @staticmethod
     def _get_object(dbus_name, api_choice):
@@ -30,6 +39,10 @@ class CLI_Commands:
         dnsconfd_object = bus.get_object(dbus_name,
                                          object_path)
         return (dnsconfd_object, int_name)
+        
+    @staticmethod
+    def print_status(status: object):
+        print(status)
 
     @staticmethod
     def status(dbus_name: str,
@@ -46,14 +59,20 @@ class CLI_Commands:
         try:
             (dnsconfd_object, int_name) = CLI_Commands._get_object(dbus_name, api_choice)
         except DBusException as e:
-            CLI_Commands._fatal(f"Dnsconfd is not listening on name {dbus_name}: {e.get_dbus_message()}")
+            CLI_Commands._fatal(f"Dnsconfd is not listening on name {dbus_name}: {e.get_dbus_message()}",
+                                Codes.ERROR_DBUS_NAME)
 
         try:
-            print(dnsconfd_object.Status(json_format,
-                                         dbus_interface=int_name))
+            status_str = object.Status(dbus_interface=dnsconfd.dbus.DNSCONFD_IFACE)
+            decoder = json.decoder.JSONDecoder()
+            status = decoder.decode(status_str)
+            print_status(status)
+            exit(Codes.SUCCESS.value)
+        except json.decoder.JSONDecodeError as e:
+            CLI_Commands._fatal(f"Failed to decode JSON: {e}", Codes.ERROR_JSON)
         except DBusException as e:
-            CLI_Commands._fatal(f"Error calling Status method on {dbus_name}: {e}")
-
+            CLI_Commands._fatal(f"Error calling Status method: {e}",
+                                Codes.ERROR_DBUS_OTHER)
 
     @staticmethod
     def nm_config(enable: bool) -> typing.NoReturn:
@@ -64,16 +83,19 @@ class CLI_Commands:
         """
         if enable:
             success = NetworkManager().enable()
+            use = 'use'
         else:
             success = NetworkManager().disable()
+            use = 'not use'
         if not success:
-            CLI_Commands._fatal(f"Dnsconfd was unable to configure Network Manager: {str(e)}")
-        print(f"Network Manager will {'use' if enable else 'not use'}"
-              + " dnsconfd now")
-        exit(0)
+            CLI_Commands._fatal(f"Dnsconfd was unable to configure Network Manager: {str(e)}",
+                                Codes.ERROR_DBUS_OTHER)
+        else:
+            print(f"Network Manager will {use} dnsconfd now")
+            exit(Codes.SUCCESS.value)
 
     @staticmethod
-    def reload(dbus_name: str,
+    def reload(dbus_name=dnsconfd.DEFAULT_DBUS_NAME,
                api_choice: str) -> typing.NoReturn:
         """ Call Dnsconfd reload method through DBUS
 
@@ -88,10 +110,10 @@ class CLI_Commands:
 
             all_ok, msg = dnsconfd_object.Reload(dbus_interface=int_name)
             print(msg)
-            exit(0 if all_ok else 1)
+            exit(not all_ok)
         except DBusException as e:
-            CLI_Commands._fatal(f"Error calling Reload method on {dbus_name}: {e}")
-
+            CLI_Commands._fatal(f"Error calling Reload method: {e}",
+                                Codes.ERROR_DBUS_OTHER)
     @staticmethod
     def chown_resolvconf(config: dict, user: str) -> typing.NoReturn:
         """ Change ownership resolv.conf
@@ -114,7 +136,6 @@ class CLI_Commands:
         """
         if (not NetworkManager().enable() or
                 not SystemManager(config).chown_resolvconf("dnsconfd")):
-        exit(0)
 
     @staticmethod
     def uninstall(config: dict) -> typing.NoReturn:
