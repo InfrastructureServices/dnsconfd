@@ -1,12 +1,11 @@
 from argparse import ArgumentParser
+import dnsconfd
 import dnsconfd.dbus
 from dnsconfd.cli_commands import CLI_Commands
 import os
 
 
 class DnsconfdArgumentParser(ArgumentParser):
-    #DEFAULT_DBUS_NAME = dnsconfd.dbus.DEST_DNSCONFD
-    DEFAULT_DBUS_NAME = dnsconfd.dbus.DEST_RESOLVED
     DEFAULT_RESOLV_CONF = "/etc/resolv.conf"
     DEFAULT_LOG_LEVEL = "INFO"
 
@@ -17,7 +16,7 @@ class DnsconfdArgumentParser(ArgumentParser):
     def add_arguments(self):
         self.add_argument("--dbus-name",
                           help="DBUS name that dnsconfd should use",
-                          default=os.environ.get("DBUS_NAME", self.DEFAULT_DBUS_NAME))
+                          default=os.environ.get("DBUS_NAME", dnsconfd.DEFAULT_DBUS_NAME))
         self.add_argument("--log-level",
                           help="Log level of dnsconfd",
                           default=os.environ.get("LOG_LEVEL", self.DEFAULT_LOG_LEVEL),

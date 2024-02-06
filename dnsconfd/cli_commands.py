@@ -8,15 +8,15 @@ import dbus
 
 class CLI_Commands:
     @staticmethod
-    def status(dbus_name: str):
+    def status(dbus_name=dnsconfd.DEFAULT_DBUS_NAME):
         bus = dbus.SystemBus()
         try:
-            dnsconfd_object = bus.get_object(dbus_name, dnsconfd.dbus.PATH_RESOLVED)
+            dnsconfd_object = bus.get_object(dbus_name, dnsconfd.dbus.RESOLVED_PATH)
         except DBusException as e:
             print(f"Dnsconfd is not listening on name {dbus_name}")
             exit(1)
         try:
-            print(dnsconfd_object.Status(dbus_interface=dnsconfd.dbus.INT_DNSCONFD))
+            print(dnsconfd_object.Status(dbus_interface=dnsconfd.dbus.DNSCONFD_IFACE))
         except DBusException as e:
             print("Was not able to call Status method, check your DBus policy")
             exit(1)
@@ -36,15 +36,15 @@ class CLI_Commands:
             exit(1)
 
     @staticmethod
-    def reload(dbus_name, plugin=None):
+    def reload(dbus_name=dnsconfd.DEFAULT_DBUS_NAME, plugin=None):
         bus = dbus.SystemBus()
         try:
-            dnsconfd_object = bus.get_object(dbus_name, dnsconfd.dbus.PATH_RESOLVED)
+            dnsconfd_object = bus.get_object(dbus_name, dnsconfd.dbus.RESOLVED_PATH)
         except DBusException as e:
             print(f"Dnsconfd is not listening on name {dbus_name}")
             exit(1)
         try:
-            print(dnsconfd_object.Reload(plugin, dbus_interface=dnsconfd.dbus.INT_DNSCONFD))
+            print(dnsconfd_object.Reload(plugin, dbus_interface=dnsconfd.dbus.DNSCONFD_IFACE))
         except DBusException as e:
             print("Was not able to call Status method, check your DBus policy")
             exit(1)
