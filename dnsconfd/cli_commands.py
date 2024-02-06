@@ -9,6 +9,7 @@ import typing
 import sys
 import json
 import enum
+import json.decoder
 
 class Codes(enum.Enum):
     """Return codes on command line commands."""
@@ -16,6 +17,15 @@ class Codes(enum.Enum):
     ERROR_GENERAL = 1
     ERROR_DBUS_NAME = 2
     ERROR_DBUS_OTHER = 3
+    ERROR_JSON = 4
+
+def print_status(js):
+    print("Service: {service}".format(service=js.get('service')))
+    config = js.get('config')
+    if config:
+        for k in config:
+            servers = ' '.join(config[k])
+            print("Domain {domain}: {servers}".format(domain=k, servers=servers))
 
 class CLI_Commands:
     """Command line small action helpers."""
