@@ -5,6 +5,9 @@ class NetworkManager(object):
     NM_CONF_D = "/etc/NetworkManager/conf.d"
     NM_CONF = NM_CONF_D+"/dnsconf.conf"
     HEADER = "## This file is maintained by dnsconfd tool, do not edit by hand!\n"
+    DBUS_NAME = "org.freedesktop.NetworkManager"
+    DBUS_PATH = "/org/freedesktop/NetworkManager/DnsManager"
+    DBUS_INTERFACE = "org.freedesktop.NetworkManager.DnsManager"
 
     def reload(self):
         cmd = subprocess.run(["systemctl", "reload", "NetworkManager"], capture_output=True, check=True)

@@ -3,6 +3,8 @@ from dnsconfd.configuration import InterfaceConfiguration
 from dnsconfd.configuration import ServerDescription
 from dnsconfd.dns_managers import UnboundManager
 
+import dnsconfd.dbus
+
 import signal
 import logging as lgr
 import json
@@ -11,7 +13,7 @@ from gi.repository import GLib
 
 class DnsconfdContext(dbus.service.Object):
     def __init__(self, config: dict):
-        super().__init__(object_path="/org/freedesktop/resolve1",
+        super().__init__(object_path=dnsconfd.dbus.RESOLVED_PATH,
                          bus_name=dbus.service.BusName(config["dbus_name"], dbus.SystemBus()))
         self.my_address = config["listen_address"]
         self.sys_mgr = SystemManager(config["resolv_conf_path"], self.my_address)
@@ -190,11 +192,7 @@ class DnsconfdContext(dbus.service.Object):
     # until proven otherwise, we will expect this to be true at all cases
     # but TODO ensure consistent state of service during partial updates
 
-    # Implements systemd-resolved interfaces defined at:
-    # https://www.freedesktop.org/software/systemd/man/latest/org.freedesktop.resolve1.html
-    # or man 5 org.freedesktop.resolve1
-
-    @dbus.service.method(dbus_interface='org.freedesktop.resolve1.Manager',
+    @dbus.service.method(dbus_interface=dnsconfd.dbus.MANAGER_IFACE,
                          in_signature='ia(iay)', out_signature='')
     def SetLinkDNS(self, interface_index: int, addresses: list[(int, bytearray)]):
         lgr.debug(f"SetLinkDNS called, interface index: {interface_index}, addresses: {addresses}")
@@ -204,7 +202,7 @@ class DnsconfdContext(dbus.service.Object):
         interface_cfg.servers = servers
         self._log_servers(interface_cfg.get_ifname(), servers)
 
-    @dbus.service.method(dbus_interface='org.freedesktop.resolve1.Manager',
+    @dbus.service.method(dbus_interface=dnsconfd.dbus.MANAGER_IFACE,
                          in_signature='ia(iayqs)', out_signature='')
     def SetLinkDNSEx(self, interface_index: int, addresses: list[(int, bytearray, int, str)]):
         lgr.debug(f"SetLinkDNSEx called, interface index: {interface_index}, addresses: {addresses}")
@@ -214,7 +212,7 @@ class DnsconfdContext(dbus.service.Object):
         interface_cfg.servers = servers
         self._log_servers(interface_cfg.get_ifname(), servers)
 
-    @dbus.service.method(dbus_interface='org.freedesktop.resolve1.Manager',
+    @dbus.service.method(dbus_interface=dnsconfd.dbus.MANAGER_IFACE,
                          in_signature='ia(sb)', out_signature='')
     def SetLinkDomains(self, interface_index: int, domains: list[(str, bool)]):
         lgr.debug(f"SetLinkDomains called, interface index: {interface_index}, domains: {domains}")
@@ -222,25 +220,25 @@ class DnsconfdContext(dbus.service.Object):
         interface_cfg.finished = False
         interface_cfg.domains = [(str(domain), bool(is_routing)) for domain, is_routing in domains]
 
-    @dbus.service.method(dbus_interface='org.freedesktop.resolve1.Manager',
+    @dbus.service.method(dbus_interface=dnsconfd.dbus.MANAGER_IFACE,
                          in_signature='ib', out_signature='')
     def SetLinkDefaultRoute(self, interface_index: int, is_default: bool):
         lgr.debug(f"SetLinkDefaultRoute called, interface index: {interface_index}, is_default: {is_default}")
         interface_cfg = self._iface_config(interface_index)
         interface_cfg.is_default = is_default
 
-    @dbus.service.method(dbus_interface='org.freedesktop.resolve1.Manager',
+    @dbus.service.method(dbus_interface=dnsconfd.dbus.MANAGER_IFACE,
                          in_signature='is', out_signature='')
     def SetLinkLLMNR(self, interface_index: int, mode: str):
         # unbound does not support LLMNR
         lgr.debug("SetLinkLLMNR called, and ignored")
 
-    @dbus.service.method(dbus_interface='org.freedesktop.resolve1.Manager',
+    @dbus.service.method(dbus_interface=dnsconfd.dbus.MANAGER_IFACE,
                          in_signature='is', out_signature='')
     def SetLinkMulticastDNS(self, interface_index: int, mode: str):
         lgr.debug("SetLinkMulticastDNS called, and ignored")
 
-    @dbus.service.method(dbus_interface='org.freedesktop.resolve1.Manager',
+    @dbus.service.method(dbus_interface=dnsconfd.dbus.MANAGER_IFACE,
                          in_signature='is', out_signature='')
     def SetLinkDNSOverTLS(self, interface_index: int, mode: str):
         lgr.debug(f"SetLinkDNSOverTLS called, interface index: {interface_index}, mode: '{mode}'")
@@ -254,37 +252,44 @@ class DnsconfdContext(dbus.service.Object):
         else:
             lgr.info("A service start job is running, derefering update")
 
-    @dbus.service.method(dbus_interface='org.freedesktop.resolve1.Manager',
+    @dbus.service.method(dbus_interface=dnsconfd.dbus.MANAGER_IFACE,
                          in_signature='is', out_signature='')
     def SetLinkDNSSEC(self, interface_index: int, mode: str):
         lgr.debug(f"SetLinkDNSSEC called and ignored, interface index: {interface_index}, mode: {mode}")
         interface_cfg = self._iface_config(interface_index)
         interface_cfg.dns_over_tls = False if mode == "no" or mode == "allow-downgrade" else True
 
-    @dbus.service.method(dbus_interface='org.freedesktop.resolve1.Manager',
+    @dbus.service.method(dbus_interface=dnsconfd.dbus.MANAGER_IFACE,
                          in_signature='ias', out_signature='')
     def SetLinkDNSSECNegativeTrustAnchors(self, interface_index: int, names: list[str]):
         lgr.debug(f"SetLinkDNSSECNegativeTrustAnchors called and ignored, interface index: {interface_index}, names: {names}")
 
-    @dbus.service.method(dbus_interface='org.freedesktop.resolve1.Manager',
+    @dbus.service.method(dbus_interface=dnsconfd.dbus.MANAGER_IFACE,
                          in_signature='i', out_signature='')
     def RevertLink(self, interface_index: int):
         lgr.debug(f"RevertLink called and ignored, interface index: {interface_index}")
 
-    @dbus.service.method(dbus_interface='org.freedesktop.resolve1.Manager',
+    @dbus.service.method(dbus_interface=dnsconfd.dbus.MANAGER_IFACE,
                          in_signature='', out_signature='')
     def FlushCaches(self):
         # TODO: we need ability to flush just a subtree, not always all records
-        lgr.debug(f"FlushCaches called and ignored")
+        self.dns_mgr.flush_cache()
+        lgr.debug(f"FlushCaches called")
 
-    @dbus.service.method(dbus_interface='org.freedesktop.resolve1.Dnsconfd',
+    @dbus.service.method(dbus_interface=dnsconfd.dbus.MANAGER_IFACE,
                          in_signature='', out_signature='s')
     def Status(self):
         lgr.debug("Handling request for status")
         status = {"service": self.dns_mgr.service_name, "config": self.dns_mgr.get_status()}
         return json.dumps(status)
 
-    @dbus.service.method(dbus_interface='org.freedesktop.resolve1.Dnsconfd',
+    @dbus.service.method(dbus_interface=dbus.PROPERTIES_IFACE,
+                         in_signature='s', out_signature='a{sv}')
+    def GetAll(self, interface: str):
+        # TODO: implement useful properties generation
+        return []
+
+    @dbus.service.method(dbus_interface=dnsconfd.dbus.DNSCONFD_IFACE,
                          in_signature='s', out_signature='')
     def Reload(self, plugin: str):
         lgr.info(f"Received request for reload{' of plugin ' + plugin if plugin != '' else ''}")
