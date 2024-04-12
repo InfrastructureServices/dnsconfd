@@ -1,15 +1,18 @@
 #!/usr/bin/python3
 
-from dnsconfd import DnsconfdContext
-from dnsconfd import DnsconfdArgumentParser as argparser
+from dnsconfd.fsm import ContextEvent
+from dnsconfd.fsm import DnsconfdContext
+from dnsconfd.input_modules import ResolveDbusInterface
+from dnsconfd import DnsconfdArgumentParser as ArgParser
 
 import signal
 import logging
-import dbus
 import dbus.mainloop.glib
+from gi.repository import GLib
 
 if __name__ == "__main__":
-    parser = argparser(prog='dnsconfd', description='Local DNS cache configuration daemon')
+    parser = ArgParser(prog='dnsconfd',
+                       description='local DNS cache network_objects daemon')
     parser.add_arguments()
     parser.add_commands()
     args = parser.parse_args()
@@ -20,19 +23,20 @@ if __name__ == "__main__":
     dbus.mainloop.glib.DBusGMainLoop(set_as_default=True)
     logging.basicConfig(level=logging.getLevelName(args.log_level))
 
-    while True:
-        ctx = DnsconfdContext(vars(args))
-        # using lambdas here allows us to not use exit in DnsconfdContext class
-        signal.signal(signal.SIGTERM, lambda signum, frame: exit(ctx.signal_handler(signum)))
-        signal.signal(signal.SIGINT, lambda signum, frame: exit(ctx.signal_handler(signum)))
-        logging.info("Starting")
-        if not ctx.start_service():
-            exit(1)
-        ctx.process_events()
-        # neccessary as dbus would not allow us to recreate the instance, since the first would
-        # be still registered as handler
-        ctx.remove_from_connection()
-        if not ctx.was_reload_requested():
-            logging.info("Shutting down")
-            exit(ctx.stop())
-        logging.info("Performing reload of dnsconfd")
+    main_loop = GLib.MainLoop()
+    ctx = DnsconfdContext(vars(args), main_loop)
+    # this has to happen before we expose the API
+    GLib.idle_add(lambda: ctx.transition_function(ContextEvent("KICKOFF")))
+    input_module = ResolveDbusInterface(ctx, vars(args))
+    # using lambdas here allows us to not use exit in DnsconfdContext class
+    signal.signal(signal.SIGTERM,
+                  lambda signum, frame:
+                  GLib.idle_add(lambda:
+                                ctx.transition_function(ContextEvent("STOP"))))
+
+    signal.signal(signal.SIGINT,
+                  lambda signum, frame:
+                  GLib.idle_add(lambda:
+                                ctx.transition_function(ContextEvent("STOP"))))
+    main_loop.run()
+    exit(ctx.get_exit_code())

@@ -33,6 +33,10 @@ This executes all test plans currently present for the project.
 Dnsconfd is distributed as an RPM package that can be build for testing
 purposes by executing `$ ./tests/build_package.sh`
 
+## Documentation
+
+You can build documentation with `$ sphinx-build -M html docs _build`
+
 ## Currently supported DNS caching services
 
  - [Unbound](https://nlnetlabs.nl/projects/unbound/about/)

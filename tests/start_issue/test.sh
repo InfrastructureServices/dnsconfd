@@ -25,6 +25,7 @@ rlJournalStart
     rlPhaseEnd
 
     rlPhaseStartCleanup
+        rlRun "podman exec $dnsconfd_cid journalctl -u dnsconfd" 0 "Saving logs"
         rlRun "podman stop -t 2 $dnsconfd_cid" 0 "Stopping containers"
         rlRun "podman container rm $dnsconfd_cid" 0 "Removing containers"
         rlRun "podman network rm dnsconfd_network" 0 "Removing networks"

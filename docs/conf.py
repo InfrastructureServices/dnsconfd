@@ -25,7 +25,7 @@ author = 'Tomas Korbar, Petr Mensik'
 release = '0.0.1'
 
 
-# -- General configuration ---------------------------------------------------
+# -- General network_objects ---------------------------------------------------
 
 # Add any Sphinx extension module names here, as strings. They can be
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
@@ -44,6 +44,7 @@ templates_path = []
 # This pattern also affects html_static_path and html_extra_path.
 exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store']
 
+autoclass_content = 'both'
 
 # -- Options for HTML output -------------------------------------------------
 

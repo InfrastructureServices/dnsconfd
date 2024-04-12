@@ -22,15 +22,16 @@ rlJournalStart
         sleep 2
         rlRun "podman exec $dnsconfd_cid dnsconfd --dbus-name=$DBUS_NAME reload"
         sleep 10
-        # unfortunately it is neccessary to force NetworkManager to send us configuration
+        # unfortunately it is neccessary to force NetworkManager to send us network_objects
         rlRun "podman exec $dnsconfd_cid systemctl reload NetworkManager" 0 "reload NM"
         sleep 2
-        rlRun "podman exec $dnsconfd_cid dnsconfd --dbus-name=$DBUS_NAME status > status1" 0 "Getting status of dnsconfd"
+        rlRun "podman exec $dnsconfd_cid dnsconfd --dbus-name=$DBUS_NAME status --json > status1" 0 "Getting status of dnsconfd"
         rlAssertNotDiffer status1 $ORIG_DIR/expected_status.json
         rlRun "podman exec $dnsconfd_cid getent hosts address.test.com | grep 192.168.6.3" 0 "Verifying correct address resolution"
     rlPhaseEnd
 
     rlPhaseStartCleanup
+        rlRun "podman exec $dnsconfd_cid journalctl -u dnsconfd" 0 "Saving logs"
         rlRun "popd"
         rlRun "podman stop -t 2 $dnsconfd_cid $dnsmasq_cid" 0 "Stopping containers"
         rlRun "podman container rm $dnsconfd_cid $dnsmasq_cid" 0 "Removing containers"
