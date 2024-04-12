@@ -1,25 +1,24 @@
-from dnsconfd.dns_managers.dns_manager import DnsManager
-from dnsconfd.configuration import ServerDescription
+from dnsconfd.dns_managers import DnsManager
+from dnsconfd.network_objects import ServerDescription
 
 import subprocess
 import logging as lgr
+
 
 class UnboundManager(DnsManager):
     service_name = "unbound"
 
     def __init__(self):
-        """ Object responsible for executing unbound configuration changes
-        """
-        # list of current forward zones and servers that running unbound service holds
+        """ Object responsible for executing unbound network_objects changes """
+        super().__init__()
+        self.my_address = None
         self.zones_to_servers = {}
         self.validation = False
-        # startup was finished, this means service is ready to respond to controll commands
-        self.start_finished = False
 
-    def configure(self, my_address : str, validation = False):
+    def configure(self, my_address: str, validation=False):
         """ Configure this instance
 
-        :param my_address: ddress where unbound should listen
+        :param my_address: address where unbound should listen
         :type my_address: str
         :param validation: enable DNSSEC validation, defaults to False
         :type validation: bool, optional
@@ -31,11 +30,9 @@ class UnboundManager(DnsManager):
     def clear_state(self):
         """ Clear state that this instance holds
 
-            When inconsistency could not be avoided and we need to configure
+            When inconsistency could not be avoided, and we need to configure
             unbound from the start, this has to be called
         """
-        # this forbids other calls from interupting next configuration process
-        self.start_finished = False
         self.zones_to_servers = {}
 
     def is_ready(self) -> bool:
@@ -44,61 +41,99 @@ class UnboundManager(DnsManager):
         :return: True if unbound is ready to handle commands, otherwise False
         :rtype: bool
         """
-        return self._execute_cmd("status") == 0
+        return self._execute_cmd("status")
 
-    def _execute_cmd(self, command: str):
+    @staticmethod
+    def _execute_cmd(command: str) -> bool:
+        """ Execute command through unbound-control utility
+
+        :param command: Command to execute
+        :type command: str
+        :return: True if command was successful, otherwise False
+        :rtype: bool
+        """
         control_args = ["unbound-control", f'{command}']
         lgr.debug(f"Executing unbound-control as {' '.join(control_args)}")
-        proc = subprocess.run(control_args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        lgr.debug(f"Returned code {proc.returncode}, stdout:\"{proc.stdout}\", stderr:\"{proc.stderr}\"")
-        return proc.returncode
+        proc = subprocess.run(control_args,
+                              stdout=subprocess.PIPE,
+                              stderr=subprocess.PIPE)
+        lgr.debug((f"Returned code {proc.returncode}, "
+                   + f"stdout:\"{proc.stdout}\", stderr:\"{proc.stderr}\""))
+        return proc.returncode == 0
 
-    def update(self, new_zones_to_servers: dict[list[ServerDescription]]):
-        """ Update unbound running service forwarders configuration
+    def update(self,
+               zones_to_servers: dict[str, list[ServerDescription]]) -> bool:
+        """ Update Unbound running service forwarders network_objects
 
-        :param new_zones_to_servers: Forwarders' configuration that should be loaded into unbound
-        :type new_zones_to_servers: dict[list[ServerDescription]]
+        :param zones_to_servers: Forwarders' network_objects that should
+                                 be loaded into unbound
+        :type zones_to_servers: dict[str, list[ServerDescription]]
+        :return: True if update was successful, otherwise False
+        :rtype: bool
         """
         lgr.debug("Unbound manager processing update")
         insecure = "+i"
         if self.validation:
             insecure = ""
 
-        added_zones = [zone for zone in new_zones_to_servers.keys() if zone not in self.zones_to_servers.keys()]
-        removed_zones = [zone for zone in self.zones_to_servers.keys() if zone not in new_zones_to_servers.keys()]
-        stable_zones = [zone for zone in new_zones_to_servers.keys() if zone in self.zones_to_servers.keys()]
+        added_zones = []
+        stable_zones = []
+        removed_zones = []
+        for zone in zones_to_servers.keys():
+            if zone in self.zones_to_servers.keys():
+                stable_zones.append(zone)
+            else:
+                added_zones.append(zone)
+
+        for zone in self.zones_to_servers.keys():
+            if zone not in zones_to_servers.keys():
+                removed_zones.append(zone)
 
         lgr.debug(f"Update added zones {added_zones}")
         lgr.debug(f"Update removed zones {removed_zones}")
         lgr.debug(f"Zones that were in both configurations {stable_zones}")
 
-        # NOTE: unbound does not support forwarding server priority, so we need to strip any server
-        # that has lower priority than the highest occured priority
+        # NOTE: unbound does not support forwarding server priority, so we
+        # need to strip any server that has lower priority than the
+        # highest occurred priority
         # TODO: This has to be documented
         for zone in removed_zones:
-            self._execute_cmd(f"forward_remove {zone}")
+            if not self._execute_cmd(f"forward_remove {zone}"):
+                return False
         for zone in added_zones:
-            servers_strings = [srv.to_unbound_string() for srv in new_zones_to_servers[zone] if srv.priority == new_zones_to_servers[zone][0].priority]
-            self._execute_cmd(f"forward_add {insecure} {zone} {' '.join(servers_strings)}")
+            max_prio = zones_to_servers[zone][0].priority
+            servers_str = [srv.to_unbound_string()
+                           for srv in zones_to_servers[zone] if
+                           srv.priority == max_prio]
+            if not self._execute_cmd(f"forward_add {insecure} {zone} "
+                                     + f"{' '.join(servers_str)}"):
+                return False
         for zone in stable_zones:
-            if (self.zones_to_servers[zone] == new_zones_to_servers[zone]):
-                lgr.debug(f"Zone {zone} is the same in old and new config thus skipping it")
+            if self.zones_to_servers[zone] == zones_to_servers[zone]:
+                lgr.debug(f"Zone {zone} is the same in old and new config "
+                          + "thus skipping it")
                 continue
             lgr.debug(f"Updating zone {zone}")
-            self._execute_cmd(f"forward_remove {zone}")
-            servers_strings = [srv.to_unbound_string() for srv in new_zones_to_servers[zone] if srv.priority == new_zones_to_servers[zone][0].priority]
-            self._execute_cmd(f"forward_add {insecure} {zone} {' '.join(servers_strings)}")
+            max_prio = zones_to_servers[zone][0].priority
+            servers_str = [srv.to_unbound_string()
+                           for srv in zones_to_servers[zone] if
+                           srv.priority == max_prio]
+            if (not self._execute_cmd(f"forward_remove {zone}")
+                    or not self._execute_cmd(f"forward_add {insecure} {zone} "
+                                             + f"{' '.join(servers_str)}")):
+                return False
 
-        self.zones_to_servers = new_zones_to_servers
-        lgr.info(f"Unbound updated to configuration: {self.get_status()}")
+        self.zones_to_servers = zones_to_servers
+        lgr.info(f"Unbound updated to network_objects: {self.get_status()}")
+        return True
 
     def get_status(self) -> dict[str, list[str]]:
-        """ Get current forwarders' configuration that this instance holds
+        """ Get current forwarders' network_objects that this instance holds
 
-        :return: dictionary zone -> list of servers
+        :return: dictionary mapping zones -> list of servers
         :rtype: dict[str, list[str]]
         """
-        status={}
+        status = {}
         for zone, servers in self.zones_to_servers.items():
             status[zone] = [str(srv) for srv in servers]
         return status

@@ -7,16 +7,34 @@ Subpackages
 .. toctree::
    :maxdepth: 4
 
-   dnsconfd.configuration
+   dnsconfd.network_objects
    dnsconfd.dns_managers
+   dnsconfd.fsm
+   dnsconfd.input_modules
 
 Submodules
 ----------
 
-dnsconfd.dnsconfd\_context module
+dnsconfd.argument\_parser module
 ---------------------------------
 
-.. automodule:: dnsconfd.dnsconfd_context
+.. automodule:: dnsconfd.argument_parser
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+dnsconfd.cli\_commands module
+-------------------------------
+
+.. automodule:: dnsconfd.cli_commands
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+dnsconfd.network\_manager module
+--------------------------------
+
+.. automodule:: dnsconfd.network_manager
    :members:
    :undoc-members:
    :show-inheritance:

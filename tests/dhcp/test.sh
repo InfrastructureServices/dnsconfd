@@ -26,7 +26,7 @@ rlJournalStart
         # clean up after the container
         rlRun "podman exec $dnsconfd_cid nmcli connection mod eth0 ipv4.gateway '' ipv4.addr '' ipv4.method auto" 0 "Setting eth0 to autoconfiguration"
         sleep 2
-        rlRun "podman exec $dnsconfd_cid dnsconfd --dbus-name=$DBUS_NAME status > status1" 0 "Getting status of dnsconfd"
+        rlRun "podman exec $dnsconfd_cid dnsconfd --dbus-name=$DBUS_NAME status --json > status1" 0 "Getting status of dnsconfd"
         # in this test we are verifying that the DNS of non-wireless interface has higher priority
         # than the wireless one
         rlAssertNotDiffer status1 $ORIG_DIR/expected_status.json
@@ -36,6 +36,7 @@ rlJournalStart
     rlPhaseEnd
 
     rlPhaseStartCleanup
+        rlRun "podman exec $dnsconfd_cid journalctl -u dnsconfd" 0 "Saving logs"
         rlRun "popd"
         rlRun "podman stop -t 2 $dnsconfd_cid $dnsmasq1_cid $dnsmasq2_cid $dhcp_cid" 0 "Stopping containers"
         rlRun "podman container rm $dnsconfd_cid $dnsmasq1_cid $dnsmasq2_cid $dhcp_cid" 0 "Removing containers"
