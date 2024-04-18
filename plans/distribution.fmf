@@ -19,6 +19,7 @@ prepare:
       - python3-setuptools
       - python3-rpm-macros
       - python3-pip
+      - python3-pyyaml
       - systemd
       - systemd-rpm-macros
       - selinux-policy-devel

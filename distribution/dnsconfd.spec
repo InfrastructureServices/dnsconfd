@@ -20,6 +20,7 @@ Source7:        dnsconfd.8
 Source8:        dnsconfd.sysconfig
 Source9:        dnsconfd.service.d-unbound.conf
 Source10:       unbound-dnsconfd.conf
+Source11:       dnsconfd.conf
 
 BuildArch:      noarch
 
@@ -34,6 +35,7 @@ BuildRequires:  systemd-rpm-macros
 
 Requires:  (%{name}-selinux if selinux-policy-%{selinuxtype})
 Requires:  python3-gobject-base
+Requires:  python3-pyyaml
 Requires:  dbus-common
 Requires:  %{name}-cache
 Suggests:  %{name}-unbound
@@ -93,6 +95,7 @@ mkdir   -m 0755 -p %{buildroot}/%{_mandir}/man8
 install -m 0644 -p %{SOURCE1} %{buildroot}%{_datadir}/dbus-1/system.d/com.redhat.dnsconfd.conf
 install -m 0644 -p %{SOURCE8} %{buildroot}%{_sysconfdir}/sysconfig/dnsconfd
 install -m 0644 -p %{SOURCE2} %{buildroot}%{_unitdir}/dnsconfd.service
+install -m 0644 -p %{SOURCE11} %{buildroot}%{_sysconfdir}/dnsconfd.conf
 
 # hook to inform us about unbound stop
 install -m 0644 -p %{SOURCE9} %{buildroot}%{_unitdir}/unbound.service.d/dnsconfd.conf
@@ -144,6 +147,7 @@ fi
 %{python3_sitelib}/dnsconfd-%{version}*
 %{_datadir}/dbus-1/system.d/com.redhat.dnsconfd.conf
 %config(noreplace) %{_sysconfdir}/sysconfig/dnsconfd
+%config(noreplace) %{_sysconfdir}/dnsconfd.conf
 %{_unitdir}/dnsconfd.service
 %dnl %dir %{_unitdir}/dnsconfd.service.d
 %dir %attr(0755,root,root) %{_var}/log/dnsconfd
