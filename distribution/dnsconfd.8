@@ -1,4 +1,4 @@
-.TH "dnsconfd" "8" "10 Oct 2023" "dnsconfd-0.0.1" ""
+.TH "dnsconfd" "8" "10 Oct 2023" "dnsconfd-0.0.3" ""
 
 .SH NAME
 
@@ -6,7 +6,7 @@ Dnsconfd - local DNS cache configuration daemon
 
 .SH SYNOPSIS
 
-dnsconfd [-h] [-s] [--dbus-name DBUS_NAME] [--log-level {DEBUG,INFO,WARN}] [--resolv-conf-path RESOLV_CONF_PATH]
+dnsconfd [options]
 
 .SH DESCRIPTION
 
@@ -17,23 +17,28 @@ and translates it's use to dns service's configuration.
 
 .IP "-h, --help"
 Show help message and exit
-.IP "-s, --status"
-Print status of already running instance if any
 .IP "--dbus-name DBUS_NAME"
-DBus name that dnsconfd should use
+DBUS name that dnsconfd should use, default com.redhat.dnsconfd
 .IP "--log-level {DEBUG,INFO,WARN}"
-Log level of dnsconfd
+Log level of dnsconfd, default INFO
 .IP "--resolv-conf-path RESOLV_CONF_PATH"
-Path to resolv.conf that the dnsconfd should manage
+Path to resolv.conf that the dnsconfd should manage, default /etc/resolv.conf
+.IP "--prioritize-wire {yes,no}"
+If set to yes then wireless interfaces will have lower priority, default yes
+.IP "--listen-address ADDRESS"
+Address on which local resolver listens, default 127.0.0.1
+.IP "--config-file PATH"
+Path where config file is located, default /etc/dnsconfd.conf
 
 .SH "EXIT STATUS"
 .IP 0
-No error has occured. When status was requested, dnsconfd has been able to retrieve it successfully.
+No error has occurred. When status was requested, dnsconfd has been able to retrieve it successfully.
 .IP 1
-Error has occured or dnsconfd was not able to retrieve status successfully.
+Error has occurred or dnsconfd was not able to retrieve status successfully.
 
 .SH ENVIRONMENT
-Environment variables are overriden if their argument counterparts are used.
+Environment variables have lower priority than command line options but higher
+than configuration file.
 
 .IP DBUS_NAME
 DBus name that dnsconfd should use
@@ -41,6 +46,17 @@ DBus name that dnsconfd should use
 Path to resolv.conf that the dnsconfd should manage
 .IP LOG_LEVEL
 Log level of dnsconfd
+
+.IP DBUS_NAME
+DBUS name that dnsconfd should use, default com.redhat.dnsconfd
+.IP LOG_LEVEL
+Log level of dnsconfd, default INFO
+.IP RESOLV_CONF_PATH
+Path to resolv.conf that the dnsconfd should manage, default /etc/resolv.conf
+.IP PRIORITIZE_WIRE
+If set to yes then wireless interfaces will have lower priority, default yes
+.IP LISTEN_ADDRESS
+Address on which local resolver listens, default 127.0.0.1
 
 .SH FILES
 Dnsconfd manages resolv.conf to route domain name resolution to local cache service.

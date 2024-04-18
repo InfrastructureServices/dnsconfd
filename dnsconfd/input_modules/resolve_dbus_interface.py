@@ -15,6 +15,10 @@ class ResolveDbusInterface(dbus.service.Object):
                                           dbus.SystemBus()))
         self.interfaces: dict[int, InterfaceConfiguration] = {}
         self.runtime_context = runtime_context
+        if config["prioritize_wire"] is True:
+            self.prio_wire = config["prioritize_wire"]
+        else:
+            self.prio_wire = config["prioritize_wire"] == "yes"
 
     # Implements systemd-resolved interfaces defined at:
     # freedesktop.org/software/systemd/man/latest/org.freedesktop.resolve1.html
@@ -28,7 +32,7 @@ class ResolveDbusInterface(dbus.service.Object):
         lgr.debug(f"SetLinkDNS called, interface index: {interface_index}, "
                   + f"addresses: {addresses}")
         interface_cfg = self._iface_config(interface_index)
-        prio = self._ifprio(interface_cfg)
+        prio = self._ifprio(interface_cfg) if self.prio_wire else 100
         servers = [ServerDescription(fam, addr, priority=prio)
                    for fam, addr in addresses]
         interface_cfg.servers = servers
@@ -45,7 +49,7 @@ class ResolveDbusInterface(dbus.service.Object):
         lgr.debug(f"SetLinkDNSEx called, interface index: {interface_index}, "
                   + f"addresses: {addresses}")
         interface_cfg = self._iface_config(interface_index)
-        prio = self._ifprio(interface_cfg)
+        prio = self._ifprio(interface_cfg) if self.prio_wire else 100
         servers = [ServerDescription(fam, addr, port, sni, prio)
                    for fam, addr, port, sni in addresses]
         interface_cfg.servers = servers

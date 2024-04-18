@@ -1,6 +1,9 @@
 from argparse import ArgumentParser
 from dnsconfd.cli_commands import CLI_Commands
+
 import os
+import yaml
+import logging as lgr
 
 
 class DnsconfdArgumentParser(ArgumentParser):
@@ -12,22 +15,38 @@ class DnsconfdArgumentParser(ArgumentParser):
         """
         super(DnsconfdArgumentParser, self).__init__(*args, **kwargs)
         self._parsed = None
+        self._config_values = [
+            ("dbus_name",
+             "DBUS name that dnsconfd should use, default com.redhat.dnsconfd",
+             "com.redhat.dnsconfd"),
+            ("log_level",
+             "Log level of dnsconfd, default INFO",
+             "INFO"),
+            ("resolv_conf_path",
+             "Path to resolv.conf that the dnsconfd should manage,"
+             " default /etc/resolv.conf",
+             "/etc/resolv.conf"),
+            ("listen_address",
+             "Address on which local resolver listens, default 127.0.0.1",
+             "127.0.0.1"),
+            ("prioritize_wire",
+             "If set to yes then wireless interfaces will have lower priority,"
+             " default yes",
+             True)
+        ]
 
     def add_arguments(self):
         """ Set up Dnsconfd arguments """
-        self.add_argument("--dbus-name",
-                          help="DBUS name that dnsconfd should use",
+        for (arg_name, help_str, _) in self._config_values:
+            self.add_argument(f"--{arg_name.replace('_', '-')}",
+                              help=help_str,
+                              default=None)
+        self.add_argument("--config-file",
+                          help="Path where config file is located,"
+                               " default /etc/dnsconfd.conf",
                           default=None)
-        self.add_argument("--log-level",
-                          help="Log level of dnsconfd",
-                          default=None, choices=["DEBUG", "INFO", "WARN"])
-        self.add_argument("--resolv-conf-path",
-                          help="Path to resolv.conf that the dnsconfd should "
-                               + "manage",
-                          default=None)
-        self.add_argument("--listen-address",
-                          help="Address on which local resolver listens",
-                          default="127.0.0.1")
+        # TODO also check env vars
+
         self.set_defaults(func=lambda: None)
 
     def add_commands(self):
@@ -76,19 +95,36 @@ class DnsconfdArgumentParser(ArgumentParser):
         :param kwargs: Keyword arguments for the parent parse_args method
         :return:
         """
-        self._parsed \
-            = super(DnsconfdArgumentParser, self).parse_args(*args, **kwargs)
 
-        if self._parsed.dbus_name is None:
-            self._parsed.dbus_name = os.environ.get("DBUS_NAME",
-                                                    "com.redhat.dnsconfd")
-        if self._parsed.resolv_conf_path is None:
-            self._parsed.resolv_conf_path = os.environ.get("RESOLV_CONF_PATH",
-                                                           "/etc/resolv.conf")
-        if self._parsed.log_level is None:
-            self._parsed.log_level = os.environ.get("LOG_LEVEL", "INFO")
+        self._parsed = (super(DnsconfdArgumentParser, self)
+                        .parse_args(*args, **kwargs))
+
+        # config will provide defaults
+        if self._parsed.config_file is not None:
+            config = self._read_config(self._parsed.config_file)
+        else:
+            config = self._read_config(os.environ.get("CONFIG_FILE",
+                                                      "/etc/dnsconfd.conf"))
+
+        for (arg_name, help_str, default_val) in self._config_values:
+            if getattr(self._parsed, arg_name) is None:
+                setattr(self._parsed,
+                        arg_name,
+                        os.environ.get(arg_name.upper(), config[arg_name]))
 
         return self._parsed
+
+    def _read_config(self, path: str) -> dict:
+        try:
+            with open(path, "r") as config_file:
+                config = yaml.safe_load(config_file)
+        except OSError as e:
+            lgr.warning(f"Could not open configuration file at {path}, {e}")
+        finally:
+            for (arg_name, help_str, default_val) in self._config_values:
+                config.setdefault(arg_name, default_val)
+
+        return config
 
     def _reload(self):
         CLI_Commands.reload(self._parsed.dbus_name)
