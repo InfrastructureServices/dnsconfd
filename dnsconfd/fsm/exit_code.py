@@ -6,4 +6,4 @@ class ExitCode(Enum):
     GRACEFUL_STOP = 0
     SERVICE_FAILURE = 1
     DBUS_FAILURE = 2
-    RESOLV_CONF_FAILURE = 4
+    RESOLV_CONF_FAILURE = 3

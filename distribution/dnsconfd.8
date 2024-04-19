@@ -31,21 +31,19 @@ Address on which local resolver listens, default 127.0.0.1
 Path where config file is located, default /etc/dnsconfd.conf
 
 .SH "EXIT STATUS"
+
 .IP 0
-No error has occurred. When status was requested, dnsconfd has been able to retrieve it successfully.
+Graceful stop.
 .IP 1
-Error has occurred or dnsconfd was not able to retrieve status successfully.
+DNS caching service failure. Service crashed for example.
+.IP 2
+Failed communication through DBUS.
+.IP 3
+Failed interaction with resolv.conf
 
 .SH ENVIRONMENT
 Environment variables have lower priority than command line options but higher
 than configuration file.
-
-.IP DBUS_NAME
-DBus name that dnsconfd should use
-.IP RESOLV_CONF_PATH
-Path to resolv.conf that the dnsconfd should manage
-.IP LOG_LEVEL
-Log level of dnsconfd
 
 .IP DBUS_NAME
 DBUS name that dnsconfd should use, default com.redhat.dnsconfd
@@ -57,15 +55,23 @@ Path to resolv.conf that the dnsconfd should manage, default /etc/resolv.conf
 If set to yes then wireless interfaces will have lower priority, default yes
 .IP LISTEN_ADDRESS
 Address on which local resolver listens, default 127.0.0.1
+.IP CONFIG_FILE
+Path where config file is located, default /etc/dnsconfd.conf
 
 .SH FILES
 Dnsconfd manages resolv.conf to route domain name resolution to local cache service.
+Default location of the configuration file is /etc/dnsconfd.conf.
 
 .SH NOTES
 The only currently supported backend is Unbound.
 
 .SH "REPORTING BUGS"
 Please for reporting bugs use Github repository https://github.com/InfrastructureServices/dnsconfd
+
+.SH "SEE ALSO"
+\fB dnsconfd-status(8)\fP Checking status of dnsconfd
+\fB dnsconfd-reload(8)\fP Reload running cache service
+\fB dnsconfd-config(8)\fP Change configuration of service or host
 
 .SH COPYRIGHT
 

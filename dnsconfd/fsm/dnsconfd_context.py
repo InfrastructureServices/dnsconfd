@@ -124,8 +124,7 @@ class DnsconfdContext:
                 "SUCCESS": (ContextState.WAITING_STOP_JOB, lambda y: None),
                 "FAIL": (ContextState.STOPPING,
                          lambda y: ContextEvent("EXIT",
-                                                y.data
-                                                + ExitCode.DBUS_FAILURE))
+                                                ExitCode.DBUS_FAILURE))
             },
             ContextState.WAITING_STOP_JOB: {
                 "STOP_SUCCESS": (ContextState.STOPPING,
@@ -414,8 +413,7 @@ class DnsconfdContext:
         # unnecessary race condition
         service_stop_job = self._stop_unit()
         if service_stop_job is None:
-            return ContextEvent("FAIL",
-                                event.data + ExitCode.DBUS_FAILURE)
+            return ContextEvent("FAIL", ExitCode.DBUS_FAILURE)
         self._systemd_jobs[service_stop_job] = (
             ContextEvent("STOP_SUCCESS"),
             ContextEvent("STOP_FAILURE", ExitCode.SERVICE_FAILURE))
@@ -487,8 +485,7 @@ class DnsconfdContext:
         :rtype: ContextEvent | None
         """
         lgr.debug("Stop job after error failed")
-        return ContextEvent("EXIT",
-                            event.data + ExitCode.SERVICE_FAILURE)
+        return ContextEvent("EXIT", ExitCode.SERVICE_FAILURE)
 
     def updating_dns_manager_fail_transition(self, event: ContextEvent)\
             -> ContextEvent | None:
@@ -518,12 +515,10 @@ class DnsconfdContext:
         :rtype: ContextEvent | None
         """
         if not self._subscribe_systemd_signals():
-            return ContextEvent("FAIL",
-                                event.data + ExitCode.DBUS_FAILURE)
+            return ContextEvent("FAIL", ExitCode.DBUS_FAILURE)
         service_stop_job = self._stop_unit()
         if service_stop_job is None:
-            return ContextEvent("FAIL",
-                                event.data + ExitCode.DBUS_FAILURE)
+            return ContextEvent("FAIL", ExitCode.DBUS_FAILURE)
         self._systemd_jobs[service_stop_job] = (
             ContextEvent("STOP_SUCCESS"),
             ContextEvent("STOP_FAILURE", ExitCode.SERVICE_FAILURE))
@@ -600,8 +595,7 @@ class DnsconfdContext:
         """
         if not self.sys_mgr.revert_resolvconf():
             lgr.error("Failed to revert resolv.conf")
-            return ContextEvent("FAIL",
-                                event.data + ExitCode.RESOLV_CONF_FAILURE)
+            return ContextEvent("FAIL", ExitCode.RESOLV_CONF_FAILURE)
         lgr.debug("Successfully reverted resolv.conf")
         return ContextEvent("SUCCESS", event.data)
 
@@ -618,9 +612,7 @@ class DnsconfdContext:
         """
         if not self.sys_mgr.revert_resolvconf():
             lgr.error("Failed to revert resolv.conf")
-            return ContextEvent("FAIL",
-                                ExitCode.SERVICE_FAILURE
-                                + ExitCode.RESOLV_CONF_FAILURE)
+            return ContextEvent("FAIL", ExitCode.SERVICE_FAILURE)
         lgr.debug("Successfully reverted resolv.conf")
         return ContextEvent("SUCCESS", ExitCode.SERVICE_FAILURE)
 
