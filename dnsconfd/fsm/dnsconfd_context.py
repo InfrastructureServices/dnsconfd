@@ -23,8 +23,7 @@ class DnsconfdContext:
         :type main_loop: object
         """
         self.my_address = config["listen_address"]
-        self.sys_mgr = SystemManager(config["resolv_conf_path"],
-                                     self.my_address)
+        self.sys_mgr = SystemManager(config)
         self._main_loop = main_loop
 
         self._systemd_object = None

@@ -32,7 +32,11 @@ class DnsconfdArgumentParser(ArgumentParser):
             ("prioritize_wire",
              "If set to yes then wireless interfaces will have lower priority,"
              " default yes",
-             True)
+             True),
+            ("resolver_options",
+             "Options to be used in resolv.conf for alteration of resolver "
+             "behavior, default 'edns0 trust-ad'",
+             "edns0 trust-ad")
         ]
 
     def add_arguments(self):
