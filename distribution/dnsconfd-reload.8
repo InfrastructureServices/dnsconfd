@@ -1,0 +1,49 @@
+.TH "dnsconfd-reload" "8" "10 Oct 2023" "dnsconfd-0.0.3" ""
+
+.SH NAME
+
+dnsconfd-reload - Reload running cache service
+
+.SH SYNOPSIS
+
+dnsconfd reload [options]
+
+.SH DESCRIPTION
+
+Reload command allows you to reload running cache service. In other words,
+configuration will be cleared and pushed again.
+
+.SH OPTIONS
+
+.IP "-h, --help"
+Show help message and exit
+
+.SH "EXIT STATUS"
+
+.IP 0
+Everything went as expected.
+.IP 1
+Error occurred.
+
+.SH ENVIRONMENT
+Environment variables have lower priority than command line options but higher
+than configuration file.
+
+.IP DBUS_NAME
+DBUS name that dnsconfd should use, default com.redhat.dnsconfd
+.IP LOG_LEVEL
+Log level of dnsconfd, default INFO
+.IP CONFIG_FILE
+Path where config file is located, default /etc/dnsconfd.conf
+
+.SH "REPORTING BUGS"
+Please for reporting bugs use Github repository https://github.com/InfrastructureServices/dnsconfd
+
+.SH "SEE ALSO"
+\fB dnsconfd(8)\fP Dnsconfd daemon
+\fB dnsconfd-status(8)\fP Check status of dnsconfd
+\fB dnsconfd-config(8)\fP Change configuration of service or host
+
+.SH COPYRIGHT
+
+Copyright (c) 2023 Red Hat, Inc.

@@ -21,6 +21,9 @@ Source8:        dnsconfd.sysconfig
 Source9:        dnsconfd.service.d-unbound.conf
 Source10:       unbound-dnsconfd.conf
 Source11:       dnsconfd.conf
+Source12:       dnsconfd-config.8
+Source13:       dnsconfd-reload.8
+Source14:       dnsconfd-status.8
 
 BuildArch:      noarch
 
@@ -109,6 +112,9 @@ mv %{buildroot}%{_bindir}/dnsconfd %{buildroot}%{_sbindir}/dnsconfd
 install -D -m 0644 %{modulename}.pp.bz2 %{buildroot}%{_datadir}/selinux/packages/%{selinuxtype}/%{modulename}.pp.bz2
 
 install -m 0644 -p %{SOURCE7} %{buildroot}/%{_mandir}/man8/dnsconfd.8
+install -m 0644 -p %{SOURCE12} %{buildroot}/%{_mandir}/man8/dnsconfd-config.8
+install -m 0644 -p %{SOURCE13} %{buildroot}/%{_mandir}/man8/dnsconfd-reload.8
+install -m 0644 -p %{SOURCE14} %{buildroot}/%{_mandir}/man8/dnsconfd-status.8
 
 %dnl install -p -D -m 0644 %{SOURCE3} %{buildroot}%{_sysusersdir}/dnsconfd.conf
 install -p -D -m 0644 /dev/null %{buildroot}%{_sysusersdir}/dnsconfd.conf
@@ -151,7 +157,7 @@ fi
 %{_unitdir}/dnsconfd.service
 %dnl %dir %{_unitdir}/dnsconfd.service.d
 %dir %attr(0755,root,root) %{_var}/log/dnsconfd
-%{_mandir}/man8/dnsconfd.8*
+%{_mandir}/man8/dnsconfd*.8*
 %ghost %{_sysusersdir}/dnsconfd.conf
 %doc README.md
 

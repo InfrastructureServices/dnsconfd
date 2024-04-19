@@ -59,21 +59,20 @@ class DnsconfdArgumentParser(ArgumentParser):
         status.add_argument("--json",
                             default=False,
                             action="store_true",
-                            help="status should be formatted as JSON string")
+                            help="Status should be formatted as JSON string")
         status.set_defaults(func=self._print_status)
 
         reload = subparsers.add_parser("reload",
-                                       help="Reload either partially or fully "
-                                            + "running instance of dnsconfd")
+                                       help="Reload running cache service")
         reload.set_defaults(func=self._reload)
 
         config = subparsers.add_parser("config",
-                                       help="Change network_objects of "
+                                       help="Change configuration of "
                                             + "service or host")
         config.set_defaults(func=lambda: self.print_help())
 
         config_subparse = config.add_subparsers(help="Commands changing "
-                                                     + "network_objects")
+                                                     + "configuration")
 
         nm_enable = config_subparse.add_parser("nm_enable",
                                                help="Config network manager "
