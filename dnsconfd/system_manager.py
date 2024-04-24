@@ -1,6 +1,7 @@
 import logging as lgr
 import os
 import os.path
+import shutil
 
 
 class SystemManager:
@@ -97,5 +98,16 @@ class SystemManager:
                 new_resolv.write(self._get_resolvconf_string(search_domains))
         except OSError as e:
             lgr.error(f"OSError encountered while writing resolv.conf: {e}")
+            return False
+        return True
+
+    def chown_resolvconf(self, user: str) -> bool:
+        try:
+            if os.path.islink(self._resolv_conf_path):
+                os.unlink(self._resolv_conf_path)
+            open(self._resolv_conf_path, 'w+').close()
+            shutil.chown(self._resolv_conf_path, user, None)
+        except OSError as e:
+            lgr.error(f"Failed to change ownership of resolv.conf: {e}")
             return False
         return True

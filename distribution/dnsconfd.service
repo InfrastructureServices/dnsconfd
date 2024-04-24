@@ -6,6 +6,9 @@ Conflicts=systemd-resolved.service
 
 [Service]
 Type=dbus
+User=dnsconfd
+Group=dnsconfd
+SupplementaryGroups=unbound
 EnvironmentFile=/etc/sysconfig/dnsconfd
 BusName=org.freedesktop.resolve1
 ExecStart=/usr/sbin/dnsconfd $OPTIONS

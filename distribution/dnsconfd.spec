@@ -12,7 +12,7 @@ URL:            https://github.com/InfrastructureServices/dnsconfd
 Source0:        %{url}/archive/%{version}/%{name}-%{version}.tar.gz
 Source1:        com.redhat.dnsconfd.conf
 Source2:        dnsconfd.service
-#Source3:        dnsconfd.sysusers
+Source3:        dnsconfd.sysusers
 Source4:        dnsconfd.fc
 Source5:        dnsconfd.te
 Source6:        LICENSE
@@ -24,6 +24,7 @@ Source11:       dnsconfd.conf
 Source12:       dnsconfd-config.8
 Source13:       dnsconfd-reload.8
 Source14:       dnsconfd-status.8
+Source15:       dnsconfd.rules
 
 BuildArch:      noarch
 
@@ -94,11 +95,13 @@ mkdir   -m 0755 -p %{buildroot}%{_sysconfdir}/sysconfig
 mkdir   -m 0755 -p %{buildroot}%{_sbindir}
 mkdir   -m 0755 -p %{buildroot}%{_var}/log/dnsconfd
 mkdir   -m 0755 -p %{buildroot}/%{_mandir}/man8
+mkdir   -m 0755 -p %{buildroot}%{_datadir}/polkit-1/rules.d/
 
 install -m 0644 -p %{SOURCE1} %{buildroot}%{_datadir}/dbus-1/system.d/com.redhat.dnsconfd.conf
 install -m 0644 -p %{SOURCE8} %{buildroot}%{_sysconfdir}/sysconfig/dnsconfd
 install -m 0644 -p %{SOURCE2} %{buildroot}%{_unitdir}/dnsconfd.service
 install -m 0644 -p %{SOURCE11} %{buildroot}%{_sysconfdir}/dnsconfd.conf
+install -m 0644 -p %{SOURCE15} %{buildroot}%{_datadir}/polkit-1/rules.d/dnsconfd.rules
 
 # hook to inform us about unbound stop
 install -m 0644 -p %{SOURCE9} %{buildroot}%{_unitdir}/unbound.service.d/dnsconfd.conf
@@ -116,7 +119,7 @@ install -m 0644 -p %{SOURCE12} %{buildroot}/%{_mandir}/man8/dnsconfd-config.8
 install -m 0644 -p %{SOURCE13} %{buildroot}/%{_mandir}/man8/dnsconfd-reload.8
 install -m 0644 -p %{SOURCE14} %{buildroot}/%{_mandir}/man8/dnsconfd-status.8
 
-%dnl install -p -D -m 0644 %{SOURCE3} %{buildroot}%{_sysusersdir}/dnsconfd.conf
+install -p -D -m 0644 %{SOURCE3} %{buildroot}%{_sysusersdir}/dnsconfd.conf
 install -p -D -m 0644 /dev/null %{buildroot}%{_sysusersdir}/dnsconfd.conf
 
 
@@ -135,7 +138,7 @@ fi
 %selinux_relabel_post -s %{selinuxtype}
 
 %pre
-%dnl %sysusers_create_compat %{SOURCE3}
+%sysusers_create_compat %{SOURCE3}
 
 %post
 %systemd_post %{name}.service
@@ -160,6 +163,7 @@ fi
 %{_mandir}/man8/dnsconfd*.8*
 %ghost %{_sysusersdir}/dnsconfd.conf
 %doc README.md
+%{_datadir}/polkit-1/rules.d/dnsconfd.rules
 
 %files selinux
 %{_datadir}/selinux/packages/%{selinuxtype}/%{modulename}.pp.*
@@ -167,7 +171,7 @@ fi
 
 %files unbound
 %{_unitdir}/unbound.service.d/dnsconfd.conf
-%config(noreplace) %{_sysconfdir}/unbound/conf.d/unbound.conf
+%config(noreplace) %attr(644,dnsconfd,unbound) %{_sysconfdir}/unbound/conf.d/unbound.conf
 %ghost %{_var}/log/dnsconfd/unbound.log
 
 %changelog

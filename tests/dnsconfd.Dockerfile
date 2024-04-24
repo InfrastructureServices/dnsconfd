@@ -2,7 +2,7 @@ FROM quay.io/fedora/fedora:latest
 
 COPY ./*.noarch.rpm ./
 RUN dnf install -y --setopt=install_weak_deps=False --setopt=tsflags=nodocs systemd \
-    NetworkManager dhcp-client iproute ./*.rpm openvpn NetworkManager-openvpn sssd-client
+    NetworkManager dhcp-client iproute ./*.rpm openvpn NetworkManager-openvpn sssd-client polkit
 
 # we will replace the path in code only for testing purposes
 # accessing sysfs in the container could be dangerous for the host machine and would require
@@ -11,10 +11,14 @@ RUN dnf install -y --setopt=install_weak_deps=False --setopt=tsflags=nodocs syst
 RUN sed -i "s#/sys/class/net/#/tmp/is_wireless/#" /usr/lib/python3.12/site-packages/dnsconfd/network_objects/interface_configuration.py \
     && echo 'LOG_LEVEL=DEBUG' >> /etc/sysconfig/dnsconfd
 
-RUN printf "[main]\ndns=systemd-resolved\nrc-manager=unmanaged\n" > /etc/NetworkManager/conf.d/dnsconf.conf
+RUN printf "[main]\ndns=systemd-resolved\nrc-manager=unmanaged\n" > /etc/NetworkManager/conf.d/dnsconfd.conf
 # because of our internal network, disable unbound anchor
 RUN printf "DISABLE_UNBOUND_ANCHOR=yes" >> /etc/sysconfig/unbound
 # enable dnsconfd
 RUN systemctl enable dnsconfd
+
+RUN printf "[Unit]\nDescription=Start service\n[Service]\nExecStart=dnsconfd config take_resolvconf\n[Install]\nWantedBy=multi-user.target\n" > /etc/systemd/system/take_resolv.service
+
+RUN systemctl enable take_resolv
 
 ENTRYPOINT /usr/sbin/init

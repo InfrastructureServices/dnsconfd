@@ -124,7 +124,7 @@ class UnboundManager(DnsManager):
                 return False
 
         self.zones_to_servers = zones_to_servers
-        lgr.info(f"Unbound updated to network_objects: {self.get_status()}")
+        lgr.info(f"Unbound updated to configuration: {self.get_status()}")
         return True
 
     def get_status(self) -> dict[str, list[str]]:

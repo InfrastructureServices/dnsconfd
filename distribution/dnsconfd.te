@@ -15,6 +15,8 @@ require {
     type lib_t;
     type named_conf_t;
     type named_exec_t;
+    type named_var_run_t;
+    type named_t;
     type net_conf_t;
     type node_t;
     type rndc_port_t;
@@ -62,8 +64,11 @@ allow dnsconfd_t etc_t:file { getattr open read write create unlink };
 allow dnsconfd_t lib_t:file write;
 allow dnsconfd_t named_exec_t:file { execute execute_no_trans open read map};
 # Required by unbound-control
-allow dnsconfd_t named_conf_t:dir { getattr open read };
-allow dnsconfd_t named_conf_t:file { getattr ioctl open };
+allow dnsconfd_t named_conf_t:dir { getattr open read search};
+allow dnsconfd_t named_conf_t:file { getattr ioctl open read };
+allow dnsconfd_t named_var_run_t:dir { search };
+allow dnsconfd_t named_var_run_t:sock_file { write };
+allow dnsconfd_t named_t:unix_stream_socket { connectto };
 
 allow dnsconfd_t net_conf_t:lnk_file { getattr read write unlink };
 allow dnsconfd_t net_conf_t:file { getattr open read write create };
@@ -107,8 +112,6 @@ allow dnsconfd_t init_t:dbus send_msg;
 allow dnsconfd_t init_t:system status;
 allow dnsconfd_t named_unit_file_t:service { start stop };
 allow init_t dnsconfd_t:dbus send_msg;
-allow dnsconfd_t named_conf_t:dir search;
-allow dnsconfd_t named_conf_t:file read;
 
 # this is neccessary in testing farm, because resolv.conf seems to be
 # on a separate partition there
