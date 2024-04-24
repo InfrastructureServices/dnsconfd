@@ -10,7 +10,7 @@ from typing import Callable
 import logging as lgr
 import dbus.service
 import json
-
+from enum import Enum
 
 class DnsconfdContext:
     def __init__(self, config: dict, main_loop: object):
@@ -234,7 +234,7 @@ class DnsconfdContext:
         :rtype: ContextEvent | None
         """
         lgr.debug("Stopping event loop and FSM")
-        self._exit_code = event.data
+        self._exit_code = event.data.value
         self._main_loop.quit()
         return None
 
@@ -414,7 +414,7 @@ class DnsconfdContext:
         if service_stop_job is None:
             return ContextEvent("FAIL", ExitCode.DBUS_FAILURE)
         self._systemd_jobs[service_stop_job] = (
-            ContextEvent("STOP_SUCCESS"),
+            ContextEvent("STOP_SUCCESS", ExitCode.GRACEFUL_STOP),
             ContextEvent("STOP_FAILURE", ExitCode.SERVICE_FAILURE))
         return ContextEvent("SUCCESS", ExitCode.GRACEFUL_STOP)
 
@@ -453,7 +453,7 @@ class DnsconfdContext:
         if service_stop_job is None:
             return ContextEvent("FAIL", ExitCode.DBUS_FAILURE)
         self._systemd_jobs[service_stop_job] = (
-            ContextEvent("STOP_SUCCESS"),
+            ContextEvent("STOP_SUCCESS", ExitCode.RESOLV_CONF_FAILURE),
             ContextEvent("STOP_FAILURE", ExitCode.SERVICE_FAILURE))
         return ContextEvent("SUCCESS", ExitCode.GRACEFUL_STOP)
 
@@ -519,7 +519,7 @@ class DnsconfdContext:
         if service_stop_job is None:
             return ContextEvent("FAIL", ExitCode.DBUS_FAILURE)
         self._systemd_jobs[service_stop_job] = (
-            ContextEvent("STOP_SUCCESS"),
+            ContextEvent("STOP_SUCCESS", ExitCode.GRACEFUL_STOP),
             ContextEvent("STOP_FAILURE", ExitCode.SERVICE_FAILURE))
         return ContextEvent("SUCCESS", ExitCode.GRACEFUL_STOP)
 

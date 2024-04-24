@@ -7,9 +7,14 @@ rlJournalStart
     rlPhaseStartSetup
         rlRun "set -o pipefail"
         rlRun "useradd dummy" 0 "Adding dummy user"
+        rlFileBackup /etc/sysconfig/unbound /etc/sysconfig/dnsconfd
+        rlRun "echo 'LOG_LEVEL=DEBUG' >> /etc/sysconfig/dnsconfd"
+        rlRun "echo 'DISABLE_UNBOUND_ANCHOR=yes' >> /etc/sysconfig/unbound"
     rlPhaseEnd
 
     rlPhaseStartTest
+        rlRun "dnsconfd config nm_enable" 0 "Setting up NetworkManager"
+        rlRun "dnsconfd config take_resolvconf" 0 "Changing resolv.conf ownership"
         rlServiceStart dnsconfd
         sleep 3
         rlRun "sudo -u dummy dnsconfd --dbus-name=$DBUS_NAME status | grep unbound" 0 "Verifying status of dnsconfd as dummy user"
@@ -22,6 +27,9 @@ rlJournalStart
 
     rlPhaseStartCleanup
         rlServiceRestore dnsconfd
+        rlFileRestore
+        rlRun "journalctl -u dnsconfd" 0 "Saving logs"
+        rlRun "dnsconfd config return_resolvconf" 0 "Returning privileges"
         rlRun "userdel dummy" 0 "Removing dummy user"
     rlPhaseEnd
 rlJournalEnd

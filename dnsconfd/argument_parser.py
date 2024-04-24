@@ -1,5 +1,6 @@
 from argparse import ArgumentParser
 from dnsconfd.cli_commands import CLI_Commands
+from dnsconfd import SystemManager
 
 import os
 import yaml
@@ -88,6 +89,21 @@ class DnsconfdArgumentParser(ArgumentParser):
                                                      + "to not use dnsconfd")
         nm_disable.set_defaults(func=lambda: CLI_Commands.nm_config(False))
 
+        take_resolvconf = (
+            config_subparse.add_parser("take_resolvconf",
+                                       help="Change ownership of resolv conf, "
+                                            "so Dsnconfd does not need root "
+                                            "privileges"))
+        take_resolvconf.set_defaults(
+            func=lambda: self._chown_resolvconf("dnsconfd"))
+
+        return_resolvconf = (
+            config_subparse.add_parser("return_resolvconf",
+                                       help="Return ownership of resolv conf, "
+                                            "so root is again the owner"))
+        return_resolvconf.set_defaults(
+            func=lambda: self._chown_resolvconf("root"))
+
     def _print_status(self):
         CLI_Commands.status(self._parsed.dbus_name, self._parsed.json)
 
@@ -131,3 +147,8 @@ class DnsconfdArgumentParser(ArgumentParser):
 
     def _reload(self):
         CLI_Commands.reload(self._parsed.dbus_name)
+
+    def _chown_resolvconf(self, user: str):
+        if not SystemManager(vars(self._parsed)).chown_resolvconf(user):
+            exit(1)
+        exit(0)
