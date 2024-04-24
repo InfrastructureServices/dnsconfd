@@ -44,7 +44,12 @@ class DnsconfdContext:
                                 ContextEvent]]]] = {
             ContextState.STARTING: {
                 "KICKOFF": (ContextState.CONNECTING_DBUS,
-                            self._starting_kickoff_transition)
+                            self._starting_kickoff_transition),
+                "UPDATE": (ContextState.STARTING,
+                           self._start_update_transition),
+                "STOP": (ContextState.STOPPING,
+                         lambda y: ContextEvent("EXIT",
+                                                ExitCode.GRACEFUL_STOP))
             },
             ContextState.CONNECTING_DBUS: {
                 "FAIL": (ContextState.STOPPING,
@@ -614,6 +619,21 @@ class DnsconfdContext:
             return ContextEvent("FAIL", ExitCode.SERVICE_FAILURE)
         lgr.debug("Successfully reverted resolv.conf")
         return ContextEvent("SUCCESS", ExitCode.SERVICE_FAILURE)
+
+    def _start_update_transition(self, event: ContextEvent)\
+            -> ContextEvent | None:
+        """ Transition to STARTING
+
+        Save received network_objects and further wait for start kickoff
+
+        :param event: event with interface config in data
+        :type event: ContextEvent
+        :return: None
+        :rtype: ContextEvent | None
+        """
+        interface_config: InterfaceConfiguration = event.data
+        self.interfaces[interface_config.interface_index] = interface_config
+        return None
 
     def _start_unit(self):
         lgr.info(f"Starting {self.dns_mgr.service_name}")

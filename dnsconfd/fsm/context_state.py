@@ -4,7 +4,7 @@ from enum import Enum
 # states marked with interrupt need to handle UPDATE and STOP events
 class ContextState(Enum):
     """ State the Dnsconfd FSM can be in """
-    STARTING = 1
+    STARTING = 1  # interrupt
     WAITING_FOR_START_JOB = 2  # interrupt
     POLLING = 3  # interrupt
     RUNNING = 4  # interrupt
