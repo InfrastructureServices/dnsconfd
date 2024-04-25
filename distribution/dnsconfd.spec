@@ -1,5 +1,3 @@
-# NOTE: sysusers installation disabled until NetworkManager problems are resolved
-
 %global modulename dnsconfd
 %global selinuxtype targeted
 
@@ -25,6 +23,7 @@ Source12:       dnsconfd-config.8
 Source13:       dnsconfd-reload.8
 Source14:       dnsconfd-status.8
 Source15:       dnsconfd.rules
+Source16:       dnsconfd.service.d-unbound-anchor.conf
 
 BuildArch:      noarch
 
@@ -91,6 +90,7 @@ mkdir   -m 0755 -p %{buildroot}%{_datadir}/dbus-1/system.d/
 mkdir   -m 0755 -p %{buildroot}%{_sysconfdir}/unbound/conf.d/
 mkdir   -m 0755 -p %{buildroot}%{_unitdir}
 mkdir   -m 0755 -p %{buildroot}%{_unitdir}/unbound.service.d
+mkdir   -m 0755 -p %{buildroot}%{_unitdir}/unbound-anchor.service.d
 mkdir   -m 0755 -p %{buildroot}%{_sysconfdir}/sysconfig
 mkdir   -m 0755 -p %{buildroot}%{_sbindir}
 mkdir   -m 0755 -p %{buildroot}%{_var}/log/dnsconfd
@@ -105,6 +105,7 @@ install -m 0644 -p %{SOURCE15} %{buildroot}%{_datadir}/polkit-1/rules.d/dnsconfd
 
 # hook to inform us about unbound stop
 install -m 0644 -p %{SOURCE9} %{buildroot}%{_unitdir}/unbound.service.d/dnsconfd.conf
+install -m 0644 -p %{SOURCE16} %{buildroot}%{_unitdir}/unbound-anchor.service.d/dnsconfd.conf
 
 install -m 0644 -p %{SOURCE10} %{buildroot}%{_sysconfdir}/unbound/conf.d/unbound.conf
 
@@ -171,6 +172,7 @@ fi
 
 %files unbound
 %{_unitdir}/unbound.service.d/dnsconfd.conf
+%{_unitdir}/unbound-anchor.service.d/dnsconfd.conf
 %config(noreplace) %attr(644,dnsconfd,unbound) %{_sysconfdir}/unbound/conf.d/unbound.conf
 %ghost %{_var}/log/dnsconfd/unbound.log
 

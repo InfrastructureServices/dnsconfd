@@ -1,4 +1,5 @@
-from dnsconfd.network_manager import NetworkManager
+from dnsconfd import NetworkManager
+from dnsconfd import SystemManager
 
 from dbus import DBusException
 import dbus
@@ -37,18 +38,16 @@ class CLI_Commands:
 
         :param enable: True if Network Manager should use Dnsconfd
         """
-        try:
-            if enable:
-                NetworkManager().enable()
-            else:
-                NetworkManager().disable()
-            print(f"Network Manager will {'use' if enable else 'not use'}"
-                  + " dnsconfd now")
-            exit(0)
-        except Exception as e:
-            print("Dnsconfd was unable to configure Network Manager: "
-                  + f"{str(e)}")
+        if enable:
+            success = NetworkManager().enable()
+        else:
+            success = NetworkManager().disable()
+        if not success:
+            print("Dnsconfd was unable to configure Network Manager")
             exit(1)
+        print(f"Network Manager will {'use' if enable else 'not use'}"
+              + " dnsconfd now")
+        exit(0)
 
     @staticmethod
     def reload(dbus_name: str):
@@ -70,5 +69,25 @@ class CLI_Commands:
         except DBusException as e:
             print("Was not able to call Status method, check your DBus policy:"
                   + f"{e}")
+            exit(1)
+        exit(0)
+
+    @staticmethod
+    def chown_resolvconf(config: dict, user: str):
+        if not SystemManager(config).chown_resolvconf(user):
+            exit(1)
+        exit(0)
+
+    @staticmethod
+    def install(config: dict):
+        if (not NetworkManager().enable() or
+                not SystemManager(config).chown_resolvconf("dnsconfd")):
+            exit(1)
+        exit(0)
+
+    @staticmethod
+    def uninstall(config: dict):
+        if (not NetworkManager().disable() or
+                not SystemManager(config).chown_resolvconf("root")):
             exit(1)
         exit(0)
