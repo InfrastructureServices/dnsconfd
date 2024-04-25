@@ -1,5 +1,5 @@
 from argparse import ArgumentParser
-from dnsconfd.cli_commands import CLI_Commands
+from dnsconfd.cli_commands import CLI_Commands as Cmds
 from dnsconfd import SystemManager
 
 import os
@@ -65,16 +65,17 @@ class DnsconfdArgumentParser(ArgumentParser):
                             default=False,
                             action="store_true",
                             help="Status should be formatted as JSON string")
-        status.set_defaults(func=self._print_status)
+        status.set_defaults(func=lambda: Cmds.status(self._parsed.dbus_name,
+                                                     self._parsed.json))
 
         reload = subparsers.add_parser("reload",
                                        help="Reload running cache service")
-        reload.set_defaults(func=self._reload)
+        reload.set_defaults(func=lambda: Cmds.reload(self._parsed.dbus_name))
 
         config = subparsers.add_parser("config",
                                        help="Change configuration of "
                                             + "service or host")
-        config.set_defaults(func=lambda: self.print_help())
+        config.set_defaults(func=self.print_help)
 
         config_subparse = config.add_subparsers(help="Commands changing "
                                                      + "configuration")
@@ -82,12 +83,12 @@ class DnsconfdArgumentParser(ArgumentParser):
         nm_enable = config_subparse.add_parser("nm_enable",
                                                help="Config network manager "
                                                     + "to use dnsconfd")
-        nm_enable.set_defaults(func=lambda: CLI_Commands.nm_config(True))
+        nm_enable.set_defaults(func=lambda: Cmds.nm_config(True))
 
         nm_disable = config_subparse.add_parser("nm_disable",
                                                 help="Config network manager "
                                                      + "to not use dnsconfd")
-        nm_disable.set_defaults(func=lambda: CLI_Commands.nm_config(False))
+        nm_disable.set_defaults(func=lambda: Cmds.nm_config(False))
 
         take_resolvconf = (
             config_subparse.add_parser("take_resolvconf",
@@ -95,17 +96,24 @@ class DnsconfdArgumentParser(ArgumentParser):
                                             "so Dsnconfd does not need root "
                                             "privileges"))
         take_resolvconf.set_defaults(
-            func=lambda: self._chown_resolvconf("dnsconfd"))
+            func=lambda: Cmds.chown_resolvconf(vars(self._parsed),
+                                               "dnsconfd"))
 
         return_resolvconf = (
             config_subparse.add_parser("return_resolvconf",
                                        help="Return ownership of resolv conf, "
                                             "so root is again the owner"))
         return_resolvconf.set_defaults(
-            func=lambda: self._chown_resolvconf("root"))
+            func=lambda: Cmds.chown_resolvconf(vars(self._parsed),
+                                               "root"))
 
-    def _print_status(self):
-        CLI_Commands.status(self._parsed.dbus_name, self._parsed.json)
+        install = config_subparse.add_parser("install",
+                                             help="Perform all installation "
+                                                  "steps")
+        install.set_defaults(func=lambda: Cmds.install(vars(self._parsed)))
+        uninstall = config_subparse.add_parser("uninstall",
+                                               help="perform Dnsconfd steps")
+        uninstall.set_defaults(func=lambda: Cmds.uninstall(vars(self._parsed)))
 
     def parse_args(self, *args, **kwargs):
         """ Parse arguments
@@ -144,11 +152,3 @@ class DnsconfdArgumentParser(ArgumentParser):
                 config.setdefault(arg_name, default_val)
 
         return config
-
-    def _reload(self):
-        CLI_Commands.reload(self._parsed.dbus_name)
-
-    def _chown_resolvconf(self, user: str):
-        if not SystemManager(vars(self._parsed)).chown_resolvconf(user):
-            exit(1)
-        exit(0)

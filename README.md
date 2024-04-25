@@ -15,7 +15,8 @@ together with *systemd-resolved.service* at the same time.
 
 - ``systemctl disable --now systemd-resolved``
 - ``systemctl mask systemd-resolved`` - prevents conflict of dbus service names
-- ``dnsconfd config nm_enable`` - modifies NetworkManager to explicitly use systemd-resolved dbus API
+- ``dnsconfd config install`` - modifies NetworkManager to explicitly use systemd-resolved dbus API,
+and changes ownership of resolvconf so Dnsconfd does not need root privileges
 - ``systemctl enable --now dnsconfd``
 
 ## Testing
@@ -47,11 +48,6 @@ You can build documentation with `$ sphinx-build -M html docs _build`
    when Dnsconfd is allowed to own
    [org.freedesktop.resolve1](https://www.freedesktop.org/software/systemd/man/latest/org.freedesktop.resolve1.html)
    DBus name, as NetworkManager does not support use of any another.
-
- - Dnsconfd has to run as a root user, because NetworkManager forces us
-   to use one of currently known resolv.conf stub files locations and
-   we can not access them without root permission.
-
  - DNSSEC validation is turned off to prevent potential problems. On well
    working networks it should work correctly. It disables validation even when
    *dnsconfd.service* is not started.

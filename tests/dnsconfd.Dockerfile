@@ -12,8 +12,6 @@ RUN sed -i "s#/sys/class/net/#/tmp/is_wireless/#" /usr/lib/python3.12/site-packa
     && echo 'LOG_LEVEL=DEBUG' >> /etc/sysconfig/dnsconfd
 
 RUN printf "[main]\ndns=systemd-resolved\nrc-manager=unmanaged\n" > /etc/NetworkManager/conf.d/dnsconfd.conf
-# because of our internal network, disable unbound anchor
-RUN printf "DISABLE_UNBOUND_ANCHOR=yes" >> /etc/sysconfig/unbound
 # enable dnsconfd
 RUN systemctl enable dnsconfd
 

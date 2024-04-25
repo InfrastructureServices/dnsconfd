@@ -10,7 +10,7 @@ from typing import Callable
 import logging as lgr
 import dbus.service
 import json
-from enum import Enum
+
 
 class DnsconfdContext:
     def __init__(self, config: dict, main_loop: object):
@@ -27,6 +27,7 @@ class DnsconfdContext:
         self._main_loop = main_loop
 
         self._systemd_object = None
+        self._systemd_manager = None
 
         self.dns_mgr = None
         self.interfaces: dict[int, InterfaceConfiguration] = {}
@@ -46,7 +47,7 @@ class DnsconfdContext:
                 "KICKOFF": (ContextState.CONNECTING_DBUS,
                             self._starting_kickoff_transition),
                 "UPDATE": (ContextState.STARTING,
-                           self._start_update_transition),
+                           self._update_transition),
                 "STOP": (ContextState.STOPPING,
                          lambda y: ContextEvent("EXIT",
                                                 ExitCode.GRACEFUL_STOP))
@@ -73,7 +74,7 @@ class DnsconfdContext:
                 "START_FAILURE": (ContextState.STOPPING,
                                   self._exit_transition),
                 "UPDATE": (ContextState.WAITING_FOR_START_JOB,
-                           self._job_update_transition),
+                           self._update_transition),
                 "STOP": (ContextState.WAITING_TO_SUBMIT_STOP_JOB,
                          lambda y: None)
             },
@@ -85,7 +86,11 @@ class DnsconfdContext:
                 "STOP": (ContextState.WAITING_TO_SUBMIT_STOP_JOB,
                          lambda y: None),
                 "UPDATE": (ContextState.WAITING_TO_SUBMIT_STOP_JOB,
-                           lambda y: None)
+                           lambda y: None),
+                "RESTART_SUCCESS": (ContextState.REVERTING_RESOLV_CONF,
+                                    self._running_stop_transition),
+                "RESTART_FAIL": (ContextState.REVERTING_RESOLV_CONF,
+                                 self._running_stop_transition)
             },
             ContextState.POLLING: {
                 "TIMER_UP": (ContextState.POLLING,
@@ -95,7 +100,7 @@ class DnsconfdContext:
                 "TIMEOUT": (ContextState.STOPPING,
                             self._exit_transition),
                 "UPDATE": (ContextState.POLLING,
-                           self._polling_update_transition),
+                           self._update_transition),
                 "STOP": (ContextState.REVERTING_RESOLV_CONF,
                          self._running_stop_transition)
             },
@@ -158,7 +163,11 @@ class DnsconfdContext:
                 "RESTART_SUCCESS": (ContextState.POLLING,
                                     self._job_finished_success_transition),
                 "RESTART_FAIL": (ContextState.REVERT_RESOLV_ON_FAILED_RESTART,
-                                 self._waiting_restart_job_failure_transition)
+                                 self._waiting_restart_job_failure_transition),
+                "UPDATE": (ContextState.WAITING_RESTART_JOB,
+                           self._update_transition),
+                "STOP": (ContextState.WAITING_TO_SUBMIT_STOP_JOB,
+                         lambda y: None)
             }
         }
 
@@ -184,7 +193,7 @@ class DnsconfdContext:
         # a bit of a hack, so loop add functions remove this immediately
         return False
 
-    def _starting_kickoff_transition(self, event: ContextEvent)\
+    def _starting_kickoff_transition(self, event: ContextEvent) \
             -> ContextEvent | None:
         """ Transition to CONNECTING_DBUS
 
@@ -203,7 +212,7 @@ class DnsconfdContext:
             lgr.debug("Successfully connected to systemd through DBUS")
             return ContextEvent("SUCCESS")
 
-    def _connecting_dbus_success_transition(self, event: ContextEvent)\
+    def _connecting_dbus_success_transition(self, event: ContextEvent) \
             -> ContextEvent | None:
         """ Transition to SUBMITTING_START_JOB
 
@@ -245,11 +254,7 @@ class DnsconfdContext:
 
     def _subscribe_systemd_signals(self):
         try:
-            interface = dbus.Interface(self._systemd_object,
-                                       "org.freedesktop.systemd1.Manager")
-            interface.Subscribe()
-            interface.connect_to_signal("JobRemoved",
-                                        self._on_systemd_job_finished)
+            self._systemd_manager.Subscribe()
             return True
         except dbus.DBusException as e:
             lgr.error("Systemd is not listening on " +
@@ -261,6 +266,13 @@ class DnsconfdContext:
             bus = dbus.SystemBus()
             self._systemd_object = bus.get_object('org.freedesktop.systemd1',
                                                   '/org/freedesktop/systemd1')
+            self._systemd_manager \
+                = dbus.Interface(self._systemd_object,
+                                 "org.freedesktop.systemd1.Manager")
+            (self._systemd_manager.
+             connect_to_signal("JobRemoved",
+                               self._on_systemd_job_finished))
+
             return True
         except dbus.DBusException as e:
             lgr.error("Systemd is not listening on name "
@@ -276,9 +288,7 @@ class DnsconfdContext:
             if len(self._systemd_jobs.keys()) == 0:
                 lgr.debug("Not waiting for more jobs, thus unsubscribing")
                 # we do not want to receive info about jobs anymore
-                interface = dbus.Interface(self._systemd_object,
-                                           "org.freedesktop.systemd1.Manager")
-                interface.Unsubscribe()
+                self._systemd_manager.Unsubscribe()
             if args[3] != "done" and args[3] != "skipped":
                 lgr.error(f"{args[2]} unit failed to start, result: {args[3]}")
                 self.transition_function(failure_event)
@@ -287,7 +297,7 @@ class DnsconfdContext:
             lgr.debug(("Dnsconfd was informed about finish of"
                        + f" job {jobid} but it was not submitted by us"))
 
-    def _job_finished_success_transition(self, event: ContextEvent)\
+    def _job_finished_success_transition(self, event: ContextEvent) \
             -> ContextEvent | None:
         """ Transition to POLLING
 
@@ -304,7 +314,7 @@ class DnsconfdContext:
                                  lambda: self.transition_function(timer_event))
         return None
 
-    def _polling_timer_up_transition(self, event: ContextEvent)\
+    def _polling_timer_up_transition(self, event: ContextEvent) \
             -> ContextEvent | None:
         """ Transition to POLLING
 
@@ -332,7 +342,7 @@ class DnsconfdContext:
                       + "proceeding to setup of resolv.conf")
             return ContextEvent("SERVICE_UP")
 
-    def _polling_service_up_transition(self, event: ContextEvent)\
+    def _polling_service_up_transition(self, event: ContextEvent) \
             -> ContextEvent | None:
         """ Transition to SETTING_UP_RESOLVCONF
 
@@ -350,7 +360,7 @@ class DnsconfdContext:
             lgr.debug("Resolv.conf successfully prepared")
             return ContextEvent("SUCCESS")
 
-    def _running_update_transition(self, event: ContextEvent)\
+    def _running_update_transition(self, event: ContextEvent) \
             -> ContextEvent | None:
         """ Transition to UPDATING_RESOLV_CONF
 
@@ -368,7 +378,7 @@ class DnsconfdContext:
             return ContextEvent("FAIL", ExitCode.SERVICE_FAILURE)
         return ContextEvent("SUCCESS", zones_to_servers)
 
-    def _updating_resolv_conf_success_transition(self, event: ContextEvent)\
+    def _updating_resolv_conf_success_transition(self, event: ContextEvent) \
             -> ContextEvent | None:
         """ Transition to UPDATING_DNS_MANAGER
 
@@ -384,22 +394,7 @@ class DnsconfdContext:
             return ContextEvent("FAIL", ExitCode.SERVICE_FAILURE)
         return ContextEvent("SUCCESS")
 
-    def _job_update_transition(self, event: ContextEvent)\
-            -> ContextEvent | None:
-        """ Transition to WAITING_FOR_START_JOB
-
-        Save received network_objects and further wait for the start job
-
-        :param event: event with interface config in data
-        :type event: ContextEvent
-        :return: None
-        :rtype: ContextEvent | None
-        """
-        interface_config: InterfaceConfiguration = event.data
-        self.interfaces[interface_config.interface_index] = interface_config
-        return None
-
-    def _waiting_to_submit_success_transition(self, event: ContextEvent)\
+    def _waiting_to_submit_success_transition(self, event: ContextEvent) \
             -> ContextEvent | None:
         """ Transition to SUBMITTING_STOP_JOB
 
@@ -423,22 +418,7 @@ class DnsconfdContext:
             ContextEvent("STOP_FAILURE", ExitCode.SERVICE_FAILURE))
         return ContextEvent("SUCCESS", ExitCode.GRACEFUL_STOP)
 
-    def _polling_update_transition(self, event: ContextEvent)\
-            -> ContextEvent | None:
-        """ Transition to POLLING
-
-        Save received network_objects and continue polling
-
-        :param event: event with interface config in data
-        :type event: ContextEvent
-        :return: None
-        :rtype: ContextEvent | None
-        """
-        interface_config: InterfaceConfiguration = event.data
-        self.interfaces[interface_config.interface_index] = interface_config
-        return None
-
-    def _updating_resolv_conf_fail_transition(self, event: ContextEvent)\
+    def _updating_resolv_conf_fail_transition(self, event: ContextEvent) \
             -> ContextEvent | None:
         """ Transition to SUBMITTING_STOP_JOB
 
@@ -462,7 +442,7 @@ class DnsconfdContext:
             ContextEvent("STOP_FAILURE", ExitCode.SERVICE_FAILURE))
         return ContextEvent("SUCCESS", ExitCode.GRACEFUL_STOP)
 
-    def _waiting_stop_job_success_transition(self, event: ContextEvent)\
+    def _waiting_stop_job_success_transition(self, event: ContextEvent) \
             -> ContextEvent | None:
         """ Transition to STOPPING
 
@@ -476,7 +456,7 @@ class DnsconfdContext:
         lgr.debug("Stop job after error successfully finished")
         return ContextEvent("EXIT", event.data)
 
-    def _waiting_stop_job_fail_transition(self, event: ContextEvent)\
+    def _waiting_stop_job_fail_transition(self, event: ContextEvent) \
             -> ContextEvent | None:
         """ Transition to STOPPING
 
@@ -491,7 +471,7 @@ class DnsconfdContext:
         lgr.debug("Stop job after error failed")
         return ContextEvent("EXIT", ExitCode.SERVICE_FAILURE)
 
-    def updating_dns_manager_fail_transition(self, event: ContextEvent)\
+    def updating_dns_manager_fail_transition(self, event: ContextEvent) \
             -> ContextEvent | None:
         """ Transition to REVERTING_RESOLV_CONF
 
@@ -507,7 +487,7 @@ class DnsconfdContext:
             return ContextEvent("FAIL", ExitCode.RESOLV_CONF_FAILURE)
         return ContextEvent("SUCCESS", ExitCode.GRACEFUL_STOP)
 
-    def _reverting_resolv_conf_transition(self, event: ContextEvent)\
+    def _reverting_resolv_conf_transition(self, event: ContextEvent) \
             -> ContextEvent | None:
         """ Transition to SUBMITTING_STOP_JOB
 
@@ -528,7 +508,7 @@ class DnsconfdContext:
             ContextEvent("STOP_FAILURE", ExitCode.SERVICE_FAILURE))
         return ContextEvent("SUCCESS", ExitCode.GRACEFUL_STOP)
 
-    def _running_stop_transition(self, event: ContextEvent)\
+    def _running_stop_transition(self, event: ContextEvent) \
             -> ContextEvent | None:
         """ Transition to REVERTING_RESOLV_CONF
 
@@ -544,7 +524,7 @@ class DnsconfdContext:
             return ContextEvent("FAIL", ExitCode.RESOLV_CONF_FAILURE)
         return ContextEvent("SUCCESS", ExitCode.GRACEFUL_STOP)
 
-    def _running_reload_transition(self, event: ContextEvent)\
+    def _running_reload_transition(self, event: ContextEvent) \
             -> ContextEvent | None:
         """ Transition to SUBMITTING_RESTART_JOB
 
@@ -567,7 +547,7 @@ class DnsconfdContext:
             ContextEvent("RESTART_FAIL", ExitCode.SERVICE_FAILURE))
         return ContextEvent("SUCCESS", ExitCode.GRACEFUL_STOP)
 
-    def _setting_up_resolve_conf_transition(self, event: ContextEvent)\
+    def _setting_up_resolve_conf_transition(self, event: ContextEvent) \
             -> ContextEvent | None:
         """ Transition to SUBMITTING_RESTART_JOB
 
@@ -586,7 +566,7 @@ class DnsconfdContext:
                   + f"{search_domains}")
         return ContextEvent("SUCCESS", zones_to_servers)
 
-    def _submitting_restart_job_fail_transition(self, event: ContextEvent)\
+    def _submitting_restart_job_fail_transition(self, event: ContextEvent) \
             -> ContextEvent | None:
         """ Transition to REVERTING_RESOLV_ON_FAILED_RESTART
 
@@ -603,7 +583,7 @@ class DnsconfdContext:
         lgr.debug("Successfully reverted resolv.conf")
         return ContextEvent("SUCCESS", event.data)
 
-    def _waiting_restart_job_failure_transition(self, event: ContextEvent)\
+    def _waiting_restart_job_failure_transition(self, event: ContextEvent) \
             -> ContextEvent | None:
         """ Transition to REVERTING_RESOLV_ON_FAILED_RESTART
 
@@ -620,11 +600,11 @@ class DnsconfdContext:
         lgr.debug("Successfully reverted resolv.conf")
         return ContextEvent("SUCCESS", ExitCode.SERVICE_FAILURE)
 
-    def _start_update_transition(self, event: ContextEvent)\
+    def _update_transition(self, event: ContextEvent) \
             -> ContextEvent | None:
-        """ Transition to STARTING
+        """ Transition to the same state
 
-        Save received network_objects and further wait for start kickoff
+        Save received network_objects and stay in the current state
 
         :param event: event with interface config in data
         :type event: ContextEvent
@@ -637,12 +617,11 @@ class DnsconfdContext:
 
     def _start_unit(self):
         lgr.info(f"Starting {self.dns_mgr.service_name}")
-        interface = dbus.Interface(self._systemd_object,
-                                   "org.freedesktop.systemd1.Manager")
         try:
             name = f"{self.dns_mgr.service_name}.service"
-            return int(interface.ReloadOrRestartUnit(name,
-                                                     "replace").split('/')[-1])
+            return int(self._systemd_manager
+                       .ReloadOrRestartUnit(name,
+                                            "replace").split('/')[-1])
         except dbus.DBusException as e:
             lgr.error("Was not able to call "
                       + "org.freedesktop.systemd1.Manager.ReloadOrRestartUnit"
@@ -651,12 +630,11 @@ class DnsconfdContext:
 
     def _stop_unit(self):
         lgr.info(f"Stopping {self.dns_mgr.service_name}")
-        interface = dbus.Interface(self._systemd_object,
-                                   "org.freedesktop.systemd1.Manager")
         try:
             name = f"{self.dns_mgr.service_name}.service"
-            return int(interface.StopUnit(name,
-                                          "replace").split('/')[-1])
+            return int(self._systemd_manager
+                       .StopUnit(name,
+                                 "replace").split('/')[-1])
         except dbus.DBusException as e:
             lgr.error("Was not able to call "
                       + "org.freedesktop.systemd1.Manager.StopUnit"
@@ -665,11 +643,10 @@ class DnsconfdContext:
 
     def _restart_unit(self):
         lgr.info(f"Restarting {self.dns_mgr.service_name}")
-        interface = dbus.Interface(self._systemd_object,
-                                   "org.freedesktop.systemd1.Manager")
         try:
             name = f"{self.dns_mgr.service_name}.service"
-            return int(interface.RestartUnit(name, "replace").split('/')[-1])
+            return int(self._systemd_manager
+                       .RestartUnit(name, "replace").split('/')[-1])
         except dbus.DBusException as e:
             lgr.error("Was not able to call"
                       + " org.freedesktop.systemd1.Manager.RestartUnit"
