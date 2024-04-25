@@ -38,6 +38,9 @@ purposes by executing `$ ./tests/build_package.sh`
 
 You can build documentation with `$ sphinx-build -M html docs _build`
 
+There is also a script to build graph of FSM implemented in dnsconfd_context.
+`$ python3 docs/generate_fsm.py`
+
 ## Currently supported DNS caching services
 
  - [Unbound](https://nlnetlabs.nl/projects/unbound/about/)
