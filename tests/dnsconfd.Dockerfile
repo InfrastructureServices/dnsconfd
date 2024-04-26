@@ -19,4 +19,9 @@ RUN printf "[Unit]\nDescription=Start service\n[Service]\nExecStart=dnsconfd con
 
 RUN systemctl enable take_resolv
 
+# this is neccessary because of https://github.com/systemd/systemd/issues/29860
+# first 13 lines do not contain sandboxing options that trigger fail because
+# of missing CAP_SYS_ADMIN
+RUN head -n 13 /usr/lib/systemd/system/polkit.service > /polkit.tmp; cat /polkit.tmp > /usr/lib/systemd/system/polkit.service
+
 ENTRYPOINT /usr/sbin/init
