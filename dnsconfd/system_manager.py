@@ -83,6 +83,7 @@ class SystemManager:
                 lgr.error("OSError encountered while linking "
                           + f"back resolv.conf: {e}")
                 return False
+        return True
 
     def update_resolvconf(self, search_domains: list[str]) -> bool:
         """ Insert search domains into resolv.conf
