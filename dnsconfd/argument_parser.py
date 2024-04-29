@@ -141,9 +141,12 @@ class DnsconfdArgumentParser(ArgumentParser):
         return self._parsed
 
     def _read_config(self, path: str) -> dict:
+        config = {}
         try:
             with open(path, "r") as config_file:
-                config = yaml.safe_load(config_file)
+                temp_config = yaml.safe_load(config_file)
+            if temp_config is not None:
+                config = temp_config
         except OSError as e:
             lgr.warning(f"Could not open configuration file at {path}, {e}")
         finally:
