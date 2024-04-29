@@ -22,7 +22,7 @@ class DnsconfdArgumentParser(ArgumentParser):
              "com.redhat.dnsconfd"),
             ("log_level",
              "Log level of dnsconfd, default INFO",
-             "INFO"),
+             "DEBUG"),
             ("resolv_conf_path",
              "Path to resolv.conf that the dnsconfd should manage,"
              " default /etc/resolv.conf",
