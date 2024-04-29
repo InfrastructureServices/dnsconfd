@@ -1,6 +1,5 @@
 from argparse import ArgumentParser
 from dnsconfd.cli_commands import CLI_Commands as Cmds
-from dnsconfd import SystemManager
 
 import os
 import yaml
@@ -19,7 +18,7 @@ class DnsconfdArgumentParser(ArgumentParser):
         self._config_values = [
             ("dbus_name",
              "DBUS name that dnsconfd should use, default com.redhat.dnsconfd",
-             "com.redhat.dnsconfd"),
+             "org.freedesktop.resolve1"),
             ("log_level",
              "Log level of dnsconfd, default INFO",
              "DEBUG"),
