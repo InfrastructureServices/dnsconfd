@@ -111,4 +111,6 @@ class SystemManager:
         except OSError as e:
             lgr.error(f"Failed to change ownership of resolv.conf: {e}")
             return False
+        except LookupError as e:
+            lgr.error(f"User {user} was not found, does it exist? {e}")
         return True
