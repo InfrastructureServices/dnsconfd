@@ -1,29 +1,14 @@
 %global modulename dnsconfd
 %global selinuxtype targeted
 
-Name:           dnsconfd                                                   
+Name:           dnsconfd
 Version:        0.0.4
 Release:        1%{?dist}
 Summary:        Local DNS cache configuration daemon
 License:        MIT
 URL:            https://github.com/InfrastructureServices/dnsconfd
 Source0:        %{url}/archive/%{version}/%{name}-%{version}.tar.gz
-Source1:        com.redhat.dnsconfd.conf
-Source2:        dnsconfd.service
-Source3:        dnsconfd.sysusers
-Source4:        dnsconfd.fc
-Source5:        dnsconfd.te
-Source6:        LICENSE
-Source7:        dnsconfd.8
-Source8:        dnsconfd.sysconfig
-Source9:        dnsconfd.service.d-unbound.conf
-Source10:       unbound-dnsconfd.conf
-Source11:       dnsconfd.conf
-Source12:       dnsconfd-config.8
-Source13:       dnsconfd-reload.8
-Source14:       dnsconfd-status.8
-Source15:       dnsconfd.rules
-Source16:       dnsconfd.service.d-unbound-anchor.conf
+Source1:        dnsconfd.sysusers
 
 BuildArch:      noarch
 
@@ -43,7 +28,7 @@ Requires:  dbus-common
 Requires:  %{name}-cache
 Suggests:  %{name}-unbound
 
-%?python_enable_dependency_generator                                            
+%?python_enable_dependency_generator
 
 %description
 Dnsconfd configures local DNS cache services.
@@ -78,8 +63,8 @@ Dnsconfd management of unbound server
 %py3_build
 
 mkdir selinux
-cp -p %{SOURCE4} selinux/
-cp -p %{SOURCE5} selinux/
+cp -p distribution/dnsconfd.fc selinux/
+cp -p distribution/dnsconfd.te selinux/
 
 make -f %{_datadir}/selinux/devel/Makefile %{modulename}.pp
 bzip2 -9 %{modulename}.pp
@@ -97,17 +82,17 @@ mkdir   -m 0755 -p %{buildroot}%{_var}/log/dnsconfd
 mkdir   -m 0755 -p %{buildroot}/%{_mandir}/man8
 mkdir   -m 0755 -p %{buildroot}%{_datadir}/polkit-1/rules.d/
 
-install -m 0644 -p %{SOURCE1} %{buildroot}%{_datadir}/dbus-1/system.d/com.redhat.dnsconfd.conf
-install -m 0644 -p %{SOURCE8} %{buildroot}%{_sysconfdir}/sysconfig/dnsconfd
-install -m 0644 -p %{SOURCE2} %{buildroot}%{_unitdir}/dnsconfd.service
-install -m 0644 -p %{SOURCE11} %{buildroot}%{_sysconfdir}/dnsconfd.conf
-install -m 0644 -p %{SOURCE15} %{buildroot}%{_datadir}/polkit-1/rules.d/dnsconfd.rules
+install -m 0644 -p distribution/com.redhat.dnsconfd.conf %{buildroot}%{_datadir}/dbus-1/system.d/com.redhat.dnsconfd.conf
+install -m 0644 -p distribution/dnsconfd.sysconfig %{buildroot}%{_sysconfdir}/sysconfig/dnsconfd
+install -m 0644 -p distribution/dnsconfd.service %{buildroot}%{_unitdir}/dnsconfd.service
+install -m 0644 -p distribution/dnsconfd.conf %{buildroot}%{_sysconfdir}/dnsconfd.conf
+install -m 0644 -p distribution/dnsconfd.rules %{buildroot}%{_datadir}/polkit-1/rules.d/dnsconfd.rules
 
 # hook to inform us about unbound stop
-install -m 0644 -p %{SOURCE9} %{buildroot}%{_unitdir}/unbound.service.d/dnsconfd.conf
-install -m 0644 -p %{SOURCE16} %{buildroot}%{_unitdir}/unbound-anchor.service.d/dnsconfd.conf
+install -m 0644 -p distribution/dnsconfd.service.d-unbound.conf %{buildroot}%{_unitdir}/unbound.service.d/dnsconfd.conf
+install -m 0644 -p distribution/dnsconfd.service.d-unbound-anchor.conf %{buildroot}%{_unitdir}/unbound-anchor.service.d/dnsconfd.conf
 
-install -m 0644 -p %{SOURCE10} %{buildroot}%{_sysconfdir}/unbound/conf.d/unbound.conf
+install -m 0644 -p distribution/unbound-dnsconfd.conf %{buildroot}%{_sysconfdir}/unbound/conf.d/unbound.conf
 
 touch %{buildroot}%{_var}/log/dnsconfd/unbound.log
 
@@ -115,14 +100,12 @@ mv %{buildroot}%{_bindir}/dnsconfd %{buildroot}%{_sbindir}/dnsconfd
 
 install -D -m 0644 %{modulename}.pp.bz2 %{buildroot}%{_datadir}/selinux/packages/%{selinuxtype}/%{modulename}.pp.bz2
 
-install -m 0644 -p %{SOURCE7} %{buildroot}/%{_mandir}/man8/dnsconfd.8
-install -m 0644 -p %{SOURCE12} %{buildroot}/%{_mandir}/man8/dnsconfd-config.8
-install -m 0644 -p %{SOURCE13} %{buildroot}/%{_mandir}/man8/dnsconfd-reload.8
-install -m 0644 -p %{SOURCE14} %{buildroot}/%{_mandir}/man8/dnsconfd-status.8
+install -m 0644 -p distribution/dnsconfd.8 %{buildroot}/%{_mandir}/man8/dnsconfd.8
+install -m 0644 -p distribution/dnsconfd-config.8 %{buildroot}/%{_mandir}/man8/dnsconfd-config.8
+install -m 0644 -p distribution/dnsconfd-reload.8 %{buildroot}/%{_mandir}/man8/dnsconfd-reload.8
+install -m 0644 -p distribution/dnsconfd-status.8 %{buildroot}/%{_mandir}/man8/dnsconfd-status.8
 
-install -p -D -m 0644 %{SOURCE3} %{buildroot}%{_sysusersdir}/dnsconfd.conf
-install -p -D -m 0644 /dev/null %{buildroot}%{_sysusersdir}/dnsconfd.conf
-
+install -p -D -m 0644 distribution/dnsconfd.sysusers %{buildroot}%{_sysusersdir}/dnsconfd.conf
 
 %pre selinux
 %selinux_relabel_pre -s %{selinuxtype}
@@ -139,7 +122,10 @@ fi
 %selinux_relabel_post -s %{selinuxtype}
 
 %pre
-%sysusers_create_compat %{SOURCE3}
+%sysusers_create_compat %{SOURCE1}
+
+%pre unbound
+%sysusers_create_compat %{SOURCE1}
 
 %post
 %systemd_post %{name}.service
@@ -159,7 +145,6 @@ fi
 %config(noreplace) %{_sysconfdir}/sysconfig/dnsconfd
 %config(noreplace) %{_sysconfdir}/dnsconfd.conf
 %{_unitdir}/dnsconfd.service
-%dnl %dir %{_unitdir}/dnsconfd.service.d
 %dir %attr(0755,root,root) %{_var}/log/dnsconfd
 %{_mandir}/man8/dnsconfd*.8*
 %ghost %{_sysusersdir}/dnsconfd.conf

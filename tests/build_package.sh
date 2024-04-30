@@ -2,8 +2,15 @@
 
 set -e
 
-python3 setup.py sdist -d ./distribution
+tempdir=$(mktemp -d)
+mkdir "$tempdir"/dnsconfd-0.0.4
+cp -r ./* "$tempdir"/dnsconfd-0.0.4
+pushd "$tempdir"
+tar -czvf "$tempdir"/dnsconfd-0.0.4.tar.gz dnsconfd-0.0.4
+popd
+mv "$tempdir"/dnsconfd-0.0.4.tar.gz ./distribution
 pushd distribution
 fedpkg --release=f39 mockbuild
 mv ./results_dnsconfd/0.0.4/1.fc39/*.noarch.rpm ../tests
 popd
+rm -rf "$tempdir"
