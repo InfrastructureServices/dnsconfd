@@ -3,7 +3,7 @@ from dnsconfd.network_objects import ServerDescription
 from dnsconfd.fsm import DnsconfdContext
 from dnsconfd.fsm import ContextEvent
 
-import logging as lgr
+import logging
 import dbus.service
 from dbus.service import BusName
 
@@ -19,6 +19,7 @@ class ResolveDbusInterface(dbus.service.Object):
             self.prio_wire = config["prioritize_wire"]
         else:
             self.prio_wire = config["prioritize_wire"] == "yes"
+        self.lgr = logging.getLogger(self.__class__.__name__)
 
     # Implements systemd-resolved interfaces defined at:
     # freedesktop.org/software/systemd/man/latest/org.freedesktop.resolve1.html
@@ -29,16 +30,16 @@ class ResolveDbusInterface(dbus.service.Object):
     def SetLinkDNS(self,
                    interface_index: int,
                    addresses: list[(int, bytearray)]):
-        lgr.debug(f"SetLinkDNS called, interface index: {interface_index}, "
-                  + f"addresses: {addresses}")
+        self.lgr.debug("SetLinkDNS called, interface index: "
+                       f"{interface_index}, addresses: {addresses}")
         interface_cfg = self._iface_config(interface_index)
         prio = self._ifprio(interface_cfg) if self.prio_wire else 100
         servers = [ServerDescription(fam, addr, priority=prio)
                    for fam, addr in addresses]
         interface_cfg.servers = servers
         servers_to_string = ' '.join([str(server) for server in servers])
-        lgr.info(f"Incoming DNS servers on {interface_cfg.get_if_name()}: "
-                 + f"{servers_to_string}")
+        self.lgr.info("Incoming DNS servers on "
+                      f"{interface_cfg.get_if_name()}: {servers_to_string}")
         self._update_if_ready(interface_cfg)
 
     @dbus.service.method(dbus_interface='org.freedesktop.resolve1.Manager',
@@ -46,23 +47,23 @@ class ResolveDbusInterface(dbus.service.Object):
     def SetLinkDNSEx(self,
                      interface_index: int,
                      addresses: list[(int, bytearray, int, str)]):
-        lgr.debug(f"SetLinkDNSEx called, interface index: {interface_index}, "
-                  + f"addresses: {addresses}")
+        self.lgr.debug("SetLinkDNSEx called, interface index: "
+                       f"{interface_index}, addresses: {addresses}")
         interface_cfg = self._iface_config(interface_index)
         prio = self._ifprio(interface_cfg) if self.prio_wire else 100
         servers = [ServerDescription(fam, addr, port, sni, prio)
                    for fam, addr, port, sni in addresses]
         interface_cfg.servers = servers
         servers_to_string = ' '.join([str(server) for server in servers])
-        lgr.info(f"Incoming DNS servers on {interface_cfg.get_if_name()}: "
-                 + f"{servers_to_string}")
+        self.lgr.info("Incoming DNS servers on "
+                      f"{interface_cfg.get_if_name()}: {servers_to_string}")
         self._update_if_ready(interface_cfg)
 
     @dbus.service.method(dbus_interface='org.freedesktop.resolve1.Manager',
                          in_signature='ia(sb)', out_signature='')
     def SetLinkDomains(self, interface_index: int, domains: list[(str, bool)]):
-        lgr.debug("SetLinkDomains called, interface index: "
-                  + f"{interface_index}, domains: {domains}")
+        self.lgr.debug("SetLinkDomains called, interface index: "
+                       f"{interface_index}, domains: {domains}")
         interface_cfg = self._iface_config(interface_index)
         interface_cfg.finished = False
         interface_cfg.domains = [(str(domain), bool(is_routing))
@@ -72,8 +73,8 @@ class ResolveDbusInterface(dbus.service.Object):
     @dbus.service.method(dbus_interface='org.freedesktop.resolve1.Manager',
                          in_signature='ib', out_signature='')
     def SetLinkDefaultRoute(self, interface_index: int, is_default: bool):
-        lgr.debug("SetLinkDefaultRoute called, interface index: "
-                  + f"{interface_index}, is_default: {is_default}")
+        self.lgr.debug("SetLinkDefaultRoute called, interface index: "
+                       f"{interface_index}, is_default: {is_default}")
         interface_cfg = self._iface_config(interface_index)
         interface_cfg.is_default = is_default
         self._update_if_ready(interface_cfg)
@@ -82,18 +83,18 @@ class ResolveDbusInterface(dbus.service.Object):
                          in_signature='is', out_signature='')
     def SetLinkLLMNR(self, interface_index: int, mode: str):
         # unbound does not support LLMNR
-        lgr.debug("SetLinkLLMNR called, and ignored")
+        self.lgr.debug("SetLinkLLMNR called, and ignored")
 
     @dbus.service.method(dbus_interface='org.freedesktop.resolve1.Manager',
                          in_signature='is', out_signature='')
     def SetLinkMulticastDNS(self, interface_index: int, mode: str):
-        lgr.debug("SetLinkMulticastDNS called, and ignored")
+        self.lgr.debug("SetLinkMulticastDNS called, and ignored")
 
     @dbus.service.method(dbus_interface='org.freedesktop.resolve1.Manager',
                          in_signature='is', out_signature='')
     def SetLinkDNSOverTLS(self, interface_index: int, mode: str):
-        lgr.debug("SetLinkDNSOverTLS called, interface index: "
-                  + f"{interface_index}, mode: '{mode}'")
+        self.lgr.debug("SetLinkDNSOverTLS called, interface index: "
+                       f"{interface_index}, mode: '{mode}'")
         interface_cfg = self.interfaces[interface_index]
         if mode == "yes" or mode == "opportunistic":
             interface_cfg.dns_over_tls = True
@@ -104,8 +105,8 @@ class ResolveDbusInterface(dbus.service.Object):
     @dbus.service.method(dbus_interface='org.freedesktop.resolve1.Manager',
                          in_signature='is', out_signature='')
     def SetLinkDNSSEC(self, interface_index: int, mode: str):
-        lgr.debug("SetLinkDNSSEC called and ignored, "
-                  + f"interface index: {interface_index}, mode: {mode}")
+        self.lgr.debug("SetLinkDNSSEC called and ignored, "
+                       f"interface index: {interface_index}, mode: {mode}")
         interface_cfg = self._iface_config(interface_index)
         if mode == "no" or mode == "allow-downgrade":
             interface_cfg.dns_over_tls = False
@@ -118,20 +119,20 @@ class ResolveDbusInterface(dbus.service.Object):
     def SetLinkDNSSECNegativeTrustAnchors(self,
                                           interface_index: int,
                                           names: list[str]):
-        lgr.debug("SetLinkDNSSECNegativeTrustAnchors called and ignored,"
-                  + f" interface index: {interface_index}, names: {names}")
+        self.lgr.debug("SetLinkDNSSECNegativeTrustAnchors called and ignored, "
+                       f"interface index: {interface_index}, names: {names}")
 
     @dbus.service.method(dbus_interface='org.freedesktop.resolve1.Manager',
                          in_signature='i', out_signature='')
     def RevertLink(self, interface_index: int):
-        lgr.debug("RevertLink called and ignored, "
-                  + f"interface index: {interface_index}")
+        self.lgr.debug("RevertLink called and ignored, "
+                       f"interface index: {interface_index}")
 
     @dbus.service.method(dbus_interface='org.freedesktop.resolve1.Manager',
                          in_signature='', out_signature='')
     def FlushCaches(self):
         # TODO: we need ability to flush just a subtree, not always all records
-        lgr.debug("FlushCaches called and ignored")
+        self.lgr.debug("FlushCaches called and ignored")
 
     @dbus.service.method(dbus_interface='org.freedesktop.resolve1.Dnsconfd',
                          in_signature='b', out_signature='s')
@@ -141,7 +142,7 @@ class ResolveDbusInterface(dbus.service.Object):
     @dbus.service.method(dbus_interface='org.freedesktop.resolve1.Dnsconfd',
                          in_signature='', out_signature='s')
     def Reload(self):
-        lgr.info("Received request for reload of plugin")
+        self.lgr.info("Received request for reload of plugin")
         return self.runtime_context.reload_service()
 
     def _iface_config(self, interface_id: int):
@@ -151,7 +152,8 @@ class ResolveDbusInterface(dbus.service.Object):
 
     def _ifprio(self, interface_cfg: InterfaceConfiguration) -> int:
         if interface_cfg.is_interface_wireless():
-            lgr.debug(f"Interface {interface_cfg.interface_index} is wireless")
+            self.lgr.debug("Interface "
+                           f"{interface_cfg.interface_index} is wireless")
             return 50
         return 100
 
