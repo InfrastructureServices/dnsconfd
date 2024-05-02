@@ -7,7 +7,7 @@ from dnsconfd.fsm import ExitCode
 
 from gi.repository import GLib
 from typing import Callable
-import logging as lgr
+import logging
 import dbus.service
 import json
 
@@ -31,6 +31,8 @@ class DnsconfdContext:
 
         self.dns_mgr = None
         self.interfaces: dict[int, InterfaceConfiguration] = {}
+
+        self.lgr = logging.getLogger(self.__class__.__name__)
 
         # dictionary, systemd jobs -> event that should be emitted on success,
         # event that should be emitted on failure
@@ -178,18 +180,18 @@ class DnsconfdContext:
         :type event: ContextEvent
         :return: Always false. This allows use in loop callbacks
         """
-        lgr.debug(("FSM transition function called, "
-                   + f"state: {self.state}, event: {event.name}"))
+        self.lgr.debug("FSM transition function called, "
+                       f"state: {self.state}, event: {event.name}")
         try:
             while event is not None:
                 self.state, callback \
                     = self.transition[self.state][event.name]
                 event = callback(event)
-                lgr.debug((f"New state: {self.state}, new event: " +
-                           f"{event.name if event is not None else 'None'}"))
+                self.lgr.debug(f"New state: {self.state}, new event: "
+                               f"{'None' if event is None else event.name}")
         except KeyError:
-            lgr.warning((f"There is no transition defined from {self.state} "
-                         + f"on {event.name} event, ignoring"))
+            self.lgr.warning("There is no transition defined from "
+                             f"{self.state} on {event.name} event, ignoring")
         # a bit of a hack, so loop add functions remove this immediately
         return False
 
@@ -206,10 +208,10 @@ class DnsconfdContext:
         """
         if (not self._connect_systemd()
                 or not self._subscribe_systemd_signals()):
-            lgr.error("Failed to connect to systemd through DBUS")
+            self.lgr.error("Failed to connect to systemd through DBUS")
             return ContextEvent("FAIL", ExitCode.DBUS_FAILURE)
         else:
-            lgr.debug("Successfully connected to systemd through DBUS")
+            self.lgr.debug("Successfully connected to systemd through DBUS")
             return ContextEvent("SUCCESS")
 
     def _connecting_dbus_success_transition(self, event: ContextEvent) \
@@ -228,13 +230,13 @@ class DnsconfdContext:
         self.dns_mgr.configure(self.my_address)
         service_start_job = self._start_unit()
         if service_start_job is None:
-            lgr.error("Failed to submit dns cache service start job")
+            self.lgr.error("Failed to submit dns cache service start job")
             return ContextEvent("FAIL", ExitCode.DBUS_FAILURE)
         self._systemd_jobs[service_start_job] = (
             ContextEvent("START_OK"), ContextEvent("START_FAIL",
                                                    ExitCode.SERVICE_FAILURE))
         # end of part that will be configured
-        lgr.debug("Successfully submitted dns cache service start job")
+        self.lgr.debug("Successfully submitted dns cache service start job")
         return ContextEvent("SUCCESS")
 
     def _exit_transition(self, event: ContextEvent) -> ContextEvent | None:
@@ -247,7 +249,7 @@ class DnsconfdContext:
         :return: None
         :rtype: ContextEvent | None
         """
-        lgr.debug("Stopping event loop and FSM")
+        self.lgr.debug("Stopping event loop and FSM")
         self._exit_code = event.data.value
         self._main_loop.quit()
         return None
@@ -257,8 +259,8 @@ class DnsconfdContext:
             self._systemd_manager.Subscribe()
             return True
         except dbus.DBusException as e:
-            lgr.error("Systemd is not listening on " +
-                      f"name org.freedesktop.systemd1 {e}")
+            self.lgr.error("Systemd is not listening on " +
+                           f"name org.freedesktop.systemd1 {e}")
         return False
 
     def _connect_systemd(self):
@@ -275,8 +277,8 @@ class DnsconfdContext:
 
             return True
         except dbus.DBusException as e:
-            lgr.error("Systemd is not listening on name "
-                      + f"org.freedesktop.systemd1: {e}")
+            self.lgr.error("Systemd is not listening on name "
+                           f"org.freedesktop.systemd1: {e}")
         return False
 
     def _on_systemd_job_finished(self, *args):
@@ -284,18 +286,19 @@ class DnsconfdContext:
         success_event, failure_event = self._systemd_jobs.pop(jobid,
                                                               (None, None))
         if success_event is not None:
-            lgr.debug(f"{args[2]} start job finished")
+            self.lgr.debug(f"{args[2]} start job finished")
             if len(self._systemd_jobs.keys()) == 0:
-                lgr.debug("Not waiting for more jobs, thus unsubscribing")
+                self.lgr.debug("Not waiting for more jobs, thus unsubscribing")
                 # we do not want to receive info about jobs anymore
                 self._systemd_manager.Unsubscribe()
             if args[3] != "done" and args[3] != "skipped":
-                lgr.error(f"{args[2]} unit failed to start, result: {args[3]}")
+                self.lgr.error(f"{args[2]} unit failed to start, "
+                               f"result: {args[3]}")
                 self.transition_function(failure_event)
             self.transition_function(success_event)
         else:
-            lgr.debug(("Dnsconfd was informed about finish of"
-                       + f" job {jobid} but it was not submitted by us"))
+            self.lgr.debug("Dnsconfd was informed about finish of"
+                           f" job {jobid} but it was not submitted by us")
 
     def _job_finished_success_transition(self, event: ContextEvent) \
             -> ContextEvent | None:
@@ -308,7 +311,7 @@ class DnsconfdContext:
         :return: None
         :rtype: ContextEvent | None
         """
-        lgr.debug("Start job finished successfully, starting polling")
+        self.lgr.debug("Start job finished successfully, starting polling")
         timer_event = ContextEvent("TIMER_UP", 0)
         GLib.timeout_add_seconds(1,
                                  lambda: self.transition_function(timer_event))
@@ -328,18 +331,18 @@ class DnsconfdContext:
         """
         if not self.dns_mgr.is_ready():
             if event.data == 3:
-                lgr.error(f"{self.dns_mgr.service_name} did not respond in "
-                          + "time, stopping dnsconfd")
+                self.lgr.error(f"{self.dns_mgr.service_name} did not respond "
+                               "in time, stopping dnsconfd")
                 return ContextEvent("TIMEOUT", ExitCode.SERVICE_FAILURE)
-            lgr.debug(f"{self.dns_mgr.service_name} still not ready, "
-                      + "scheduling additional poll")
+            self.lgr.debug(f"{self.dns_mgr.service_name} still not ready, "
+                           "scheduling additional poll")
             timer = ContextEvent("TIMER_UP", event.data + 1)
             GLib.timeout_add_seconds(1,
                                      lambda: self.transition_function(timer))
             return None
         else:
-            lgr.debug("DNS cache service is responding, "
-                      + "proceeding to setup of resolv.conf")
+            self.lgr.debug("DNS cache service is responding, "
+                           "proceeding to setup of resolv.conf")
             return ContextEvent("SERVICE_UP")
 
     def _polling_service_up_transition(self, event: ContextEvent) \
@@ -354,10 +357,10 @@ class DnsconfdContext:
         :rtype: ContextEvent | None
         """
         if not self.sys_mgr.set_resolvconf():
-            lgr.error("Failed to set up resolv.conf")
+            self.lgr.error("Failed to set up resolv.conf")
             return ContextEvent("FAIL", ExitCode.RESOLV_CONF_FAILURE)
         else:
-            lgr.debug("Resolv.conf successfully prepared")
+            self.lgr.debug("Resolv.conf successfully prepared")
             return ContextEvent("SUCCESS")
 
     def _running_update_transition(self, event: ContextEvent) \
@@ -453,7 +456,7 @@ class DnsconfdContext:
         :return: EXIT event with exit code
         :rtype: ContextEvent | None
         """
-        lgr.debug("Stop job after error successfully finished")
+        self.lgr.debug("Stop job after error successfully finished")
         return ContextEvent("EXIT", event.data)
 
     def _waiting_stop_job_fail_transition(self, event: ContextEvent) \
@@ -468,7 +471,7 @@ class DnsconfdContext:
         :return: EXIT event with exit code + service failure
         :rtype: ContextEvent | None
         """
-        lgr.debug("Stop job after error failed")
+        self.lgr.debug("Stop job after error failed")
         return ContextEvent("EXIT", ExitCode.SERVICE_FAILURE)
 
     def updating_dns_manager_fail_transition(self, event: ContextEvent) \
@@ -482,7 +485,7 @@ class DnsconfdContext:
         :return: SUCCESS or FAIL with exit code
         :rtype: ContextEvent | None
         """
-        lgr.error("Failed to update DNS service, stopping")
+        self.lgr.error("Failed to update DNS service, stopping")
         if not self.sys_mgr.revert_resolvconf():
             return ContextEvent("FAIL", ExitCode.RESOLV_CONF_FAILURE)
         return ContextEvent("SUCCESS", ExitCode.GRACEFUL_STOP)
@@ -519,7 +522,7 @@ class DnsconfdContext:
         :return: SUCCESS or FAIL with exit code
         :rtype: ContextEvent | None
         """
-        lgr.info("Stopping dnsconfd")
+        self.lgr.info("Stopping dnsconfd")
         if not self.sys_mgr.revert_resolvconf():
             return ContextEvent("FAIL", ExitCode.RESOLV_CONF_FAILURE)
         return ContextEvent("SUCCESS", ExitCode.GRACEFUL_STOP)
@@ -535,7 +538,7 @@ class DnsconfdContext:
         :return: SUCCESS or FAIL with exit code
         :rtype: ContextEvent | None
         """
-        lgr.info("Reloading DNS cache service")
+        self.lgr.info("Reloading DNS cache service")
         self.dns_mgr.clear_state()
         if not self._subscribe_systemd_signals():
             return ContextEvent("FAIL", ExitCode.DBUS_FAILURE)
@@ -560,10 +563,10 @@ class DnsconfdContext:
         """
         zones_to_servers, search_domains = self._get_zones_to_servers()
         if not self.sys_mgr.update_resolvconf(search_domains):
-            lgr.error("Failed to update resolv.conf")
+            self.lgr.error("Failed to update resolv.conf")
             return ContextEvent("FAIL", ExitCode.SERVICE_FAILURE)
-        lgr.debug("Successfully updated resolv.conf with search domains:"
-                  + f"{search_domains}")
+        self.lgr.debug("Successfully updated resolv.conf with search domains:"
+                       f"{search_domains}")
         return ContextEvent("SUCCESS", zones_to_servers)
 
     def _submitting_restart_job_fail_transition(self, event: ContextEvent) \
@@ -578,9 +581,9 @@ class DnsconfdContext:
         :rtype: ContextEvent | None
         """
         if not self.sys_mgr.revert_resolvconf():
-            lgr.error("Failed to revert resolv.conf")
+            self.lgr.error("Failed to revert resolv.conf")
             return ContextEvent("FAIL", ExitCode.RESOLV_CONF_FAILURE)
-        lgr.debug("Successfully reverted resolv.conf")
+        self.lgr.debug("Successfully reverted resolv.conf")
         return ContextEvent("SUCCESS", event.data)
 
     def _waiting_restart_job_failure_transition(self, event: ContextEvent) \
@@ -595,9 +598,9 @@ class DnsconfdContext:
         :rtype: ContextEvent | None
         """
         if not self.sys_mgr.revert_resolvconf():
-            lgr.error("Failed to revert resolv.conf")
+            self.lgr.error("Failed to revert resolv.conf")
             return ContextEvent("FAIL", ExitCode.SERVICE_FAILURE)
-        lgr.debug("Successfully reverted resolv.conf")
+        self.lgr.debug("Successfully reverted resolv.conf")
         return ContextEvent("SUCCESS", ExitCode.SERVICE_FAILURE)
 
     def _update_transition(self, event: ContextEvent) \
@@ -616,41 +619,41 @@ class DnsconfdContext:
         return None
 
     def _start_unit(self):
-        lgr.info(f"Starting {self.dns_mgr.service_name}")
+        self.lgr.info(f"Starting {self.dns_mgr.service_name}")
         try:
             name = f"{self.dns_mgr.service_name}.service"
             return int(self._systemd_manager
                        .ReloadOrRestartUnit(name,
                                             "replace").split('/')[-1])
         except dbus.DBusException as e:
-            lgr.error("Was not able to call "
-                      + "org.freedesktop.systemd1.Manager.ReloadOrRestartUnit"
-                      + f", check your policy: {e}")
+            self.lgr.error("Was not able to call "
+                           "org.freedesktop.systemd1.Manager"
+                           f".ReloadOrRestartUnit , check your policy: {e}")
         return None
 
     def _stop_unit(self):
-        lgr.info(f"Stopping {self.dns_mgr.service_name}")
+        self.lgr.info(f"Stopping {self.dns_mgr.service_name}")
         try:
             name = f"{self.dns_mgr.service_name}.service"
             return int(self._systemd_manager
                        .StopUnit(name,
                                  "replace").split('/')[-1])
         except dbus.DBusException as e:
-            lgr.error("Was not able to call "
-                      + "org.freedesktop.systemd1.Manager.StopUnit"
-                      + f", check your policy {e}")
+            self.lgr.error("Was not able to call "
+                           "org.freedesktop.systemd1.Manager.StopUnit"
+                           f", check your policy {e}")
         return None
 
     def _restart_unit(self):
-        lgr.info(f"Restarting {self.dns_mgr.service_name}")
+        self.lgr.info(f"Restarting {self.dns_mgr.service_name}")
         try:
             name = f"{self.dns_mgr.service_name}.service"
             return int(self._systemd_manager
                        .RestartUnit(name, "replace").split('/')[-1])
         except dbus.DBusException as e:
-            lgr.error("Was not able to call"
-                      + " org.freedesktop.systemd1.Manager.RestartUnit"
-                      + f", check your policy: {e}")
+            self.lgr.error("Was not able to call "
+                           "org.freedesktop.systemd1.Manager.RestartUnit"
+                           f", check your policy: {e}")
         return None
 
     def _get_zones_to_servers(self):
@@ -659,7 +662,7 @@ class DnsconfdContext:
         search_domains = []
 
         for interface in self.interfaces.values():
-            lgr.debug(f"Processing interface {interface}")
+            self.lgr.debug(f"Processing interface {interface}")
             interface: InterfaceConfiguration
             interface_zones = []
             search_domains = []
@@ -669,24 +672,25 @@ class DnsconfdContext:
                 else:
                     search_domains.append(dom[0])
             if interface.is_default:
-                lgr.debug("Interface is default, appending . as its zone")
+                self.lgr.debug("Interface is default, appending . as its zone")
                 interface_zones.append(".")
             for zone in interface_zones:
-                lgr.debug(f"Handling zone {zone} of the interface")
+                self.lgr.debug(f"Handling zone {zone} of the interface")
                 new_zones_to_servers[zone] = new_zones_to_servers.get(zone, [])
                 for server in interface.servers:
-                    lgr.debug(f"Handling server {server}")
+                    self.lgr.debug(f"Handling server {server}")
                     found_server = []
                     for a in new_zones_to_servers[zone]:
                         if server == a:
                             found_server.append(a)
                     if len(found_server) > 0:
-                        lgr.debug(f"Server {server} already in zone, "
-                                  + "handling priority")
+                        self.lgr.debug(f"Server {server} already in zone, "
+                                       "handling priority")
                         prio = max(found_server[0].priority, server.priority)
                         found_server[0].priority = prio
                     else:
-                        lgr.debug(f"Appending server {server} to zone {zone}")
+                        self.lgr.debug("Appending server "
+                                       f"{server} to zone {zone}")
                         new_zones_to_servers[zone].append(server)
 
         for zone in new_zones_to_servers.keys():
@@ -702,7 +706,7 @@ class DnsconfdContext:
         :return: String with status
         :rtype: str
         """
-        lgr.debug("Handling request for status")
+        self.lgr.debug("Handling request for status")
         interfaces = self.interfaces.values()
         if json_format:
             status = {"service": self.dns_mgr.service_name,
@@ -711,11 +715,11 @@ class DnsconfdContext:
                       "interfaces": [a.to_dict() for a in interfaces]}
             return json.dumps(status)
         return (f"Running cache service:\n{self.dns_mgr.service_name}\n"
-                + "Config present in service:\n"
-                + f"{json.dumps(self.dns_mgr.get_status(), indent=4)}\n"
-                + f"State of Dnsconfd:\n{self.state.name}\n"
-                + "Info about interfaces: "
-                + f"{json.dumps([a.to_dict() for a in interfaces], indent=4)}")
+                "Config present in service:\n"
+                f"{json.dumps(self.dns_mgr.get_status(), indent=4)}\n"
+                f"State of Dnsconfd:\n{self.state.name}\n"
+                "Info about interfaces: "
+                f"{json.dumps([a.to_dict() for a in interfaces], indent=4)}")
 
     def reload_service(self) -> str:
         """ Perform reload of cache service if possible

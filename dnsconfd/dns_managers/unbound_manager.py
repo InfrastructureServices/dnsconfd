@@ -2,18 +2,19 @@ from dnsconfd.dns_managers import DnsManager
 from dnsconfd.network_objects import ServerDescription
 
 import subprocess
-import logging as lgr
+import logging
 
 
 class UnboundManager(DnsManager):
     service_name = "unbound"
 
     def __init__(self):
-        """ Object responsible for executing unbound network_objects changes """
+        """ Object responsible for executing unbound configuration changes """
         super().__init__()
         self.my_address = None
         self.zones_to_servers = {}
         self.validation = False
+        self.lgr = logging.getLogger(self.__class__.__name__)
 
     def configure(self, my_address: str, validation=False):
         """ Configure this instance
@@ -25,7 +26,7 @@ class UnboundManager(DnsManager):
         """
         self.my_address = my_address
         self.validation = validation
-        lgr.debug(f"DNS cache should be listening on {self.my_address}")
+        self.lgr.debug(f"DNS cache should be listening on {self.my_address}")
 
     def clear_state(self):
         """ Clear state that this instance holds
@@ -43,8 +44,7 @@ class UnboundManager(DnsManager):
         """
         return self._execute_cmd("status")
 
-    @staticmethod
-    def _execute_cmd(command: str) -> bool:
+    def _execute_cmd(self, command: str) -> bool:
         """ Execute command through unbound-control utility
 
         :param command: Command to execute
@@ -53,12 +53,14 @@ class UnboundManager(DnsManager):
         :rtype: bool
         """
         control_args = ["unbound-control", f'{command}']
-        lgr.debug(f"Executing unbound-control as {' '.join(control_args)}")
+        self.lgr.debug("Executing unbound-control as "
+                       f"{' '.join(control_args)}")
         proc = subprocess.run(control_args,
                               stdout=subprocess.PIPE,
                               stderr=subprocess.PIPE)
-        lgr.debug((f"Returned code {proc.returncode}, "
-                   + f"stdout:\"{proc.stdout}\", stderr:\"{proc.stderr}\""))
+        self.lgr.debug(f"Returned code {proc.returncode}, "
+                       f"stdout:\"{proc.stdout}\", "
+                       f"stderr:\"{proc.stderr}\"")
         return proc.returncode == 0
 
     def update(self,
@@ -71,7 +73,7 @@ class UnboundManager(DnsManager):
         :return: True if update was successful, otherwise False
         :rtype: bool
         """
-        lgr.debug("Unbound manager processing update")
+        self.lgr.debug("Unbound manager processing update")
         insecure = "+i"
         if self.validation:
             insecure = ""
@@ -81,17 +83,26 @@ class UnboundManager(DnsManager):
         removed_zones = []
         for zone in zones_to_servers.keys():
             if zone in self.zones_to_servers.keys():
-                stable_zones.append(zone)
-            else:
+                if len(zones_to_servers[zone]) != 0:
+                    stable_zones.append(zone)
+                else:
+                    self.lgr.debug(f"Zone {zone} was update to no servers,"
+                                   " thus has to be considered as removed")
+            elif len(zones_to_servers[zone]) != 0:
                 added_zones.append(zone)
+            else:
+                self.lgr.debug(f"Zone {zone} was added, but does not have "
+                               "assigned servers and thus will not be "
+                               "considered as added")
 
         for zone in self.zones_to_servers.keys():
             if zone not in zones_to_servers.keys():
                 removed_zones.append(zone)
 
-        lgr.debug(f"Update added zones {added_zones}")
-        lgr.debug(f"Update removed zones {removed_zones}")
-        lgr.debug(f"Zones that were in both configurations {stable_zones}")
+        self.lgr.debug(f"Update added zones {added_zones}")
+        self.lgr.debug(f"Update removed zones {removed_zones}")
+        self.lgr.debug("Zones that were in both configurations"
+                       f" {stable_zones}")
 
         # NOTE: unbound does not support forwarding server priority, so we
         # need to strip any server that has lower priority than the
@@ -110,10 +121,10 @@ class UnboundManager(DnsManager):
                 return False
         for zone in stable_zones:
             if self.zones_to_servers[zone] == zones_to_servers[zone]:
-                lgr.debug(f"Zone {zone} is the same in old and new config "
-                          + "thus skipping it")
+                self.lgr.debug(f"Zone {zone} is the same in old and new "
+                               + "config thus skipping it")
                 continue
-            lgr.debug(f"Updating zone {zone}")
+            self.lgr.debug(f"Updating zone {zone}")
             max_prio = zones_to_servers[zone][0].priority
             servers_str = [srv.to_unbound_string()
                            for srv in zones_to_servers[zone] if
@@ -124,7 +135,7 @@ class UnboundManager(DnsManager):
                 return False
 
         self.zones_to_servers = zones_to_servers
-        lgr.info(f"Unbound updated to configuration: {self.get_status()}")
+        self.lgr.info(f"Unbound updated to configuration: {self.get_status()}")
         return True
 
     def get_status(self) -> dict[str, list[str]]:

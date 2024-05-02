@@ -1,4 +1,4 @@
-import logging as lgr
+import logging
 import os
 import os.path
 import shutil
@@ -20,6 +20,7 @@ class SystemManager:
         self._resolv_conf_path = config["resolv_conf_path"]
         self._listen_address = config["listen_address"]
         self._resolver_options = config["resolver_options"]
+        self.lgr = logging.getLogger(self.__class__.__name__)
 
     def set_resolvconf(self) -> bool:
         """ Replace resolv.conf content with our config and perform backup
@@ -30,24 +31,26 @@ class SystemManager:
         try:
             if os.path.islink(self._resolv_conf_path):
                 self._backup_link = os.readlink(self._resolv_conf_path)
-                lgr.debug(f"Resolvconf is symlink to {self._backup_link}")
+                self.lgr.debug(f"Resolvconf is symlink to {self._backup_link}")
                 os.unlink(self._resolv_conf_path)
             else:
-                lgr.debug("Resolvconf is plain file")
+                self.lgr.debug("Resolvconf is plain file")
                 with open(self._resolv_conf_path, "r") as orig_resolv:
                     self._backup = orig_resolv.read()
         except FileNotFoundError as e:
-            lgr.error(f"Not present resolvconf: {e}")
+            self.lgr.error(f"Not present resolvconf: {e}")
             return False
         except OSError as e:
-            lgr.error(f"OSError encountered while reading resolv.conf {e}")
+            self.lgr.error("OSError encountered while reading "
+                           f"resolv.conf {e}")
             return False
 
         try:
             with open(self._resolv_conf_path, "w") as new_resolv:
                 new_resolv.write(self._get_resolvconf_string())
         except OSError as e:
-            lgr.error(f"OSError encountered while writing resolv.conf: {e}")
+            self.lgr.error(f"OSError encountered while writing "
+                           f"resolv.conf: {e}")
             return False
         return True
 
@@ -73,15 +76,16 @@ class SystemManager:
                 with open(self._resolv_conf_path, "w") as new_resolv:
                     new_resolv.write(self._backup)
             except OSError as e:
-                lgr.error(f"OSError encountered while writing resolv.conf {e}")
+                self.lgr.error(f"OSError encountered while writing "
+                               f"resolv.conf {e}")
                 return False
         elif self._backup_link is not None:
             try:
                 os.unlink(self._resolv_conf_path)
                 os.symlink(self._backup_link, self._resolv_conf_path)
             except OSError as e:
-                lgr.error("OSError encountered while linking "
-                          + f"back resolv.conf: {e}")
+                self.lgr.error("OSError encountered while linking "
+                               f"back resolv.conf: {e}")
                 return False
         return True
 
@@ -93,12 +97,13 @@ class SystemManager:
         :return: True if operation was successful, otherwise False
         :rtype: bool
         """
-        lgr.debug(f"Updating resolvconf with domains {search_domains}")
+        self.lgr.debug(f"Updating resolvconf with domains {search_domains}")
         try:
             with open(self._resolv_conf_path, "w") as new_resolv:
                 new_resolv.write(self._get_resolvconf_string(search_domains))
         except OSError as e:
-            lgr.error(f"OSError encountered while writing resolv.conf: {e}")
+            self.lgr.error("OSError encountered while writing "
+                           f"resolv.conf: {e}")
             return False
         return True
 
@@ -109,8 +114,8 @@ class SystemManager:
             open(self._resolv_conf_path, 'w+').close()
             shutil.chown(self._resolv_conf_path, user, None)
         except OSError as e:
-            lgr.error(f"Failed to change ownership of resolv.conf: {e}")
+            self.lgr.error(f"Failed to change ownership of resolv.conf: {e}")
             return False
         except LookupError as e:
-            lgr.error(f"User {user} was not found, does it exist? {e}")
+            self.lgr.error(f"User {user} was not found, does it exist? {e}")
         return True

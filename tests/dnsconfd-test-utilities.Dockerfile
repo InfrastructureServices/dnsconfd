@@ -4,7 +4,7 @@ RUN dnf install -y --setopt=tsflags=nodocs --setopt=install_weak_deps=False dhcp
     dnsmasq openvpn easy-rsa && dnf -y clean all
 
 # DHCP PART
-COPY ./dhcpd.conf /etc/dhcp/dhcpd.conf
+COPY dhcpd-common.conf dhcpd-empty.conf /etc/dhcp/
 
 # VPN PART
 RUN mkdir /etc/openvpn/easy-rsa && cp -rai /usr/share/easy-rsa/3/* /etc/openvpn/easy-rsa/
@@ -15,4 +15,4 @@ RUN cd /etc/openvpn/easy-rsa\
     && ./easyrsa --batch --no-pass gen-dh
 COPY vpn.conf /etc/openvpn/serverudp.conf
 
-COPY dhcp_entry.sh vpn_entry.sh dnsmasq_entry.sh /usr/bin
+COPY dhcp_entry.sh vpn_entry.sh dnsmasq_entry.sh /usr/bin/

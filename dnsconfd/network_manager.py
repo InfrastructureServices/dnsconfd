@@ -1,5 +1,4 @@
 import subprocess
-import logging as lgr
 
 
 class NetworkManager(object):
@@ -25,7 +24,7 @@ class NetworkManager(object):
                               "dns=systemd-resolved\n",
                               "rc-manager=unmanaged\n"])
         except OSError as e:
-            lgr.error(f"Unable to configure network manager: {e}")
+            print(f"Unable to configure network manager: {e}")
             return False
         self.reload()
         return True
@@ -36,7 +35,7 @@ class NetworkManager(object):
             with open(self.NM_CONF, "w") as f:
                 f.writelines([self.HEADER])
         except OSError as e:
-            lgr.error(f"Unable to configure network manager: {e}")
+            print(f"Unable to configure network manager: {e}")
             return False
         self.reload()
         return True

@@ -3,7 +3,7 @@ from dnsconfd.cli_commands import CLI_Commands as Cmds
 
 import os
 import yaml
-import logging as lgr
+import logging
 
 
 class DnsconfdArgumentParser(ArgumentParser):
@@ -14,6 +14,7 @@ class DnsconfdArgumentParser(ArgumentParser):
         :param kwargs: keyword arguments for the parent constructor
         """
         super(DnsconfdArgumentParser, self).__init__(*args, **kwargs)
+        self.lgr = logging.getLogger(self.__class__.__name__)
         self._parsed = None
         self._config_values = [
             ("dbus_name",
@@ -148,7 +149,8 @@ class DnsconfdArgumentParser(ArgumentParser):
             if temp_config is not None:
                 config = temp_config
         except OSError as e:
-            lgr.warning(f"Could not open configuration file at {path}, {e}")
+            self.lgr.warning("Could not open configuration file "
+                             f"at {path}, {e}")
         finally:
             for (arg_name, help_str, default_val) in self._config_values:
                 config.setdefault(arg_name, default_val)
