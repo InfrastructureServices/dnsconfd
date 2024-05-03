@@ -16,9 +16,21 @@ downstream_package_name: dnsconfd
 jobs:
   - job: copr_build
     trigger: pull_request
+    identifier: pr_copr_build
     targets:
       - fedora-all
   - job: tests
     trigger: pull_request
+    identifier: pr_tests
     targets:
-    - fedora-39
+    - fedora-40
+  - job: copr_build
+    trigger: commit
+    identifier: commit_copr_build
+    targets:
+      - fedora-all
+  - job: tests
+    trigger: commit
+    identifier: commit_tests
+    targets:
+      - fedora-40
