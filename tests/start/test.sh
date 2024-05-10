@@ -16,7 +16,7 @@ rlJournalStart
         sleep 2
         rlRun "dnsconfd --dbus-name=$DBUS_NAME status | grep unbound" 0 "Verifying status of dnsconfd"
         # we can not simply check for a AVC until chrony issue is fixed
-        rlRun "ausearch -m avc --start recent | grep dnsconfd_t" 1 "Check no AVC occured"
+        rlRun "ausearch -m avc --start recent | grep dnsconfd" 1 "Check no AVC occured"
     rlPhaseEnd
 
     rlPhaseStartCleanup

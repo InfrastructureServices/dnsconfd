@@ -78,23 +78,27 @@ mkdir   -m 0755 -p %{buildroot}%{_unitdir}/unbound.service.d
 mkdir   -m 0755 -p %{buildroot}%{_unitdir}/unbound-anchor.service.d
 mkdir   -m 0755 -p %{buildroot}%{_sysconfdir}/sysconfig
 mkdir   -m 0755 -p %{buildroot}%{_sbindir}
-mkdir   -m 0755 -p %{buildroot}%{_var}/log/dnsconfd
 mkdir   -m 0755 -p %{buildroot}/%{_mandir}/man8
 mkdir   -m 0755 -p %{buildroot}%{_datadir}/polkit-1/rules.d/
+mkdir   -m 0755 -p %{buildroot}%{_rundir}/dnsconfd
+mkdir   -m 0755 -p %{buildroot}%{_tmpfilesdir}
 
 install -m 0644 -p distribution/com.redhat.dnsconfd.conf %{buildroot}%{_datadir}/dbus-1/system.d/com.redhat.dnsconfd.conf
 install -m 0644 -p distribution/dnsconfd.sysconfig %{buildroot}%{_sysconfdir}/sysconfig/dnsconfd
 install -m 0644 -p distribution/dnsconfd.service %{buildroot}%{_unitdir}/dnsconfd.service
 install -m 0644 -p distribution/dnsconfd.conf %{buildroot}%{_sysconfdir}/dnsconfd.conf
 install -m 0644 -p distribution/dnsconfd.rules %{buildroot}%{_datadir}/polkit-1/rules.d/dnsconfd.rules
+install -m 0644 -p distribution/dnsconfd-tmpfiles.conf %{buildroot}%{_tmpfilesdir}/%{name}.conf
+install -m 0644 -p distribution/dnsconfd-unbound-tmpfiles.conf %{buildroot}%{_tmpfilesdir}/%{name}-unbound.conf
+
+touch %{buildroot}%{_rundir}/dnsconfd/unbound.conf
+chmod 0644 %{buildroot}%{_rundir}/dnsconfd/unbound.conf
 
 # hook to inform us about unbound stop
 install -m 0644 -p distribution/dnsconfd.service.d-unbound.conf %{buildroot}%{_unitdir}/unbound.service.d/dnsconfd.conf
 install -m 0644 -p distribution/dnsconfd.service.d-unbound-anchor.conf %{buildroot}%{_unitdir}/unbound-anchor.service.d/dnsconfd.conf
 
 install -m 0644 -p distribution/unbound-dnsconfd.conf %{buildroot}%{_sysconfdir}/unbound/conf.d/unbound.conf
-
-touch %{buildroot}%{_var}/log/dnsconfd/unbound.log
 
 mv %{buildroot}%{_bindir}/dnsconfd %{buildroot}%{_sbindir}/dnsconfd
 
@@ -115,7 +119,7 @@ install -p -D -m 0644 distribution/dnsconfd.sysusers %{buildroot}%{_sysusersdir}
 
 %postun selinux
 if [ $1 -eq 0 ]; then
-    %selinux_modules_uninstall -s %{selinuxtype} %{modulename}
+    %selinux_modules_uninstall -s %{selinuxtype} -p 200 %{modulename}
 fi
 
 %posttrans selinux
@@ -145,11 +149,12 @@ fi
 %config(noreplace) %{_sysconfdir}/sysconfig/dnsconfd
 %config(noreplace) %{_sysconfdir}/dnsconfd.conf
 %{_unitdir}/dnsconfd.service
-%dir %attr(0755,root,root) %{_var}/log/dnsconfd
 %{_mandir}/man8/dnsconfd*.8*
 %ghost %{_sysusersdir}/dnsconfd.conf
 %doc README.md
 %{_datadir}/polkit-1/rules.d/dnsconfd.rules
+%dir %attr(755,dnsconfd,dnsconfd) %{_rundir}/dnsconfd
+%{_tmpfilesdir}/%{name}.conf
 
 %files selinux
 %{_datadir}/selinux/packages/%{selinuxtype}/%{modulename}.pp.*
@@ -158,8 +163,9 @@ fi
 %files unbound
 %{_unitdir}/unbound.service.d/dnsconfd.conf
 %{_unitdir}/unbound-anchor.service.d/dnsconfd.conf
-%config(noreplace) %attr(644,dnsconfd,unbound) %{_sysconfdir}/unbound/conf.d/unbound.conf
-%ghost %{_var}/log/dnsconfd/unbound.log
+%config(noreplace) %attr(644,unbound,unbound) %{_sysconfdir}/unbound/conf.d/unbound.conf
+%attr(644,dnsconfd,dnsconfd) %{_rundir}/dnsconfd/unbound.conf
+%{_tmpfilesdir}/dnsconfd-unbound.conf
 
 %changelog
 * Fri May 03 2024 Tomas Korbar <tkorbar@redhat.com> - 0.0.5-1

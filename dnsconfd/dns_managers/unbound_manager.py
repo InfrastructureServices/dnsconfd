@@ -11,22 +11,34 @@ class UnboundManager(DnsManager):
     def __init__(self):
         """ Object responsible for executing unbound configuration changes """
         super().__init__()
-        self.my_address = None
         self.zones_to_servers = {}
-        self.validation = False
         self.lgr = logging.getLogger(self.__class__.__name__)
 
-    def configure(self, my_address: str, validation=False):
-        """ Configure this instance
+    def configure(self, my_address: str, validation=False) -> bool:
+        """ Configure this instance (Write to unbound config file)
 
         :param my_address: address where unbound should listen
         :type my_address: str
         :param validation: enable DNSSEC validation, defaults to False
         :type validation: bool, optional
+        :return: True on success, otherwise False
+        :rtype: bool
         """
-        self.my_address = my_address
-        self.validation = validation
-        self.lgr.debug(f"DNS cache should be listening on {self.my_address}")
+        if validation:
+            modules = "ipsecmod validator iterator"
+        else:
+            modules = "ipsecmod iterator"
+        try:
+            with open("/run/dnsconfd/unbound.conf", "w") as conf_file:
+                conf_file.writelines(["server:\n",
+                                      f"\tmodule-config: \"{modules}\"\n",
+                                      f"\tinterface: {my_address}\n"])
+        except OSError as e:
+            self.lgr.error(f"Could not write Unbound configuration, {e}")
+            return False
+
+        self.lgr.debug(f"DNS cache should be listening on {my_address}")
+        return True
 
     def clear_state(self):
         """ Clear state that this instance holds
@@ -74,9 +86,6 @@ class UnboundManager(DnsManager):
         :rtype: bool
         """
         self.lgr.debug("Unbound manager processing update")
-        insecure = "+i"
-        if self.validation:
-            insecure = ""
 
         added_zones = []
         stable_zones = []
@@ -116,7 +125,7 @@ class UnboundManager(DnsManager):
             servers_str = [srv.to_unbound_string()
                            for srv in zones_to_servers[zone] if
                            srv.priority == max_prio]
-            if not self._execute_cmd(f"forward_add {insecure} {zone} "
+            if not self._execute_cmd(f"forward_add {zone} "
                                      + f"{' '.join(servers_str)}"):
                 return False
         for zone in stable_zones:
@@ -130,7 +139,7 @@ class UnboundManager(DnsManager):
                            for srv in zones_to_servers[zone] if
                            srv.priority == max_prio]
             if (not self._execute_cmd(f"forward_remove {zone}")
-                    or not self._execute_cmd(f"forward_add {insecure} {zone} "
+                    or not self._execute_cmd(f"forward_add {zone} "
                                              + f"{' '.join(servers_str)}")):
                 return False
 

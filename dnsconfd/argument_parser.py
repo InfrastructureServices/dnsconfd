@@ -37,7 +37,10 @@ class DnsconfdArgumentParser(ArgumentParser):
             ("resolver_options",
              "Options to be used in resolv.conf for alteration of resolver "
              "behavior, default 'edns0 trust-ad'",
-             "edns0 trust-ad")
+             "edns0 trust-ad"),
+            ("dnssec_enabled",
+             "Enable dnssec record validation",
+             False)
         ]
 
     def add_arguments(self):
