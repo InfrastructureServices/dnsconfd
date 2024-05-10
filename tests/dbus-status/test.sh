@@ -20,7 +20,7 @@ rlJournalStart
         rlRun "sudo -u dummy dbus-send --system --dest=org.freedesktop.resolve1 --print-reply\
          --type=method_call /org/freedesktop/resolve1 \
          org.freedesktop.resolve1.Manager.RevertLink int32:1" 1 "Verify that regular user is not permitted to change DNS setting"
-        rlRun "ausearch -m avc --start recent | grep dnsconfd_t" 1 "Check no AVC occured"
+        rlRun "ausearch -m avc --start recent | grep dnsconfd" 1 "Check no AVC occured"
     rlPhaseEnd
 
     rlPhaseStartCleanup

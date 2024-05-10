@@ -7,3 +7,4 @@ class ExitCode(Enum):
     SERVICE_FAILURE = 1
     DBUS_FAILURE = 2
     RESOLV_CONF_FAILURE = 3
+    CONFIG_FAILURE = 4

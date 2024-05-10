@@ -27,41 +27,35 @@ require {
     type named_unit_file_t;
     type init_t;
     class dbus { send_msg acquire_svc };
+    type named_t;
+    type tmp_t;
+    type tmpfs_t;
+    type NetworkManager_var_run_t;
 }
 
 type dnsconfd_t;
 type dnsconfd_exec_t;
+type dnsconfd_var_run_t;
 
 init_daemon_domain(dnsconfd_t, dnsconfd_exec_t)
 
-type dnsconfd_log_t;
-logging_log_file(dnsconfd_log_t)
-
-logging_search_logs(dnsconfd_t)
-
-# Make sure that, if dnsconfd_t writes a log file, it gets the proper context
-logging_log_filetrans(dnsconfd_t, dnsconfd_log_t, file)
-# Be able to create and append to its own log files
-allow dnsconfd_t dnsconfd_log_t:file { append_file_perms create_file_perms };
-allow dnsconfd_t dnsconfd_log_t:dir search;
+files_pid_file(dnsconfd_var_run_t)
+files_mountpoint(dnsconfd_var_run_t)
+init_daemon_run_dir(dnsconfd_var_run_t, "dnsconfd")
 
 #============= NetworkManager_t ==============
 allow NetworkManager_t dnsconfd_t:dbus send_msg;
 
 #============= dnsconfd_t ==============
 
-allow dnsconfd_t bin_t:file map;
-allow dnsconfd_t bin_t:file execute;
+allow dnsconfd_t bin_t:file { map execute };
 allow dnsconfd_t cert_t:dir search;
 allow dnsconfd_t cert_t:file { getattr open read };
-allow dnsconfd_t dns_port_t:tcp_socket name_bind;
-allow dnsconfd_t dns_port_t:udp_socket name_bind;
 allow dnsconfd_t kernel_t:unix_stream_socket connectto;
 # /etc/resolv.conf modifications
-allow dnsconfd_t etc_t:dir { add_name create remove_name write read};
+allow dnsconfd_t etc_t:dir { add_name create remove_name write read };
 allow dnsconfd_t etc_t:lnk_file { getattr read write create unlink };
 allow dnsconfd_t etc_t:file { getattr open read write create unlink };
-allow dnsconfd_t lib_t:file write;
 allow dnsconfd_t named_exec_t:file { execute execute_no_trans open read map};
 # Required by unbound-control
 allow dnsconfd_t named_conf_t:dir { getattr open read search};
@@ -116,3 +110,9 @@ allow init_t dnsconfd_t:dbus send_msg;
 # this is neccessary in testing farm, because resolv.conf seems to be
 # on a separate partition there
 dontaudit dnsconfd_t net_conf_t:file ioctl;
+
+# unbound has to be able to read generated drop-in config
+allow named_t dnsconfd_var_run_t:file { read open getattr ioctl };
+allow named_t NetworkManager_var_run_t:file { open read getattr };
+allow dnsconfd_t dnsconfd_var_run_t:file { open write getattr ioctl read };
+allow dnsconfd_t dnsconfd_var_run_t:dir search;

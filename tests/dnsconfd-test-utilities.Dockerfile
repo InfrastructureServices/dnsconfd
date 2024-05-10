@@ -1,7 +1,7 @@
 FROM quay.io/fedora/fedora:38
 
 RUN dnf install -y --setopt=tsflags=nodocs --setopt=install_weak_deps=False dhcp-server \
-    dnsmasq openvpn easy-rsa && dnf -y clean all
+    dnsmasq openvpn easy-rsa bind bind-utils bind-dnssec-utils && dnf -y clean all
 
 # DHCP PART
 COPY dhcpd-common.conf dhcpd-empty.conf /etc/dhcp/
@@ -15,4 +15,7 @@ RUN cd /etc/openvpn/easy-rsa\
     && ./easyrsa --batch --no-pass gen-dh
 COPY vpn.conf /etc/openvpn/serverudp.conf
 
-COPY dhcp_entry.sh vpn_entry.sh dnsmasq_entry.sh /usr/bin/
+COPY named.conf /etc/named.conf
+COPY bind_zones /etc/named/
+
+COPY dhcp_entry.sh vpn_entry.sh dnsmasq_entry.sh bind_entry.sh /usr/bin/

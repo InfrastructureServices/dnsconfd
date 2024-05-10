@@ -23,6 +23,11 @@ class DnsconfdContext:
         :type main_loop: object
         """
         self.my_address = config["listen_address"]
+        if config["dnssec_enabled"] is True:
+            self.dnssec_enabled = config["dnssec_enabled"]
+        else:
+            self.dnssec_enabled = config["dnssec_enabled"] == "yes"
+
         self.sys_mgr = SystemManager(config)
         self._main_loop = main_loop
 
@@ -46,13 +51,19 @@ class DnsconfdContext:
                        Callable[[DnsconfdContext, ContextEvent],
                                 ContextEvent]]]] = {
             ContextState.STARTING: {
-                "KICKOFF": (ContextState.CONNECTING_DBUS,
+                "KICKOFF": (ContextState.CONFIGURING_DNS_MANAGER,
                             self._starting_kickoff_transition),
                 "UPDATE": (ContextState.STARTING,
                            self._update_transition),
                 "STOP": (ContextState.STOPPING,
                          lambda y: ContextEvent("EXIT",
                                                 ExitCode.GRACEFUL_STOP))
+            },
+            ContextState.CONFIGURING_DNS_MANAGER: {
+                "SUCCESS": (ContextState.CONNECTING_DBUS,
+                            self._conf_dns_mgr_success_transition),
+                "FAIL": (ContextState.STOPPING,
+                         self._exit_transition)
             },
             ContextState.CONNECTING_DBUS: {
                 "FAIL": (ContextState.STOPPING,
@@ -206,6 +217,27 @@ class DnsconfdContext:
         :return: Success or FAIL with exit code
         :rtype: ContextEvent | None
         """
+
+        self.dns_mgr = UnboundManager()
+        if self.dns_mgr.configure(self.my_address, self.dnssec_enabled):
+            self.lgr.debug("Successfully configured DNS manager")
+            return ContextEvent("SUCCESS")
+
+        self.lgr.error("Unable to configure DNS manager")
+        return ContextEvent("FAIL", ExitCode.CONFIG_FAILURE)
+
+    def _conf_dns_mgr_success_transition(self, event: ContextEvent) \
+            -> ContextEvent | None:
+        """ Transition to CONNECTING_DBUS
+
+        Attempt to configure dns manager and its files
+
+        :param event: not used
+        :type: event: ContextEvent
+        :return: SUCCESS or FAIL with exit code
+        :rtype: ContextEvent | None
+        """
+
         if (not self._connect_systemd()
                 or not self._subscribe_systemd_signals()):
             self.lgr.error("Failed to connect to systemd through DBUS")
@@ -226,8 +258,6 @@ class DnsconfdContext:
         :rtype: ContextEvent | None
         """
         # TODO we will configure this in network_objects
-        self.dns_mgr = UnboundManager()
-        self.dns_mgr.configure(self.my_address)
         service_start_job = self._start_unit()
         if service_start_job is None:
             self.lgr.error("Failed to submit dns cache service start job")

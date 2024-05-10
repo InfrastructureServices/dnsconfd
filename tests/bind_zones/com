@@ -1,0 +1,17 @@
+$ORIGIN com.
+$TTL 86400
+@       IN      SOA     dns1.com.       hostmaster.com. (
+                        2001062501 ; serial
+                        21600      ; refresh after 6 hours
+                        3600       ; retry after 1 hour
+                        604800     ; expire after 1 week
+                        86400 )    ; minimum TTL of 1 day
+
+
+        IN      NS      dns1.com.
+example.com. IN NS dns1.example.com.
+dns1    IN      A       192.168.6.3
+dns1.example.com. IN A  192.168.6.3
+example.com.		IN DS 27199 7 2 699A7D45BF519CAE081C7BF336606ED6B4210EEE7D0E10F76D39C9BE 5DD0B0F7
+$INCLUDE "Kcom.+007+24705.key"
+$INCLUDE "Kcom.+007+12706.key"
