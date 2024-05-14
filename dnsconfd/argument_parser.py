@@ -14,6 +14,7 @@ class DnsconfdArgumentParser(ArgumentParser):
         :param kwargs: keyword arguments for the parent constructor
         """
         super(DnsconfdArgumentParser, self).__init__(*args, **kwargs)
+        logging.basicConfig(level=logging.getLevelName("WARNING"))
         self.lgr = logging.getLogger(self.__class__.__name__)
         self._parsed = None
         self._config_values = [
@@ -151,11 +152,18 @@ class DnsconfdArgumentParser(ArgumentParser):
                 temp_config = yaml.safe_load(config_file)
             if temp_config is not None:
                 config = temp_config
+            else:
+                self.lgr.warning("Bad config provided")
         except OSError as e:
             self.lgr.warning("Could not open configuration file "
                              f"at {path}, {e}")
-        finally:
+        try:
             for (arg_name, help_str, default_val) in self._config_values:
                 config.setdefault(arg_name, default_val)
+        except AttributeError:
+            # this is necessary, because safe_load sometimes returns string
+            # when invalid config is provided
+            self.lgr.warning("Bad config provided")
+            return {arg: val for (arg, _, val) in self._config_values}
 
         return config

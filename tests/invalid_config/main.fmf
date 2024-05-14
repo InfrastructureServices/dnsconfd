@@ -1,0 +1,7 @@
+summary: Provide invalid config and verify that dnsconfd handles situation correctly
+test: ./test.sh
+framework: beakerlib
+recommend:
+  - podman
+tag:
+  - integration
