@@ -153,7 +153,7 @@ class DnsconfdArgumentParser(ArgumentParser):
             if temp_config is not None:
                 config = temp_config
             else:
-                self.lgr.warning("Bad config provided")
+                self.lgr.info("No YAML document found in configuration file")
         except OSError as e:
             self.lgr.warning("Could not open configuration file "
                              f"at {path}, {e}")
