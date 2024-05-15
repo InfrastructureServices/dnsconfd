@@ -47,9 +47,9 @@ class DnsconfdContext:
         self.transition: dict[
             ContextState,
             dict[str,
-                 tuple[ContextState,
-                       Callable[[DnsconfdContext, ContextEvent],
-                                ContextEvent]]]] = {
+            tuple[ContextState,
+            Callable[[DnsconfdContext, ContextEvent],
+            ContextEvent]]]] = {
             ContextState.STARTING: {
                 "KICKOFF": (ContextState.CONFIGURING_DNS_MANAGER,
                             self._starting_kickoff_transition),
@@ -84,8 +84,8 @@ class DnsconfdContext:
             ContextState.WAITING_FOR_START_JOB: {
                 "START_OK": (ContextState.POLLING,
                              self._job_finished_success_transition),
-                "START_FAILURE": (ContextState.STOPPING,
-                                  self._exit_transition),
+                "START_FAIL": (ContextState.STOPPING,
+                               self._exit_transition),
                 "UPDATE": (ContextState.WAITING_FOR_START_JOB,
                            self._update_transition),
                 "STOP": (ContextState.WAITING_TO_SUBMIT_STOP_JOB,
