@@ -9,7 +9,7 @@ rlJournalStart
         rlRun "tmp=\$(mktemp -d)" 0 "Create tmp directory"
         rlRun "pushd $tmp"
         rlRun "set -o pipefail"
-        rlRun "podman network create dnsconfd_network -d=bridge --gateway=192.168.6.1 --subnet=192.168.6.0/24"
+        rlRun "podman network create dnsconfd_network --internal -d=bridge --gateway=192.168.6.1 --subnet=192.168.6.0/24"
         # dns=none is neccessary, because otherwise resolv.conf is created and
         # mounted by podman as read-only
         rlRun "dnsconfd_cid=\$(podman run -d --dns='none' --network dnsconfd_network:ip=192.168.6.2 dnsconfd_testing:latest)" 0 "Starting dnsconfd container"

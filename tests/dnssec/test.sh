@@ -22,9 +22,9 @@ rlJournalStart
         rlRun "podman cp root.key $dnsconfd_cid:/var/lib/unbound/root.key" 0 "installing root key"
         rlRun "podman exec $dnsconfd_cid sed -i 's/# auto-trust-anchor-file:/auto-trust-anchor-file:/' /etc/unbound/unbound.conf" 0 "setting auto trust anchor file"
         rlRun "podman exec $dnsconfd_cid systemctl restart dnsconfd" 0 "restarting dnsconfd"
-        sleep 15
+        sleep 6
         rlRun "podman exec $dnsconfd_cid nmcli connection mod eth0 ipv4.dns 192.168.6.3" 0 "Adding dns server to NM active profile"
-        sleep 5
+        sleep 3
         rlRun "podman exec $dnsconfd_cid dnsconfd --dbus-name=$DBUS_NAME status --json > status1" 0 "Getting status of dnsconfd"
         rlAssertNotDiffer status1 $ORIG_DIR/expected_status.json
         rlRun "podman exec $dnsconfd_cid getent hosts server.example.com | grep 192.168.6.5" 0 "Verifying correct address resolution"

@@ -11,7 +11,7 @@ rlJournalStart
         rlRun "tmp=\$(mktemp -d)" 0 "Create tmp directory"
         rlRun "pushd $tmp"
         rlRun "set -o pipefail"
-        rlRun "podman network create dnsconfd_network -d=bridge --gateway=192.168.6.1 --subnet=192.168.6.0/24"
+        rlRun "podman network create dnsconfd_network --internal -d=bridge --gateway=192.168.6.1 --subnet=192.168.6.0/24"
         # dns=none is neccessary, because otherwise resolv.conf is created and
         # mounted by podman as read-only
         rlRun "dhcp_cid=\$(podman run -d --cap-add=NET_RAW --network dnsconfd_network:ip=192.168.6.20 localhost/dnsconfd_utilities:latest dhcp_entry.sh /etc/dhcp/dhcpd-common.conf)" 0 "Starting dhcpd container"
