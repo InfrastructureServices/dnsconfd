@@ -118,7 +118,8 @@ class UnboundManager(DnsManager):
         # highest occurred priority
         # TODO: This has to be documented
         for zone in removed_zones:
-            if not self._execute_cmd(f"forward_remove {zone}"):
+            if (not self._execute_cmd(f"forward_remove {zone}")
+                    or not self._execute_cmd(f"flush_zone {zone}")):
                 return False
         for zone in added_zones:
             max_prio = zones_to_servers[zone][0].priority
@@ -139,6 +140,7 @@ class UnboundManager(DnsManager):
                            for srv in zones_to_servers[zone] if
                            srv.priority == max_prio]
             if (not self._execute_cmd(f"forward_remove {zone}")
+                    or not self._execute_cmd(f"flush_zone {zone}")
                     or not self._execute_cmd(f"forward_add {zone} "
                                              + f"{' '.join(servers_str)}")):
                 return False
