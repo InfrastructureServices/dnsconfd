@@ -443,6 +443,8 @@ class DnsconfdContext:
         # to finish and then submit stop job and wait for it to finish too
         # submitting stop job while the start is running could result in
         # unnecessary race condition
+        if not self._subscribe_systemd_signals():
+            return ContextEvent("FAIL", ExitCode.DBUS_FAILURE)
         service_stop_job = self._stop_unit()
         if service_stop_job is None:
             return ContextEvent("FAIL", ExitCode.DBUS_FAILURE)
