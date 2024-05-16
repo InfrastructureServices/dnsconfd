@@ -697,9 +697,8 @@ class DnsconfdContext:
             interface_zones = []
             search_domains = []
             for dom in interface.domains:
-                if dom[1]:
-                    interface_zones.append(dom[0])
-                else:
+                interface_zones.append(dom[0])
+                if not dom[1]:
                     search_domains.append(dom[0])
             if interface.is_default:
                 self.lgr.debug("Interface is default, appending . as its zone")
