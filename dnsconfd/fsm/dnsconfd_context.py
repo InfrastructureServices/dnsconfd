@@ -47,9 +47,9 @@ class DnsconfdContext:
         self.transition: dict[
             ContextState,
             dict[str,
-            tuple[ContextState,
-            Callable[[DnsconfdContext, ContextEvent],
-            ContextEvent]]]] = {
+                 tuple[ContextState,
+                       Callable[[DnsconfdContext, ContextEvent],
+                                ContextEvent]]]] = {
             ContextState.STARTING: {
                 "KICKOFF": (ContextState.CONFIGURING_DNS_MANAGER,
                             self._starting_kickoff_transition),
