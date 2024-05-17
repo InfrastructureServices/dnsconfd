@@ -29,6 +29,10 @@ If set to yes then wireless interfaces will have lower priority, default yes
 Address on which local resolver listens, default 127.0.0.1
 .IP "--config-file PATH"
 Path where config file is located, default /etc/dnsconfd.conf
+.IP "--resolver-options options"
+Options to be used in resolv.conf for alteration of resolver, default "edns0 trust-ad"
+.IP "--dnssec-enabled options"
+Enable dnssec record validation, default no
 
 .SH "EXIT STATUS"
 
@@ -40,6 +44,8 @@ DNS caching service failure. Service crashed for example.
 Failed communication through DBUS.
 .IP 3
 Failed interaction with resolv.conf
+.IP 4
+Failed to configure dns cache service
 
 .SH ENVIRONMENT
 Environment variables have lower priority than command line options but higher
@@ -57,6 +63,10 @@ If set to yes then wireless interfaces will have lower priority, default yes
 Address on which local resolver listens, default 127.0.0.1
 .IP CONFIG_FILE
 Path where config file is located, default /etc/dnsconfd.conf
+.IP RESOLVER_OPTIONS
+Options to be used in resolv.conf for alteration of resolver, default "edns0 trust-ad"
+.IP DNSSEC_ENABLED
+Enable dnssec record validation, default no
 
 .SH FILES
 Dnsconfd manages resolv.conf to route domain name resolution to local cache service.
