@@ -14,7 +14,6 @@ class DnsconfdArgumentParser(ArgumentParser):
         :param kwargs: keyword arguments for the parent constructor
         """
         super(DnsconfdArgumentParser, self).__init__(*args, **kwargs)
-        logging.basicConfig(level=logging.getLevelName("WARNING"))
         self.lgr = logging.getLogger(self.__class__.__name__)
         self._parsed = None
         self._config_values = [
@@ -22,7 +21,7 @@ class DnsconfdArgumentParser(ArgumentParser):
              "DBUS name that dnsconfd should use, default com.redhat.dnsconfd",
              "org.freedesktop.resolve1"),
             ("log_level",
-             "Log level of dnsconfd, default INFO",
+             "Log level of dnsconfd, default DEBUG",
              "DEBUG"),
             ("resolv_conf_path",
              "Path to resolv.conf that the dnsconfd should manage,"
@@ -152,8 +151,6 @@ class DnsconfdArgumentParser(ArgumentParser):
                 temp_config = yaml.safe_load(config_file)
             if temp_config is not None:
                 config = temp_config
-            else:
-                self.lgr.info("No YAML document found in configuration file")
         except OSError as e:
             self.lgr.warning("Could not open configuration file "
                              f"at {path}, {e}")

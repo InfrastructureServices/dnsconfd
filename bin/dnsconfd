@@ -11,6 +11,7 @@ import dbus.mainloop.glib
 from gi.repository import GLib
 
 if __name__ == "__main__":
+    logging.basicConfig(level=logging.getLevelName("WARNING"))
     parser = ArgParser(prog='dnsconfd',
                        description='local DNS cache network_objects daemon')
     parser.add_arguments()
@@ -21,7 +22,7 @@ if __name__ == "__main__":
     args.func()
 
     dbus.mainloop.glib.DBusGMainLoop(set_as_default=True)
-    logging.basicConfig(level=logging.getLevelName(args.log_level))
+    logging.getLogger().setLevel(args.log_level)
 
     main_loop = GLib.MainLoop()
     ctx = DnsconfdContext(vars(args), main_loop)
