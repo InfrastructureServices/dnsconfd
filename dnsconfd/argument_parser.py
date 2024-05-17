@@ -40,7 +40,7 @@ class DnsconfdArgumentParser(ArgumentParser):
              "behavior, default 'edns0 trust-ad'",
              "edns0 trust-ad"),
             ("dnssec_enabled",
-             "Enable dnssec record validation",
+             "Enable dnssec record validation, default no",
              False)
         ]
 
