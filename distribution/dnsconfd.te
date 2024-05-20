@@ -116,3 +116,5 @@ allow named_t dnsconfd_var_run_t:file { read open getattr ioctl };
 allow named_t NetworkManager_var_run_t:file { open read getattr };
 allow dnsconfd_t dnsconfd_var_run_t:file { open write getattr ioctl read };
 allow dnsconfd_t dnsconfd_var_run_t:dir search;
+
+allow dnsconfd_t dnsconfd_t:dbus send_msg;
