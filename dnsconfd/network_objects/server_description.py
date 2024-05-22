@@ -28,11 +28,12 @@ class ServerDescription:
         self.port = port
         self.sni = sni
         self.priority = priority
+        self.tls = False
 
     def to_unbound_string(self) -> str:
         """ Get string formatted in unbound format
 
-        <address>[@port][@sni]
+        <address>[@port][#sni]
 
         :return: server string in unbound format
         :rtype: str
@@ -40,6 +41,8 @@ class ServerDescription:
         srv_string = socket.inet_ntop(self.address_family, self.address)
         if self.port:
             srv_string += f"@{self.port}"
+        elif self.tls:
+            srv_string += "@853"
         if self.sni:
             srv_string += f"#{self.sni}"
         return srv_string
@@ -49,7 +52,9 @@ class ServerDescription:
             __value: ServerDescription
             return (self.address == __value.address
                     and self.port == __value.port
-                    and self.sni == __value.sni)
+                    and self.sni == __value.sni
+                    and self.tls == __value.tls
+                    and self.priority == __value.priority)
         except AttributeError:
             return False
 
