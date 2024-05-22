@@ -1,4 +1,4 @@
-FROM quay.io/fedora/fedora:latest
+FROM quay.io/fedora/fedora:41
 
 COPY ./*.noarch.rpm ./
 RUN dnf install -y --setopt=install_weak_deps=False --setopt=tsflags=nodocs systemd \

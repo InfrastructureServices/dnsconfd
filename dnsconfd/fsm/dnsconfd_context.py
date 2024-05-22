@@ -12,6 +12,7 @@ import dbus.service
 import json
 
 
+
 class DnsconfdContext:
     def __init__(self, config: dict, main_loop: object):
         """ Class containing implementation of FSM that controls Dnsconfd
@@ -47,9 +48,9 @@ class DnsconfdContext:
         self.transition: dict[
             ContextState,
             dict[str,
-                 tuple[ContextState,
-                       Callable[[DnsconfdContext, ContextEvent],
-                                ContextEvent]]]] = {
+            tuple[ContextState,
+            Callable[[DnsconfdContext, ContextEvent],
+            ContextEvent]]]] = {
             ContextState.STARTING: {
                 "KICKOFF": (ContextState.CONFIGURING_DNS_MANAGER,
                             self._starting_kickoff_transition),
@@ -725,7 +726,8 @@ class DnsconfdContext:
                         new_zones_to_servers[zone].append(server)
 
         for zone in new_zones_to_servers.keys():
-            new_zones_to_servers[zone].sort(key=lambda x: x.priority,
+            new_zones_to_servers[zone].sort(key=lambda x: (x.tls,
+                                                           x.priority),
                                             reverse=True)
 
         return new_zones_to_servers, search_domains

@@ -98,8 +98,12 @@ class ResolveDbusInterface(dbus.service.Object):
         interface_cfg = self.interfaces[interface_index]
         if mode == "yes" or mode == "opportunistic":
             interface_cfg.dns_over_tls = True
+            for server in interface_cfg.servers:
+                server.tls = True
         else:
             interface_cfg.dns_over_tls = False
+            for server in interface_cfg.servers:
+                server.tls = False
         self._update_if_ready(interface_cfg)
 
     @dbus.service.method(dbus_interface='org.freedesktop.resolve1.Manager',

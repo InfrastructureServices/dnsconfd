@@ -3,6 +3,7 @@ from dnsconfd.network_objects import ServerDescription
 
 import subprocess
 import logging
+from copy import deepcopy
 
 
 class UnboundManager(DnsManager):
@@ -117,17 +118,17 @@ class UnboundManager(DnsManager):
         # need to strip any server that has lower priority than the
         # highest occurred priority
         # TODO: This has to be documented
+        # NOTE: since unbound allows enabling of tls only for entire zones,
+        # we will be stripping non-tls servers if tls is enabled
+        # TODO: Document this
         for zone in removed_zones:
             if (not self._execute_cmd(f"forward_remove {zone}")
                     or not self._execute_cmd(f"flush_zone {zone}")):
                 return False
         for zone in added_zones:
-            max_prio = zones_to_servers[zone][0].priority
-            servers_str = [srv.to_unbound_string()
-                           for srv in zones_to_servers[zone] if
-                           srv.priority == max_prio]
-            if not self._execute_cmd(f"forward_add {zone} "
-                                     + f"{' '.join(servers_str)}"):
+            add_cmd = self._get_forward_add_command(zone,
+                                                    zones_to_servers[zone])
+            if not self._execute_cmd(add_cmd):
                 return False
         for zone in stable_zones:
             if self.zones_to_servers[zone] == zones_to_servers[zone]:
@@ -135,19 +136,32 @@ class UnboundManager(DnsManager):
                                + "config thus skipping it")
                 continue
             self.lgr.debug(f"Updating zone {zone}")
-            max_prio = zones_to_servers[zone][0].priority
-            servers_str = [srv.to_unbound_string()
-                           for srv in zones_to_servers[zone] if
-                           srv.priority == max_prio]
+            add_cmd = self._get_forward_add_command(zone,
+                                                    zones_to_servers[zone])
             if (not self._execute_cmd(f"forward_remove {zone}")
                     or not self._execute_cmd(f"flush_zone {zone}")
-                    or not self._execute_cmd(f"forward_add {zone} "
-                                             + f"{' '.join(servers_str)}")):
+                    or not self._execute_cmd(add_cmd)):
                 return False
 
-        self.zones_to_servers = zones_to_servers
+        # since we need to break references to ServerDescription objects
+        # held by interfaces but keep all the metadata, deepcopy is required
+        self.zones_to_servers = deepcopy(zones_to_servers)
         self.lgr.info(f"Unbound updated to configuration: {self.get_status()}")
         return True
+
+    @staticmethod
+    def _get_forward_add_command(zone: str,
+                                 servers: list[ServerDescription]):
+        max_prio = servers[0].priority
+        tls = servers[0].tls
+        servers_str = []
+        for srv in servers:
+            if srv.tls == tls and srv.priority == max_prio:
+                servers_str.append(srv.to_unbound_string())
+            else:
+                break
+        return (f"forward_add{' +t ' if tls else ' '}"
+                f"{zone} {' '.join(servers_str)}")
 
     def get_status(self) -> dict[str, list[str]]:
         """ Get current forwarders' network_objects that this instance holds
