@@ -10,7 +10,7 @@ from typing import Callable
 import logging
 import dbus.service
 import json
-
+import dbus.connection
 
 
 class DnsconfdContext:
@@ -34,6 +34,7 @@ class DnsconfdContext:
 
         self._systemd_object = None
         self._systemd_manager = None
+        self._signal_connection = None
 
         self.dns_mgr = None
         self.interfaces: dict[int, InterfaceConfiguration] = {}
@@ -48,9 +49,9 @@ class DnsconfdContext:
         self.transition: dict[
             ContextState,
             dict[str,
-            tuple[ContextState,
-            Callable[[DnsconfdContext, ContextEvent],
-            ContextEvent]]]] = {
+                 tuple[ContextState,
+                       Callable[[DnsconfdContext, ContextEvent],
+                                ContextEvent]]]] = {
             ContextState.STARTING: {
                 "KICKOFF": (ContextState.CONFIGURING_DNS_MANAGER,
                             self._starting_kickoff_transition),
@@ -288,6 +289,10 @@ class DnsconfdContext:
     def _subscribe_systemd_signals(self):
         try:
             self._systemd_manager.Subscribe()
+            connection = (self._systemd_manager.
+                          connect_to_signal("JobRemoved",
+                                            self._on_systemd_job_finished))
+            self._signal_connection = connection
             return True
         except dbus.DBusException as e:
             self.lgr.error("Systemd is not listening on " +
@@ -302,10 +307,6 @@ class DnsconfdContext:
             self._systemd_manager \
                 = dbus.Interface(self._systemd_object,
                                  "org.freedesktop.systemd1.Manager")
-            (self._systemd_manager.
-             connect_to_signal("JobRemoved",
-                               self._on_systemd_job_finished))
-
             return True
         except dbus.DBusException as e:
             self.lgr.error("Systemd is not listening on name "
@@ -322,6 +323,7 @@ class DnsconfdContext:
                 self.lgr.debug("Not waiting for more jobs, thus unsubscribing")
                 # we do not want to receive info about jobs anymore
                 self._systemd_manager.Unsubscribe()
+                self._signal_connection.remove()
             if args[3] != "done" and args[3] != "skipped":
                 self.lgr.error(f"{args[2]} unit failed to start, "
                                f"result: {args[3]}")
