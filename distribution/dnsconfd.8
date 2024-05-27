@@ -1,4 +1,4 @@
-.TH "dnsconfd" "8" "10 Oct 2023" "dnsconfd-0.0.6" ""
+.TH "dnsconfd" "8" "10 Oct 2023" "dnsconfd-1.0.0" ""
 
 .SH NAME
 
@@ -76,6 +76,17 @@ Default location of the configuration file is /etc/dnsconfd.conf.
 The only currently supported backend is Unbound.
 
 .SH Installation
+
+If you have systemd-resolved installed then you have to disable it first.
+
+.IP "# systemctl disable --now systemd-resolved"
+
+Stop systemd-resolved and disable its start on boot.
+
+.IP "# systemctl mask systemd-resolved"
+
+Mask the service so there are no conflicts.
+
 .IP "# dnsconfd config install"
 
 Modifies NetworkManager to explicitly use systemd-resolved dbus API, and

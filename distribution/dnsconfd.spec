@@ -2,7 +2,7 @@
 %global selinuxtype targeted
 
 Name:           dnsconfd
-Version:        0.0.6
+Version:        1.0.0
 Release:        1%{?dist}
 Summary:        Local DNS cache configuration daemon
 License:        MIT
@@ -168,6 +168,9 @@ fi
 %{_tmpfilesdir}/dnsconfd-unbound.conf
 
 %changelog
+* Mon May 27 2024 Tomas Korbar <tkorbar@redhat.com> - 1.0.0-1
+- Release 1.0.0
+
 * Fri May 17 2024 Tomas Korbar <tkorbar@redhat.com> - 0.0.6-1
 - Release 0.0.6
 
