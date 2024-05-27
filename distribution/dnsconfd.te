@@ -10,7 +10,6 @@ require {
     type system_dbusd_t;
     type NetworkManager_t;
     type cert_t;
-    type dns_port_t;
     type kernel_t;
     type lib_t;
     type named_conf_t;
@@ -53,9 +52,7 @@ allow dnsconfd_t cert_t:dir search;
 allow dnsconfd_t cert_t:file { getattr open read };
 allow dnsconfd_t kernel_t:unix_stream_socket connectto;
 # /etc/resolv.conf modifications
-allow dnsconfd_t etc_t:dir { add_name create remove_name write read };
-allow dnsconfd_t etc_t:lnk_file { getattr read write create unlink };
-allow dnsconfd_t etc_t:file { getattr open read write create unlink };
+allow dnsconfd_t etc_t:file { getattr open read write };
 allow dnsconfd_t named_exec_t:file { execute execute_no_trans open read map};
 # Required by unbound-control
 allow dnsconfd_t named_conf_t:dir { getattr open read search};
@@ -65,7 +62,7 @@ allow dnsconfd_t named_var_run_t:sock_file { write };
 allow dnsconfd_t named_t:unix_stream_socket { connectto };
 
 allow dnsconfd_t net_conf_t:lnk_file { getattr read write unlink };
-allow dnsconfd_t net_conf_t:file { getattr open read write create };
+allow dnsconfd_t net_conf_t:file { getattr open read write create ioctl };
 allow dnsconfd_t node_t:tcp_socket node_bind;
 allow dnsconfd_t node_t:udp_socket node_bind;
 allow dnsconfd_t passwd_file_t:file { getattr open read };
@@ -88,7 +85,6 @@ allow dnsconfd_t systemd_userdbd_runtime_t:lnk_file read;
 allow dnsconfd_t systemd_userdbd_runtime_t:sock_file write;
 
 allow dnsconfd_t systemd_userdbd_t:unix_stream_socket connectto;
-allow dnsconfd_t tmp_t:dir { add_name create remove_name write read rmdir};
 allow dnsconfd_t tmp_t:file { create unlink write open};
 allow dnsconfd_t tmpfs_t:file { execute read write map };
 
@@ -106,10 +102,6 @@ allow dnsconfd_t init_t:dbus send_msg;
 allow dnsconfd_t init_t:system status;
 allow dnsconfd_t named_unit_file_t:service { start stop };
 allow init_t dnsconfd_t:dbus send_msg;
-
-# this is neccessary in testing farm, because resolv.conf seems to be
-# on a separate partition there
-dontaudit dnsconfd_t net_conf_t:file ioctl;
 
 # unbound has to be able to read generated drop-in config
 allow named_t dnsconfd_var_run_t:file { read open getattr ioctl };
