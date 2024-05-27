@@ -75,6 +75,16 @@ Default location of the configuration file is /etc/dnsconfd.conf.
 .SH NOTES
 The only currently supported backend is Unbound.
 
+.SH Installation
+.IP "# dnsconfd config install"
+
+Modifies NetworkManager to explicitly use systemd-resolved dbus API, and
+changes ownership of resolvconf so Dnsconfd does not need root privileges.
+
+.IP "# systemctl enable --now dnsconfd"
+
+Starts Dnsconfd and enables its startup on boot.
+
 .SH "REPORTING BUGS"
 Please for reporting bugs use Github repository https://github.com/InfrastructureServices/dnsconfd
 
