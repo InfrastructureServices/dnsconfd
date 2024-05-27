@@ -128,7 +128,8 @@ class UnboundManager(DnsManager):
         for zone in added_zones:
             add_cmd = self._get_forward_add_command(zone,
                                                     zones_to_servers[zone])
-            if not self._execute_cmd(add_cmd):
+            if (not self._execute_cmd(f"flush_zone {zone}")
+                    or not self._execute_cmd(add_cmd)):
                 return False
         for zone in stable_zones:
             if self.zones_to_servers[zone] == zones_to_servers[zone]:
