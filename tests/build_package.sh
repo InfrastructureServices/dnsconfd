@@ -10,7 +10,7 @@ tar -czvf "$tempdir"/dnsconfd-1.0.0.tar.gz dnsconfd-1.0.0
 popd
 mv "$tempdir"/dnsconfd-1.0.0.tar.gz ./distribution
 pushd distribution
-fedpkg --release=f39 mockbuild
-mv ./results_dnsconfd/1.0.0/1.fc39/*.noarch.rpm ../tests
+fedpkg --release=f40 mockbuild
+mv ./results_dnsconfd/1.0.0/1.fc40/*.noarch.rpm ../tests
 popd
 rm -rf "$tempdir"
