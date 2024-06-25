@@ -66,6 +66,10 @@ mkdir selinux
 cp -p distribution/dnsconfd.fc selinux/
 cp -p distribution/dnsconfd.te selinux/
 
+%if %{defined fedora} && 0%{?fedora} < 40 || %{defined rhel} && 0%{?rhel} < 10
+    echo '/var/run/dnsconfd(/.*)? gen_context(system_u:object_r:dnsconfd_var_run_t,s0)' >> selinux/dnsconfd.fc
+%endif
+
 make -f %{_datadir}/selinux/devel/Makefile %{modulename}.pp
 bzip2 -9 %{modulename}.pp
 
