@@ -48,7 +48,7 @@ allow NetworkManager_t dnsconfd_t:dbus send_msg;
 #============= dnsconfd_t ==============
 
 allow dnsconfd_t bin_t:file { map execute };
-allow dnsconfd_t cert_t:dir search;
+allow dnsconfd_t cert_t:dir { search getattr read open };
 allow dnsconfd_t cert_t:file { getattr open read };
 allow dnsconfd_t kernel_t:unix_stream_socket connectto;
 # /etc/resolv.conf modifications
