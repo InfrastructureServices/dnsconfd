@@ -3,7 +3,7 @@ from setuptools import find_packages
 
 setup(
     name='dnsconfd',
-    version='1.0.1',
+    version='1.0.2',
     install_requires=[
         'dbus-python',
         'pyyaml'
