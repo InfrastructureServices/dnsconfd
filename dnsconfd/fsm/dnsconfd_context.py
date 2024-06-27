@@ -700,7 +700,6 @@ class DnsconfdContext:
             self.lgr.debug(f"Processing interface {interface}")
             interface: InterfaceConfiguration
             interface_zones = []
-            search_domains = []
             for dom in interface.domains:
                 interface_zones.append(dom[0])
                 if not dom[1]:

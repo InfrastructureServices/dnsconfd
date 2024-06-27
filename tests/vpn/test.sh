@@ -42,6 +42,7 @@ rlJournalStart
         rlRun "podman exec $dnsconfd_cid dnsconfd --dbus-name=$DBUS_NAME status --json > status2" 0 "Getting status of dnsconfd"
         rlAssertNotDiffer status2 $ORIG_DIR/expected_status2.json
         rlRun "podman exec $dnsconfd_cid getent hosts dummy | grep 192.168.6.5" 0 "Verifying correct address resolution"
+        rlRun "podman exec $dnsconfd_cid getent hosts second-address | grep 192.168.6.4" 0 "Verifying correct address resolution"
     rlPhaseEnd
 
     rlPhaseStartCleanup
