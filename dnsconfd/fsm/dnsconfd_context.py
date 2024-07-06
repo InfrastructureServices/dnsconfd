@@ -2,7 +2,7 @@ from dnsconfd.network_objects import InterfaceConfiguration, ServerDescription
 from dnsconfd.dns_managers import UnboundManager
 from dnsconfd.fsm import ContextEvent
 from dnsconfd.fsm import ContextState
-from dnsconfd import SystemManager
+from dnsconfd import get_system_manager
 from dnsconfd.fsm import ExitCode
 
 from gi.repository import GLib
@@ -14,6 +14,9 @@ import ipaddress
 
 
 class DnsconfdContext:
+    def cfg_boolean(self, config: dict, key: str):
+        return config[key] is True or config[key] == "yes"
+
     def __init__(self, config: dict, main_loop: object):
         """ Class containing implementation of FSM that controls Dnsconfd
         operations
@@ -31,6 +34,7 @@ class DnsconfdContext:
         self.wire_priority = config["prioritize_wire"]
         self.handle_routes = config["handle_routing"]
 
+        self.dnssec_enabled = self.cfg_boolean(config, "dnssec_enabled")
         self.global_resolvers = {}
 
         for zone, resolvers in config["static_servers"].items():
@@ -45,7 +49,7 @@ class DnsconfdContext:
                                                         sni)
                 self.global_resolvers[zone].append(new_srv)
 
-        self.sys_mgr = SystemManager(config)
+        self.sys_mgr = get_system_manager(config)
         self._main_loop = main_loop
 
         self._systemd_manager = None
