@@ -9,15 +9,28 @@ from dbus.service import BusName
 
 
 class ResolveDbusInterface(dbus.service.Object):
-    def __init__(self, runtime_context: DnsconfdContext, config):
-        super().__init__(object_path="/org/freedesktop/resolve1",
-                         bus_name=BusName(config["dbus_name"],
-                                          dbus.SystemBus()))
+    PATH = "/org/freedesktop/resolve1"
+    IFACE = 'org.freedesktop.resolve1.Manager'
+
+    def __init__(self, runtime_context: DnsconfdContext, config, name=None, bus=None):
+        self.lgr = logging.getLogger(self.__class__.__name__)
+        try:
+            if bus is None:
+                bus = dbus.SystemBus()
+            if name is None:
+                name=config["dbus_name"]
+            bus_name=BusName(name, bus)
+        except dbus.exceptions.DBusException as e:
+            self.lgr.error("Failed to claim DBus name {name}: {e}")
+            raise e
+
+        super().__init__(object_path=self.PATH, bus_name=bus_name)
         self.interfaces: dict[int, InterfaceConfiguration] = {}
         self.runtime_context = runtime_context
         self.prio_wire = config["prioritize_wire"]
         self.ignore_api = config["ignore_api"]
         self.lgr = logging.getLogger(self.__class__.__name__)
+        self.lgr.debug(f"Claimed DBus name {name}, path {self.PATH}")
 
     # Implements systemd-resolved interfaces defined at:
     # freedesktop.org/software/systemd/man/latest/org.freedesktop.resolve1.html

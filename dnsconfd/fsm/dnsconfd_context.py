@@ -1194,6 +1194,10 @@ class DnsconfdContext:
 
         return new_zones_to_servers, search_domains
 
+    def get_loop(self) -> object:
+        """Get GLib main loop."""
+        return self._main_loop
+
     def get_status(self, json_format: bool) -> str:
         """ Get current status of Dnsconfd
 

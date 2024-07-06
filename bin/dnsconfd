@@ -2,7 +2,7 @@
 
 from dnsconfd.fsm import ContextEvent
 from dnsconfd.fsm import DnsconfdContext
-from dnsconfd.input_modules import ResolveDbusInterface
+from dnsconfd.input_modules import ResolveDbusInterface, DnsconfDbusInterface
 from dnsconfd.configuration import DnsconfdArgumentParser as ArgParser
 from dnsconfd.fsm.exit_code import ExitCode
 
@@ -28,10 +28,19 @@ if __name__ == "__main__":
     dbus.mainloop.glib.DBusGMainLoop(set_as_default=True)
 
     main_loop = GLib.MainLoop()
-    ctx = DnsconfdContext(vars(args), main_loop)
+    config = vars(args)
+    ctx = DnsconfdContext(config, main_loop)
     # this has to happen before we expose the API
     GLib.idle_add(lambda: ctx.transition_function(ContextEvent("KICKOFF")))
-    input_module = ResolveDbusInterface(ctx, vars(args))
+    bus = dbus.SystemBus()
+    main_iface = DnsconfDbusInterface(ctx, config, bus=bus)
+    try:
+        resolved_iface = ResolveDbusInterface(ctx, config, bus=bus)
+    except dbus.exceptions.DBusException as e:
+        logging.warn(f"Failed to clamim resolved interface: {e}")
+        logging.debug(f"Retrying on {main_iface.NAME}")
+        resolved_iface = ResolveDbusInterface(ctx, config, name=main_iface.NAME, bus=bus)
+
     # using lambdas here allows us to not use exit in DnsconfdContext class
     signal.signal(signal.SIGTERM,
                   lambda signum, frame:
