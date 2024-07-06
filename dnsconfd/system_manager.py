@@ -67,8 +67,8 @@ class SystemManager:
                 with open(self._resolv_conf_path, "r") as orig_resolv:
                     self._backup = orig_resolv.read()
         except FileNotFoundError as e:
-            self.lgr.error(f"Not present resolvconf: {e}")
-            return False
+            self.lgr.warning(f"Not present {self._resolv_conf_path}")
+            self._backup = self.backup_link = None
         except OSError as e:
             self.lgr.error("OSError encountered while reading "
                            f"resolv.conf {e}")
