@@ -6,3 +6,10 @@ polkit.addRule(function(action, subject) {
         return polkit.Result.YES;
     }
 })
+polkit.addRule(function(action, subject) {
+    if (action.id == "org.freedesktop.NetworkManager.network-control" &&
+        subject.user == "dnsconfd")
+    {
+            return polkit.Result.YES;
+    }
+});

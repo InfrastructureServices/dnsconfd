@@ -1,0 +1,1 @@
+{"service": "unbound", "cache_config": {".": ["192.168.7.3", "192.168.6.3"]}, "state": "RUNNING", "interfaces": [{"domains": [], "servers": ["192.168.6.3"], "dns_over_tls": false, "dnssec": false, "is_default": 1, "interface_name": "eth1"}, {"domains": [], "servers": ["192.168.7.3"], "dns_over_tls": false, "dnssec": false, "is_default": 1, "interface_name": "eth0"}]}

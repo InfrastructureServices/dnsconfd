@@ -1,7 +1,7 @@
 FROM quay.io/fedora/fedora:38
 
 RUN dnf install -y --setopt=tsflags=nodocs --setopt=install_weak_deps=False dhcp-server \
-    dnsmasq openvpn easy-rsa bind bind-utils bind-dnssec-utils openssl && dnf -y clean all
+    dnsmasq openvpn easy-rsa bind bind-utils bind-dnssec-utils openssl iproute iputils iptables-nft && dnf -y clean all
 
 # DHCP PART
 COPY dhcpd-common.conf dhcpd-empty.conf /etc/dhcp/
