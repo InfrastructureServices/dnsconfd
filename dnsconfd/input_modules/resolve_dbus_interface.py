@@ -15,10 +15,7 @@ class ResolveDbusInterface(dbus.service.Object):
                                           dbus.SystemBus()))
         self.interfaces: dict[int, InterfaceConfiguration] = {}
         self.runtime_context = runtime_context
-        if config["prioritize_wire"] is True:
-            self.prio_wire = config["prioritize_wire"]
-        else:
-            self.prio_wire = config["prioritize_wire"] == "yes"
+        self.prio_wire = config["prioritize_wire"] is True
         self.lgr = logging.getLogger(self.__class__.__name__)
 
     # Implements systemd-resolved interfaces defined at:
@@ -65,7 +62,6 @@ class ResolveDbusInterface(dbus.service.Object):
         self.lgr.debug("SetLinkDomains called, interface index: "
                        f"{interface_index}, domains: {domains}")
         interface_cfg = self._iface_config(interface_index)
-        interface_cfg.finished = False
         interface_cfg.domains = [(str(domain), bool(is_routing))
                                  for domain, is_routing in domains]
         self._update_if_ready(interface_cfg)

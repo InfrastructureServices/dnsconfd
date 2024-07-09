@@ -1,4 +1,4 @@
-.TH "dnsconfd" "8" "10 Oct 2023" "dnsconfd-1.0.2" ""
+.TH "dnsconfd" "8" "10 Oct 2023" "dnsconfd-1.1.2" ""
 
 .SH NAME
 
@@ -33,6 +33,8 @@ Path where config file is located, default /etc/dnsconfd.conf
 Options to be used in resolv.conf for alteration of resolver, default "edns0 trust-ad"
 .IP "--dnssec-enabled options"
 Enable dnssec record validation, default no
+.IP "--handle-routing"
+Dnsconfd will submit necessary routes to routing manager, default yes
 
 .SH "EXIT STATUS"
 
@@ -46,6 +48,8 @@ Failed communication through DBUS.
 Failed interaction with resolv.conf
 .IP 4
 Failed to configure dns cache service
+.IP 5
+Failed to set up necessary routes
 
 .SH ENVIRONMENT
 Environment variables have lower priority than command line options but higher
@@ -67,10 +71,17 @@ Path where config file is located, default /etc/dnsconfd.conf
 Options to be used in resolv.conf for alteration of resolver, default "edns0 trust-ad"
 .IP DNSSEC_ENABLED
 Enable dnssec record validation, default no
+.IP HANDLE_ROUTING
+Dnsconfd will submit necessary routes to routing manager, default yes
 
 .SH FILES
 Dnsconfd manages resolv.conf to route domain name resolution to local cache service.
 Default location of the configuration file is /etc/dnsconfd.conf.
+
+.SH ROUTING
+Dnsconfd by default submits routes through NetworkManager, so system contacts
+DNS servers through the right interfaces. This behaviour can be turned off
+by setting handle_routing option to 'no'.
 
 .SH NOTES
 The only currently supported backend is Unbound.

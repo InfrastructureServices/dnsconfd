@@ -47,6 +47,9 @@ class ServerDescription:
             srv_string += f"#{self.sni}"
         return srv_string
 
+    def get_server_string(self):
+        return socket.inet_ntop(self.address_family, self.address)
+
     def __eq__(self, __value: object) -> bool:
         try:
             __value: ServerDescription

@@ -30,6 +30,7 @@ require {
     type tmp_t;
     type tmpfs_t;
     type NetworkManager_var_run_t;
+    type NetworkManager_t;
 }
 
 type dnsconfd_t;
@@ -110,3 +111,5 @@ allow dnsconfd_t dnsconfd_var_run_t:file { open write getattr ioctl read };
 allow dnsconfd_t dnsconfd_var_run_t:dir search;
 
 allow dnsconfd_t dnsconfd_t:dbus send_msg;
+
+allow dnsconfd_t NetworkManager_t:dbus send_msg;

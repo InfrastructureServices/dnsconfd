@@ -20,6 +20,10 @@ rlJournalStart
     rlPhaseStartTest
         rlRun "podman cp ca_cert.pem $dnsconfd_cid://etc/pki/ca-trust/source/anchors/ca_cert.pem" 0 "Installing CA"
         rlRun "podman exec $dnsconfd_cid update-ca-trust extract" 0 "updating CA trust"
+        # this is necessary, because if ca trust is not in place before unbound start then verification of
+        # server certificate fails
+        rlRun "podman exec $dnsconfd_cid systemctl restart unbound"
+        sleep 5
         rlRun "podman exec $dnsconfd_cid nmcli connection mod eth0 connection.dns-over-tls 2" 0 "Enabling dns over tls"
         rlRun "podman exec $dnsconfd_cid nmcli connection mod eth0 ipv4.dns 192.168.6.3#named" 0 "Adding dns server to NM active profile"
         # we have to restart, otherwise NM will attempt to change ipv6 and because it has no permissions, it will fail

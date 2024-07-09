@@ -32,12 +32,12 @@ class InterfaceConfiguration:
                            default (Highest priority), defaults to False
         :type is_default: bool, optional
         """
-        self.domains = domains
-        self.servers = servers
-        self.dns_over_tls = dns_over_tls
-        self.dnssec = dnssec
-        self.is_default = is_default
-        self.interface_index = interface_index
+        self.domains: list[tuple[str, bool]] = domains
+        self.servers: list[ServerDescription] = servers
+        self.dns_over_tls: bool = dns_over_tls
+        self.dnssec: bool = dnssec
+        self.is_default: bool = is_default
+        self.interface_index: int = interface_index
 
     def is_ready(self) -> bool:
         """ Get whether this interface is ready for insertion into cache
@@ -77,7 +77,7 @@ class InterfaceConfiguration:
         except OSError:
             return False
 
-    def get_if_name(self) -> str:
+    def get_if_name(self, strict=False) -> str | None:
         """ Get interface name
 
         :return: Name of the interface, if socket is unable
@@ -87,7 +87,7 @@ class InterfaceConfiguration:
         try:
             return socket.if_indextoname(self.interface_index)
         except OSError:
-            return str(self.interface_index)
+            return str(self.interface_index) if not strict else None
 
     def to_dict(self) -> dict:
         """ Get dictionary containing all information about interface

@@ -2,7 +2,7 @@ FROM quay.io/fedora/fedora:40
 
 COPY ./*.noarch.rpm ./
 RUN dnf install -y --setopt=install_weak_deps=False --setopt=tsflags=nodocs systemd \
-    NetworkManager dhcp-client iproute ./*.rpm openvpn NetworkManager-openvpn sssd-client polkit bind-utils bind-dnssec-utils
+    NetworkManager dhcp-client iproute ./*.rpm openvpn NetworkManager-openvpn sssd-client polkit bind-utils bind-dnssec-utils iptables-nft
 
 # we will replace the path in code only for testing purposes
 # accessing sysfs in the container could be dangerous for the host machine and would require

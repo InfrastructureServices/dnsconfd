@@ -40,7 +40,11 @@ class DnsconfdArgumentParser(ArgumentParser):
              "edns0 trust-ad"),
             ("dnssec_enabled",
              "Enable dnssec record validation, default no",
-             False)
+             False),
+            ("handle_routing",
+             "Dnsconfd will submit necessary routes to routing manager, "
+             "default yes",
+             True)
         ]
 
     def add_arguments(self):
@@ -162,5 +166,8 @@ class DnsconfdArgumentParser(ArgumentParser):
             # when invalid config is provided
             self.lgr.warning("Bad config provided")
             return {arg: val for (arg, _, val) in self._config_values}
+        for key in config.keys():
+            if config[key] == "yes":
+                config[key] = True
 
         return config

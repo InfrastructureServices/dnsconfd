@@ -1,0 +1,8 @@
+summary: |
+  Test whether dnsconfd is able to properly create routes to DNS servers
+test: ./test.sh
+framework: beakerlib
+recommend:
+  - podman
+tag:
+  - integration

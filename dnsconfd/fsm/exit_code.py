@@ -8,3 +8,4 @@ class ExitCode(Enum):
     DBUS_FAILURE = 2
     RESOLV_CONF_FAILURE = 3
     CONFIG_FAILURE = 4
+    ROUTE_FAILURE = 5
