@@ -48,6 +48,7 @@ rlJournalStart
 
     rlPhaseStartCleanup
         rlRun "podman exec $dnsconfd_cid journalctl -u dnsconfd" 0 "Saving logs"
+        rlRun "podman exec $dnsconfd_cid ip route" 0 "Saving routes"
         rlRun "popd"
         rlRun "podman stop -t 2 $dnsconfd_cid $dnsmasq1_cid $dnsmasq2_cid $dnsmasq3_cid" 0 "Stopping containers"
         rlRun "podman container rm $dnsconfd_cid $dnsmasq1_cid $dnsmasq2_cid $dnsmasq3_cid" 0 "Removing containers"

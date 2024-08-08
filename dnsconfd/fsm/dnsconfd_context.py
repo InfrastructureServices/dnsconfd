@@ -1,4 +1,4 @@
-from dnsconfd.network_objects import InterfaceConfiguration
+from dnsconfd.network_objects import InterfaceConfiguration, ServerDescription
 from dnsconfd.dns_managers import UnboundManager
 from dnsconfd.fsm import ContextEvent
 from dnsconfd.fsm import ContextState
@@ -24,11 +24,21 @@ class DnsconfdContext:
         :param main_loop: Main loop provided by GLib
         :type main_loop: object
         """
+        self.lgr = logging.getLogger(self.__class__.__name__)
+
         self.my_address = config["listen_address"]
 
         self.dnssec_enabled = config["dnssec_enabled"] is True
         self.wire_priority = config["prioritize_wire"] is True
         self.handle_routes = config["handle_routing"] is True
+
+        self.global_resolvers = {}
+
+        for zone, servers_str in config["global_resolvers"].items():
+            self.global_resolvers[zone] = []
+            for srv_string in servers_str:
+                new_srv = ServerDescription.from_unbound_string(srv_string)
+                self.global_resolvers[zone].append(new_srv)
 
         self.sys_mgr = SystemManager(config)
         self._main_loop = main_loop
@@ -41,8 +51,6 @@ class DnsconfdContext:
         self.interfaces: dict[int, InterfaceConfiguration] = {}
 
         self.routes = {}
-
-        self.lgr = logging.getLogger(self.__class__.__name__)
 
         # dictionary, systemd jobs -> event that should be emitted on success,
         # event that should be emitted on failure
@@ -1141,6 +1149,12 @@ class DnsconfdContext:
             new_zones_to_servers[zone].sort(key=lambda x: (x.tls,
                                                            x.priority),
                                             reverse=True)
+        for zone, servers in self.global_resolvers.items():
+            self.lgr.debug(f"Adding zone {zone} from global_resolvers option")
+            if zone in new_zones_to_servers.keys():
+                new_zones_to_servers[zone] = servers + new_zones_to_servers
+            else:
+                new_zones_to_servers[zone] = servers
 
         return new_zones_to_servers, search_domains
 

@@ -1,17 +1,19 @@
 import socket
+import re
+import ipaddress
 
 
 class ServerDescription:
     def __init__(self,
-                 address_family: bytes,
+                 address_family: int,
                  address: bytes,
                  port: int = None,
                  sni: str = None,
                  priority: int = 50):
         """ Object holding information about DNS server
 
-        :param address_family: Bytes indicating whether this is IPV4 of IPV6
-        :type address_family: bytes
+        :param address_family: Indicates whether this is IPV4 of IPV6
+        :type address_family: int
         :param address: Address of server
         :type address: bytes
         :param port: Port the server is listening on, defaults to None
@@ -46,6 +48,37 @@ class ServerDescription:
         if self.sni:
             srv_string += f"#{self.sni}"
         return srv_string
+
+    @staticmethod
+    def from_unbound_string(address: str):
+        match_object = re.match("([0-9a-fA-F.:]+)(@[0-9]+)?(#.+)?", address)
+        if match_object is None:
+            return None
+        try:
+            address_parsed = ipaddress.ip_address(match_object.group(1))
+        except ValueError:
+            return None
+
+        if match_object.group(2) is not None:
+            port = int(match_object.group(2)[1:])
+        else:
+            port = None
+        if match_object.group(3) is not None:
+            sni = match_object.group(3)[1:]
+        else:
+            sni = None
+        if address_parsed.version == 4:
+            address_family = socket.AF_INET
+        else:
+            address_family = socket.AF_INET6
+
+        srv = ServerDescription(address_family,
+                                socket.inet_pton(address_family,
+                                                 str(address_parsed)),
+                                port,
+                                sni)
+        srv.tls = sni is not None
+        return srv
 
     def get_server_string(self):
         return socket.inet_ntop(self.address_family, self.address)

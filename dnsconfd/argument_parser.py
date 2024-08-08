@@ -19,37 +19,57 @@ class DnsconfdArgumentParser(ArgumentParser):
         self._config_values = [
             ("dbus_name",
              "DBUS name that dnsconfd should use, default com.redhat.dnsconfd",
-             "org.freedesktop.resolve1"),
+             "org.freedesktop.resolve1",
+             False),
             ("log_level",
              "Log level of dnsconfd, default DEBUG",
-             "DEBUG"),
+             "DEBUG",
+             False),
             ("resolv_conf_path",
              "Path to resolv.conf that the dnsconfd should manage,"
              " default /etc/resolv.conf",
-             "/etc/resolv.conf"),
+             "/etc/resolv.conf",
+             False),
             ("listen_address",
              "Address on which local resolver listens, default 127.0.0.1",
-             "127.0.0.1"),
+             "127.0.0.1",
+             False),
             ("prioritize_wire",
              "If set to yes then wireless interfaces will have lower priority,"
              " default yes",
-             True),
+             True,
+             False),
             ("resolver_options",
              "Options to be used in resolv.conf for alteration of resolver "
              "behavior, default 'edns0 trust-ad'",
-             "edns0 trust-ad"),
+             "edns0 trust-ad",
+             False),
             ("dnssec_enabled",
              "Enable dnssec record validation, default no",
+             False,
              False),
             ("handle_routing",
              "Dnsconfd will submit necessary routes to routing manager, "
              "default yes",
+             True,
+             False),
+            ("global_resolvers",
+             "Map of zones and resolvers that should be globally used for "
+             "them, default {}",
+             {},
+             True),
+            ("ignore_api",
+             "If enabled, dnsconfd will ignore configuration received "
+             "through API, default no",
+             False,
              True)
         ]
 
     def add_arguments(self):
         """ Set up Dnsconfd arguments """
-        for (arg_name, help_str, _) in self._config_values:
+        for (arg_name, help_str, _, only_file) in self._config_values:
+            if only_file:
+                continue
             self.add_argument(f"--{arg_name.replace('_', '-')}",
                               help=help_str,
                               default=None)
@@ -140,7 +160,9 @@ class DnsconfdArgumentParser(ArgumentParser):
             config = self._read_config(os.environ.get("CONFIG_FILE",
                                                       "/etc/dnsconfd.conf"))
 
-        for (arg_name, help_str, default_val) in self._config_values:
+        for (arg_name, help_str, default_val, only_file) in self._config_values:
+            if only_file:
+                setattr(self._parsed, arg_name, config[arg_name])
             if getattr(self._parsed, arg_name) is None:
                 setattr(self._parsed,
                         arg_name,
@@ -159,13 +181,13 @@ class DnsconfdArgumentParser(ArgumentParser):
             self.lgr.warning("Could not open configuration file "
                              f"at {path}, {e}")
         try:
-            for (arg_name, help_str, default_val) in self._config_values:
+            for (arg_name, help_str, default_val, _) in self._config_values:
                 config.setdefault(arg_name, default_val)
         except AttributeError:
             # this is necessary, because safe_load sometimes returns string
             # when invalid config is provided
             self.lgr.warning("Bad config provided")
-            return {arg: val for (arg, _, val) in self._config_values}
+            return {arg: val for (arg, _, val, _) in self._config_values}
         for key in config.keys():
             if config[key] == "yes":
                 config[key] = True

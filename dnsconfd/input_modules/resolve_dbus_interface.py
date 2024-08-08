@@ -16,6 +16,7 @@ class ResolveDbusInterface(dbus.service.Object):
         self.interfaces: dict[int, InterfaceConfiguration] = {}
         self.runtime_context = runtime_context
         self.prio_wire = config["prioritize_wire"] is True
+        self.ignore_api = config["ignore_api"] is True
         self.lgr = logging.getLogger(self.__class__.__name__)
 
     # Implements systemd-resolved interfaces defined at:
@@ -29,6 +30,8 @@ class ResolveDbusInterface(dbus.service.Object):
                    addresses: list[(int, bytearray)]):
         self.lgr.debug("SetLinkDNS called, interface index: "
                        f"{interface_index}, addresses: {addresses}")
+        if self.ignore_api:
+            self.lgr.debug("Call ignored, since ignore_api is set")
         interface_cfg = self._iface_config(interface_index)
         prio = self._ifprio(interface_cfg) if self.prio_wire else 100
         servers = [ServerDescription(fam, addr, priority=prio)
@@ -46,6 +49,8 @@ class ResolveDbusInterface(dbus.service.Object):
                      addresses: list[(int, bytearray, int, str)]):
         self.lgr.debug("SetLinkDNSEx called, interface index: "
                        f"{interface_index}, addresses: {addresses}")
+        if self.ignore_api:
+            self.lgr.debug("Call ignored, since ignore_api is set")
         interface_cfg = self._iface_config(interface_index)
         prio = self._ifprio(interface_cfg) if self.prio_wire else 100
         servers = [ServerDescription(fam, addr, port, sni, prio)
@@ -61,6 +66,8 @@ class ResolveDbusInterface(dbus.service.Object):
     def SetLinkDomains(self, interface_index: int, domains: list[(str, bool)]):
         self.lgr.debug("SetLinkDomains called, interface index: "
                        f"{interface_index}, domains: {domains}")
+        if self.ignore_api:
+            self.lgr.debug("Call ignored, since ignore_api is set")
         interface_cfg = self._iface_config(interface_index)
         interface_cfg.domains = [(str(domain), bool(is_routing))
                                  for domain, is_routing in domains]
@@ -71,6 +78,8 @@ class ResolveDbusInterface(dbus.service.Object):
     def SetLinkDefaultRoute(self, interface_index: int, is_default: bool):
         self.lgr.debug("SetLinkDefaultRoute called, interface index: "
                        f"{interface_index}, is_default: {is_default}")
+        if self.ignore_api:
+            self.lgr.debug("Call ignored, since ignore_api is set")
         interface_cfg = self._iface_config(interface_index)
         interface_cfg.is_default = is_default
         self._update_if_ready(interface_cfg)
@@ -91,6 +100,8 @@ class ResolveDbusInterface(dbus.service.Object):
     def SetLinkDNSOverTLS(self, interface_index: int, mode: str):
         self.lgr.debug("SetLinkDNSOverTLS called, interface index: "
                        f"{interface_index}, mode: '{mode}'")
+        if self.ignore_api:
+            self.lgr.debug("Call ignored, since ignore_api is set")
         interface_cfg = self.interfaces[interface_index]
         if mode == "yes" or mode == "opportunistic":
             interface_cfg.dns_over_tls = True
@@ -107,6 +118,8 @@ class ResolveDbusInterface(dbus.service.Object):
     def SetLinkDNSSEC(self, interface_index: int, mode: str):
         self.lgr.debug("SetLinkDNSSEC called and ignored, "
                        f"interface index: {interface_index}, mode: {mode}")
+        if self.ignore_api:
+            self.lgr.debug("Call ignored, since ignore_api is set")
         interface_cfg = self._iface_config(interface_index)
         if mode == "no" or mode == "allow-downgrade":
             interface_cfg.dns_over_tls = False
