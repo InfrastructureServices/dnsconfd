@@ -1,0 +1,7 @@
+summary: Test global_resolvers option
+test: ./test.sh
+framework: beakerlib
+recommend:
+  - podman
+tag:
+  - integration
