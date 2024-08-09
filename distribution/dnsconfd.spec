@@ -79,6 +79,7 @@ mkdir   -m 0755 -p %{buildroot}%{_unitdir}/unbound-anchor.service.d
 mkdir   -m 0755 -p %{buildroot}%{_sysconfdir}/sysconfig
 mkdir   -m 0755 -p %{buildroot}%{_sbindir}
 mkdir   -m 0755 -p %{buildroot}/%{_mandir}/man8
+mkdir   -m 0755 -p %{buildroot}/%{_mandir}/man5
 mkdir   -m 0755 -p %{buildroot}%{_datadir}/polkit-1/rules.d/
 mkdir   -m 0755 -p %{buildroot}%{_rundir}/dnsconfd
 mkdir   -m 0755 -p %{buildroot}%{_tmpfilesdir}
@@ -108,6 +109,7 @@ install -m 0644 -p distribution/dnsconfd.8 %{buildroot}/%{_mandir}/man8/dnsconfd
 install -m 0644 -p distribution/dnsconfd-config.8 %{buildroot}/%{_mandir}/man8/dnsconfd-config.8
 install -m 0644 -p distribution/dnsconfd-reload.8 %{buildroot}/%{_mandir}/man8/dnsconfd-reload.8
 install -m 0644 -p distribution/dnsconfd-status.8 %{buildroot}/%{_mandir}/man8/dnsconfd-status.8
+install -m 0644 -p distribution/dnsconfd.conf.5 %{buildroot}/%{_mandir}/man5/dnsconfd.conf.5
 
 install -p -D -m 0644 distribution/dnsconfd.sysusers %{buildroot}%{_sysusersdir}/dnsconfd.conf
 
@@ -150,6 +152,7 @@ fi
 %config(noreplace) %{_sysconfdir}/dnsconfd.conf
 %{_unitdir}/dnsconfd.service
 %{_mandir}/man8/dnsconfd*.8*
+%{_mandir}/man5/dnsconfd.conf.5*
 %ghost %{_sysusersdir}/dnsconfd.conf
 %doc README.md
 %{_datadir}/polkit-1/rules.d/dnsconfd.rules
