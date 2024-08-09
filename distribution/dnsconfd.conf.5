@@ -1,0 +1,45 @@
+.TH "dnsconfd.conf" "5" "10 Oct 2023" "dnsconfd-1.1.2" ""
+
+.SH NAME
+
+dnsconfd.conf - dnsconfd configuration file
+
+.SH DESCRIPTION
+
+Dnsconfd.conf is YAML formatted configuration file altering behaviour of Dnsconfd.
+
+.SH OPTIONS
+
+.IP "dbus_name"
+DBUS name that dnsconfd should use, default com.redhat.dnsconfd
+.IP "log_level"
+Log level of dnsconfd, default INFO
+.IP "resolv_conf_path"
+Path to resolv.conf that the dnsconfd should manage, default /etc/resolv.conf
+.IP "prioritize_wire"
+If set to yes then wireless interfaces will have lower priority, default yes
+.IP "listen_address"
+Address on which local resolver listens, default 127.0.0.1
+.IP "resolver_options"
+Options to be used in resolv.conf for alteration of resolver, default "edns0 trust-ad"
+.IP "dnssec_enabled"
+Enable dnssec record validation, default no
+.IP "handle_routing"
+Dnsconfd will submit necessary routes to routing manager, default yes
+.IP "global_resolvers"
+Map of zones and resolvers that should be globally used for them, default empty
+.IP "ignore_api"
+If enabled, dnsconfd will ignore configuration received through API, default no
+
+.SH "REPORTING BUGS"
+Please for reporting bugs use Github repository https://github.com/InfrastructureServices/dnsconfd
+
+.SH "SEE ALSO"
+\fB dnsconfd(8)\fP Dnsconfd daemon
+\fB dnsconfd-status(8)\fP Checking status of dnsconfd
+\fB dnsconfd-reload(8)\fP Reload running cache service
+\fB dnsconfd-config(8)\fP Change configuration of service or host
+
+.SH COPYRIGHT
+
+Copyright (c) 2023 Red Hat, Inc.
