@@ -18,7 +18,7 @@ rlJournalStart
         rlRun "podman exec $dnsconfd_cid /bin/bash -c 'echo nonsense >> /etc/dnsconfd.conf' "
         rlRun "podman exec $dnsconfd_cid systemctl restart dnsconfd" 0 "start dnsconfd"
         sleep 6
-        rlRun "podman exec $dnsconfd_cid journalctl -u dnsconfd | grep 'Bad config provided'" 0 "Checking dnsconfd logs"
+        rlRun "podman exec $dnsconfd_cid journalctl -u dnsconfd | grep 'Configuration could not be parsed as YAML'" 0 "Checking dnsconfd logs"
         rlRun "podman exec $dnsconfd_cid systemctl status dnsconfd" 0 "Verify that dnsconfd is running"
     rlPhaseEnd
 

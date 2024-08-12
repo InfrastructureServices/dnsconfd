@@ -11,7 +11,7 @@ Dnsconfd.conf is YAML formatted configuration file altering behaviour of Dnsconf
 .SH OPTIONS
 
 .IP "dbus_name"
-DBUS name that dnsconfd should use, default com.redhat.dnsconfd
+DBUS name that dnsconfd should use, default org.freedesktop.resolve1
 .IP "log_level"
 Log level of dnsconfd, default INFO
 .IP "resolv_conf_path"
@@ -28,6 +28,13 @@ Enable dnssec record validation, default no
 Dnsconfd will submit necessary routes to routing manager, default yes
 .IP "global_resolvers"
 Map of zones and resolvers that should be globally used for them, default empty
+
+Example:
+
+global_resolvers:
+    .:
+        - "192.168.6.3#named"
+
 .IP "ignore_api"
 If enabled, dnsconfd will ignore configuration received through API, default no
 

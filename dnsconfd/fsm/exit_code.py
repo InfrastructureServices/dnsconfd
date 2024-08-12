@@ -9,3 +9,4 @@ class ExitCode(Enum):
     RESOLV_CONF_FAILURE = 3
     CONFIG_FAILURE = 4
     ROUTE_FAILURE = 5
+    BAD_ARGUMENTS = 6

@@ -3,7 +3,8 @@
 from dnsconfd.fsm import ContextEvent
 from dnsconfd.fsm import DnsconfdContext
 from dnsconfd.input_modules import ResolveDbusInterface
-from dnsconfd import DnsconfdArgumentParser as ArgParser
+from dnsconfd.configuration import DnsconfdArgumentParser as ArgParser
+from dnsconfd.fsm.exit_code import ExitCode
 
 import signal
 import logging
@@ -16,7 +17,11 @@ if __name__ == "__main__":
                        description='local DNS cache network_objects daemon')
     parser.add_arguments()
     parser.add_commands()
-    args = parser.parse_args()
+    try:
+        args = parser.parse_args()
+    except ValueError:
+        exit(ExitCode.BAD_ARGUMENTS)
+
     # This ensures that proper handler is called if command is provided, else
     # noop and execution returns here
     args.func()
