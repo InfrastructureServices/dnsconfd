@@ -23,7 +23,7 @@ DBUS name that dnsconfd should use, default com.redhat.dnsconfd
 Log level of dnsconfd, default INFO
 .IP "--resolv-conf-path RESOLV_CONF_PATH"
 Path to resolv.conf that the dnsconfd should manage, default /etc/resolv.conf
-.IP "--prioritize-wire {yes,no}"
+.IP "--prioritize-wire, --no-prioritize-wire"
 If set to yes then wireless interfaces will have lower priority, default yes
 .IP "--listen-address ADDRESS"
 Address on which local resolver listens, default 127.0.0.1
@@ -31,9 +31,9 @@ Address on which local resolver listens, default 127.0.0.1
 Path where config file is located, default /etc/dnsconfd.conf
 .IP "--resolver-options options"
 Options to be used in resolv.conf for alteration of resolver, default "edns0 trust-ad"
-.IP "--dnssec-enabled options"
+.IP "--dnssec-enabled --no-dnssec-enabled"
 Enable dnssec record validation, default no
-.IP "--handle-routing"
+.IP "--handle-routing, --no-handle-routing"
 Dnsconfd will submit necessary routes to routing manager, default yes
 
 .SH "EXIT STATUS"
@@ -50,13 +50,15 @@ Failed interaction with resolv.conf
 Failed to configure dns cache service
 .IP 5
 Failed to set up necessary routes
+.IP 6
+Bad arguments
 
 .SH ENVIRONMENT
 Environment variables have lower priority than command line options but higher
 than configuration file.
 
 .IP DBUS_NAME
-DBUS name that dnsconfd should use, default com.redhat.dnsconfd
+DBUS name that dnsconfd should use, default org.freedesktop.resolve1
 .IP LOG_LEVEL
 Log level of dnsconfd, default INFO
 .IP RESOLV_CONF_PATH

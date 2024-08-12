@@ -1,5 +1,7 @@
-from argparse import ArgumentParser
+from argparse import ArgumentParser, BooleanOptionalAction
 from dnsconfd.cli_commands import CLI_Commands as Cmds
+from dnsconfd.configuration import Option, GlobalResolversOption, StringOption
+from dnsconfd.configuration import IpOption, BoolOption
 
 import os
 import yaml
@@ -17,67 +19,71 @@ class DnsconfdArgumentParser(ArgumentParser):
         self.lgr = logging.getLogger(self.__class__.__name__)
         self._parsed = None
         self._config_values = [
-            ("dbus_name",
-             "DBUS name that dnsconfd should use, default com.redhat.dnsconfd",
-             "org.freedesktop.resolve1",
-             False),
-            ("log_level",
-             "Log level of dnsconfd, default DEBUG",
-             "DEBUG",
-             False),
-            ("resolv_conf_path",
-             "Path to resolv.conf that the dnsconfd should manage,"
-             " default /etc/resolv.conf",
-             "/etc/resolv.conf",
-             False),
-            ("listen_address",
-             "Address on which local resolver listens, default 127.0.0.1",
-             "127.0.0.1",
-             False),
-            ("prioritize_wire",
-             "If set to yes then wireless interfaces will have lower priority,"
-             " default yes",
-             True,
-             False),
-            ("resolver_options",
-             "Options to be used in resolv.conf for alteration of resolver "
-             "behavior, default 'edns0 trust-ad'",
-             "edns0 trust-ad",
-             False),
-            ("dnssec_enabled",
-             "Enable dnssec record validation, default no",
-             False,
-             False),
-            ("handle_routing",
-             "Dnsconfd will submit necessary routes to routing manager, "
-             "default yes",
-             True,
-             False),
-            ("global_resolvers",
-             "Map of zones and resolvers that should be globally used for "
-             "them, default {}",
-             {},
-             True),
-            ("ignore_api",
-             "If enabled, dnsconfd will ignore configuration received "
-             "through API, default no",
-             False,
-             True)
+            StringOption("dbus_name",
+                         "DBUS name that dnsconfd should use",
+                         "org.freedesktop.resolve1",
+                         validation=r"([A-Za-z_]+[A-Za-z_0-9]*)(.[A-Za-z_]+[A-Za-z_0-9]*)+"),
+            StringOption("log_level",
+                         "Log level of dnsconfd",
+                         "DEBUG",
+                         validation=r"DEBUG|INFO|WARNING|ERROR|CRITICAL"),
+            Option("resolv_conf_path",
+                   "Path to resolv.conf that the dnsconfd should manage",
+                   "/etc/resolv.conf"),
+            IpOption("listen_address",
+                     "Address on which local resolver listens",
+                     "127.0.0.1"),
+            BoolOption("prioritize_wire",
+                       "If set to yes then wireless interfaces will have lower priority",
+                       True),
+            Option("resolver_options",
+                   "Options to be used in resolv.conf"
+                   " for alteration of resolver behavior",
+                   "edns0 trust-ad"),
+            BoolOption("dnssec_enabled",
+                       "Enable dnssec record validation",
+                       False),
+            BoolOption("handle_routing",
+                       "Dnsconfd will submit necessary"
+                       " routes to routing manager",
+                       True),
+            GlobalResolversOption("global_resolvers",
+                                  "Map of zones and resolvers that"
+                                  " should be globally used for ",
+                                  {},
+                                  in_file=True,
+                                  in_args=False,
+                                  in_env=False),
+            BoolOption("ignore_api",
+                       "If enabled, dnsconfd will ignore"
+                       " configuration received through API",
+                       False,
+                       in_file=True,
+                       in_args=False,
+                       in_env=False),
+            Option("config_file",
+                   "Path where config file is located",
+                   "/etc/dnsconfd.conf",
+                   in_file=False,
+                   in_args=True,
+                   in_env=True)
         ]
 
     def add_arguments(self):
         """ Set up Dnsconfd arguments """
-        for (arg_name, help_str, _, only_file) in self._config_values:
-            if only_file:
+        for option in self._config_values:
+            if not option.in_args:
                 continue
-            self.add_argument(f"--{arg_name.replace('_', '-')}",
-                              help=help_str,
-                              default=None)
-        self.add_argument("--config-file",
-                          help="Path where config file is located,"
-                               " default /etc/dnsconfd.conf",
-                          default=None)
-        # TODO also check env vars
+            opt_name = f"--{option.name.replace('_', '-')}"
+            if isinstance(option, BoolOption):
+                self.add_argument(opt_name,
+                                  help=option.desc,
+                                  default=None,
+                                  action=BooleanOptionalAction)
+            else:
+                self.add_argument(opt_name,
+                                  help=option.desc,
+                                  default=None)
 
         self.set_defaults(func=lambda: None)
 
@@ -160,13 +166,24 @@ class DnsconfdArgumentParser(ArgumentParser):
             config = self._read_config(os.environ.get("CONFIG_FILE",
                                                       "/etc/dnsconfd.conf"))
 
-        for (arg_name, help_str, default_val, only_file) in self._config_values:
-            if only_file:
-                setattr(self._parsed, arg_name, config[arg_name])
-            if getattr(self._parsed, arg_name) is None:
-                setattr(self._parsed,
-                        arg_name,
-                        os.environ.get(arg_name.upper(), config[arg_name]))
+        for option in self._config_values:
+            final_val = option.default
+            if (option.in_file
+                    and config.get(option.name, None) is not None):
+                final_val = config[option.name]
+            if (option.in_env
+                    and os.environ.get(option.name.upper(), None) is not None):
+                if isinstance(option, BoolOption):
+                    final_val = os.environ[option.name.upper()] == "yes"
+                else:
+                    final_val = os.environ[option.name.upper()]
+            if (option.in_args
+                    and getattr(self._parsed, option.name) is not None):
+                final_val = getattr(self._parsed, option.name)
+            if not option.validate(final_val):
+                raise ValueError
+
+            setattr(self._parsed, option.name, final_val)
 
         return self._parsed
 
@@ -180,16 +197,10 @@ class DnsconfdArgumentParser(ArgumentParser):
         except OSError as e:
             self.lgr.warning("Could not open configuration file "
                              f"at {path}, {e}")
-        try:
-            for (arg_name, help_str, default_val, _) in self._config_values:
-                config.setdefault(arg_name, default_val)
-        except AttributeError:
-            # this is necessary, because safe_load sometimes returns string
-            # when invalid config is provided
-            self.lgr.warning("Bad config provided")
-            return {arg: val for (arg, _, val, _) in self._config_values}
-        for key in config.keys():
-            if config[key] == "yes":
-                config[key] = True
+            return {}
 
+        if not isinstance(config, dict):
+            # yaml library returns string in some cases of invalid input
+            self.lgr.warning("Configuration could not be parsed as YAML")
+            return {}
         return config
