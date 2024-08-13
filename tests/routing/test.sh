@@ -31,7 +31,9 @@ rlJournalStart
     rlPhaseStartTest
         sleep 2
         rlRun "podman exec $dnsmasq2_cid /bin/bash -c 'echo 1 > /proc/sys/net/ipv4/ip_forward'" 0 "enable ip forwarding on routing server"
-        rlRun "podman exec $dnsmasq2_cid iptables -t nat -I POSTROUTING -o eth1 -j MASQUERADE" 0 "enable masquerade on routing server"
+        # easier to enable masquerade on both interfaces than to find out which one is connected to the right network
+        rlRun "podman exec $dnsmasq2_cid iptables -t nat -I POSTROUTING -o eth0 -j MASQUERADE" 0 "enable masquerade on eth0 of routing server"
+        rlRun "podman exec $dnsmasq2_cid iptables -t nat -I POSTROUTING -o eth1 -j MASQUERADE" 0 "enable masquerade on eth1 of routing server"
         sleep 2
         rlRun "podman exec $dnsconfd_cid /bin/bash -c 'nmcli connection show eth0 | grep 192.168.6.2 && nmcli connection mod eth0 ipv4.dns 192.168.6.3 && nmcli connection mod eth0 ipv4.gateway 192.168.6.1 || true'" 0 "Adding dns server to the first NM active profile"
         rlRun "podman exec $dnsconfd_cid /bin/bash -c 'nmcli connection show eth0 | grep 192.168.7.2 && nmcli connection mod eth0 ipv4.dns 192.168.8.3 && nmcli connection mod eth0 ipv4.gateway 192.168.7.3 || true'" 0 "Adding dns server to the first NM active profile"
@@ -47,8 +49,9 @@ rlJournalStart
     rlPhaseEnd
 
     rlPhaseStartCleanup
-        rlRun "podman exec $dnsconfd_cid journalctl -u dnsconfd" 0 "Saving logs"
-        rlRun "podman exec $dnsconfd_cid ip route" 0 "Saving routes"
+        rlRun "podman exec $dnsconfd_cid journalctl -u dnsconfd" 0 "Saving dnsconfd logs"
+        rlRun "podman exec $dnsconfd_cid journalctl -u unbound" 0 "Saving unbound logs"
+        rlRun "podman exec $dnsconfd_cid ip route" 0 "Saving present routes"
         rlRun "popd"
         rlRun "podman stop -t 2 $dnsconfd_cid $dnsmasq1_cid $dnsmasq2_cid $dnsmasq3_cid" 0 "Stopping containers"
         rlRun "podman container rm $dnsconfd_cid $dnsmasq1_cid $dnsmasq2_cid $dnsmasq3_cid" 0 "Removing containers"
