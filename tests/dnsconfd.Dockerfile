@@ -11,6 +11,9 @@ RUN dnf install -y --setopt=install_weak_deps=False --setopt=tsflags=nodocs syst
 RUN sed -i "s#/sys/class/net/#/tmp/is_wireless/#" /usr/lib/python3.12/site-packages/dnsconfd/network_objects/interface_configuration.py \
     && echo 'LOG_LEVEL=DEBUG' >> /etc/sysconfig/dnsconfd
 
+# increase unbound logging
+RUN sed -i "s/verbosity.*/verbosity: 5/g" /etc/unbound/unbound.conf
+
 RUN printf "[main]\ndns=systemd-resolved\nrc-manager=unmanaged\n" > /etc/NetworkManager/conf.d/dnsconfd.conf
 # enable dnsconfd
 RUN systemctl enable dnsconfd

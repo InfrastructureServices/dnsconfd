@@ -24,6 +24,9 @@ rlJournalStart
     rlPhaseEnd
 
     rlPhaseStartCleanup
+        rlRun "journalctl -u dnsconfd" 0 "Saving dnsconfd logs"
+        rlRun "journalctl -u unbound" 0 "Saving unbound logs"
+        rlRun "ip route" 0 "Saving present routes"
         rlServiceRestore dnsconfd
         rlFileRestore
         rlRun "journalctl -u dnsconfd" 0 "Saving logs"
