@@ -1,6 +1,7 @@
 import socket
 import re
 import ipaddress
+from typing import Optional
 
 
 class ServerDescription:
@@ -50,8 +51,15 @@ class ServerDescription:
         return srv_string
 
     @staticmethod
-    def from_unbound_string(address: str):
-        match_object = re.match("([0-9a-fA-F.:]+)(@[0-9]+)?(#.+)?", address)
+    def from_unbound_string(address: str) -> Optional["ServerDescription"]:
+        """ Construct Server description from unbound formatted string
+
+        :param address: unbound formatted server string
+        :return: ServerDescription if address is valid, otherwise None
+        :rtype: Optional["ServerDescription"]
+        """
+
+        match_object = re.fullmatch("([0-9a-fA-F.:]+)(@[0-9]+)?(#.+)?", address)
         if match_object is None:
             return None
         try:
@@ -80,7 +88,12 @@ class ServerDescription:
         srv.tls = sni is not None
         return srv
 
-    def get_server_string(self):
+    def get_server_string(self) -> str:
+        """ Get string containing ip address
+
+        :return: String containing ip address
+        :rtype: str
+        """
         return socket.inet_ntop(self.address_family, self.address)
 
     def __eq__(self, __value: object) -> bool:

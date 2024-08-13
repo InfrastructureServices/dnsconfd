@@ -108,6 +108,12 @@ class SystemManager:
         return True
 
     def chown_resolvconf(self, user: str) -> bool:
+        """ Change ownership of resolv.conf to given user
+
+        :param user: user that should own resolv.conf
+        :return: True when operation was successful, otherwise False
+        :rtype: bool
+        """
         try:
             if os.path.islink(self._resolv_conf_path):
                 os.unlink(self._resolv_conf_path)

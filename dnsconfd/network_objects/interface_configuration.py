@@ -82,7 +82,7 @@ class InterfaceConfiguration:
 
         :return: Name of the interface, if socket is unable
                  to translate it, then string of index will be returned
-        :rtype: str
+        :rtype: str | None
         """
         try:
             return socket.if_indextoname(self.interface_index)
