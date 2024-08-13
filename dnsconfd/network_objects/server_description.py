@@ -58,8 +58,8 @@ class ServerDescription:
         :return: ServerDescription if address is valid, otherwise None
         :rtype: Optional["ServerDescription"]
         """
-
-        match_object = re.fullmatch("([0-9a-fA-F.:]+)(@[0-9]+)?(#.+)?", address)
+        unbound_addr_re = r"([0-9a-fA-F.:]+)(@[0-9]+)?(#.+)?"
+        match_object = re.fullmatch(unbound_addr_re, address)
         if match_object is None:
             return None
         try:

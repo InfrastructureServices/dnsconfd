@@ -17,8 +17,8 @@ class GlobalResolversOption(Option):
         :return: True if the map is correct, otherwise False
         :rtype: bool
         """
-        value: dict
-        domain_pattern = re.compile(r"((?!-)([A-Za-z0-9-]){1,63}(?<!-)\.?)+|\.")
+        domain_re = r"((?!-)([A-Za-z0-9-]){1,63}(?<!-)\.?)+|\."
+        domain_pattern = re.compile(domain_re)
         addr_pattern = re.compile(r"([0-9.:a-fA-F]+)(@[0-9]{1,5})?(#.+)?")
         try:
             for zone, addr_list in value.items():

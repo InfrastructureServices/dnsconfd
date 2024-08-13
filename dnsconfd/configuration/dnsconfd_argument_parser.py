@@ -20,11 +20,12 @@ class DnsconfdArgumentParser(ArgumentParser):
         super(DnsconfdArgumentParser, self).__init__(*args, **kwargs)
         self.lgr = logging.getLogger(self.__class__.__name__)
         self._parsed = None
+        dbus_re = r"([A-Za-z_]+[A-Za-z_0-9]*)(.[A-Za-z_]+[A-Za-z_0-9]*)+"
         self._config_values = [
             StringOption("dbus_name",
                          "DBUS name that dnsconfd should use",
                          "org.freedesktop.resolve1",
-                         validation=r"([A-Za-z_]+[A-Za-z_0-9]*)(.[A-Za-z_]+[A-Za-z_0-9]*)+"),
+                         validation=dbus_re),
             StringOption("log_level",
                          "Log level of dnsconfd",
                          "DEBUG",
@@ -36,7 +37,8 @@ class DnsconfdArgumentParser(ArgumentParser):
                      "Address on which local resolver listens",
                      "127.0.0.1"),
             BoolOption("prioritize_wire",
-                       "If set to yes then wireless interfaces will have lower priority",
+                       "If set to yes then wireless interfaces will"
+                       " have lower priority",
                        True),
             Option("resolver_options",
                    "Options to be used in resolv.conf"
@@ -89,6 +91,10 @@ class DnsconfdArgumentParser(ArgumentParser):
 
         self.set_defaults(func=lambda: None)
 
+    def _help_and_exit(self):
+        self.print_help()
+        sys.exit(ExitCode.BAD_ARGUMENTS.value)
+
     def add_commands(self):
         """ Set up Dnsconfd commands """
         subparsers = self.add_subparsers(help="Subcommands")
@@ -110,8 +116,7 @@ class DnsconfdArgumentParser(ArgumentParser):
         config = subparsers.add_parser("config",
                                        help="Change configuration of "
                                             + "service or host")
-        config.set_defaults(func=lambda: (self.print_help(),
-                                          sys.exit(ExitCode.BAD_ARGUMENTS.value)))
+        config.set_defaults(func=self._help_and_exit)
 
         config_subparse = config.add_subparsers(help="Commands changing "
                                                      + "configuration")
