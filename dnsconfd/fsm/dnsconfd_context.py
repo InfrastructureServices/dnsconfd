@@ -28,9 +28,9 @@ class DnsconfdContext:
 
         self.my_address = config["listen_address"]
 
-        self.dnssec_enabled = config["dnssec_enabled"] is True
-        self.wire_priority = config["prioritize_wire"] is True
-        self.handle_routes = config["handle_routing"] is True
+        self.dnssec_enabled = config["dnssec_enabled"]
+        self.wire_priority = config["prioritize_wire"]
+        self.handle_routes = config["handle_routing"]
 
         self.global_resolvers = {}
 

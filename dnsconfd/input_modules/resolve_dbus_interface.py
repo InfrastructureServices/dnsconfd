@@ -15,8 +15,8 @@ class ResolveDbusInterface(dbus.service.Object):
                                           dbus.SystemBus()))
         self.interfaces: dict[int, InterfaceConfiguration] = {}
         self.runtime_context = runtime_context
-        self.prio_wire = config["prioritize_wire"] is True
-        self.ignore_api = config["ignore_api"] is True
+        self.prio_wire = config["prioritize_wire"]
+        self.ignore_api = config["ignore_api"]
         self.lgr = logging.getLogger(self.__class__.__name__)
 
     # Implements systemd-resolved interfaces defined at:
