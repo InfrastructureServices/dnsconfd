@@ -252,7 +252,7 @@ class DnsconfdContext:
 
     def _set_exit_code(self, code: ExitCode):
         if self._exit_code == 0:
-            self._exit_code = code
+            self._exit_code = code.value
 
     def _conf_dns_mgr_success_transition(self, event: ContextEvent) \
             -> ContextEvent | None:

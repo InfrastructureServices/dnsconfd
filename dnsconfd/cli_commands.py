@@ -1,6 +1,7 @@
 from dnsconfd import NetworkManager
 from dnsconfd import SystemManager
 
+from sys import exit
 from dbus import DBusException
 import dbus
 import typing
