@@ -2,10 +2,12 @@ from argparse import ArgumentParser, BooleanOptionalAction
 from dnsconfd.cli_commands import CLI_Commands as Cmds
 from dnsconfd.configuration import Option, GlobalResolversOption, StringOption
 from dnsconfd.configuration import IpOption, BoolOption
+from dnsconfd.fsm.exit_code import ExitCode
 
 import os
 import yaml
 import logging
+import sys
 
 
 class DnsconfdArgumentParser(ArgumentParser):
@@ -108,7 +110,8 @@ class DnsconfdArgumentParser(ArgumentParser):
         config = subparsers.add_parser("config",
                                        help="Change configuration of "
                                             + "service or host")
-        config.set_defaults(func=self.print_help)
+        config.set_defaults(func=lambda: (self.print_help(),
+                                          sys.exit(ExitCode.BAD_ARGUMENTS.value)))
 
         config_subparse = config.add_subparsers(help="Commands changing "
                                                      + "configuration")
