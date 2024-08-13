@@ -1,5 +1,4 @@
 from dnsconfd.configuration import Option
-import ipaddress
 
 
 class BoolOption(Option):
