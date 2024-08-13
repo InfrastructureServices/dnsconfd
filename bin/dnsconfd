@@ -6,6 +6,7 @@ from dnsconfd.input_modules import ResolveDbusInterface
 from dnsconfd.configuration import DnsconfdArgumentParser as ArgParser
 from dnsconfd.fsm.exit_code import ExitCode
 
+import sys
 import signal
 import logging
 import dbus.mainloop.glib
@@ -20,7 +21,7 @@ if __name__ == "__main__":
     try:
         args = parser.parse_args()
     except ValueError:
-        exit(ExitCode.BAD_ARGUMENTS)
+        sys.exit(ExitCode.BAD_ARGUMENTS.value)
 
     # This ensures that proper handler is called if command is provided, else
     # noop and execution returns here
@@ -45,4 +46,4 @@ if __name__ == "__main__":
                   GLib.idle_add(lambda:
                                 ctx.transition_function(ContextEvent("STOP"))))
     main_loop.run()
-    exit(ctx.get_exit_code())
+    sys.exit(ctx.get_exit_code())
