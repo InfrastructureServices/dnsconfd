@@ -18,5 +18,5 @@ class IpOption(Option):
             return True
         except ValueError:
             self.lgr.error(f"Value of {self.name} must be an ip address"
-                           f"{value} was given")
+                           f" {value} was given")
             return False

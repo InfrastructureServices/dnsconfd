@@ -6,6 +6,7 @@ from dnsconfd.fsm.exit_code import ExitCode
 
 import os
 import yaml
+import yaml.scanner
 import logging
 import sys
 
@@ -218,6 +219,10 @@ class DnsconfdArgumentParser(ArgumentParser):
                 config = temp_config
         except OSError as e:
             self.lgr.warning("Could not open configuration file "
+                             f"at {path}, {e}")
+            return {}
+        except yaml.scanner.ScannerError as e:
+            self.lgr.warning("Could not parse configuration file "
                              f"at {path}, {e}")
             return {}
 
