@@ -25,7 +25,9 @@ rlJournalStart
 
     rlPhaseStartTest
         rlRun "podman exec $vpn_cid /bin/bash -c 'echo 1 > /proc/sys/net/ipv4/ip_forward'" 0 "enable ip forwarding on vpn server"
-        rlRun "podman exec $vpn_cid iptables -t nat -I POSTROUTING -o eth1 -j MASQUERADE" 0 "enable masquerade on vpn server"
+        # easier to enable this on both than to find out which one is correct
+        rlRun "podman exec $vpn_cid iptables -t nat -I POSTROUTING -o eth0 -j MASQUERADE" 0 "enable masquerade on vpn server eth0"
+        rlRun "podman exec $vpn_cid iptables -t nat -I POSTROUTING -o eth1 -j MASQUERADE" 0 "enable masquerade on vpn server eth1"
         sleep 2
         rlRun "podman exec $dnsconfd_cid nmcli connection mod eth0 connection.autoconnect yes ipv4.gateway '' ipv4.addr '' ipv4.method auto" 0 "Setting eth0 to autoconfiguration"
         sleep 2
