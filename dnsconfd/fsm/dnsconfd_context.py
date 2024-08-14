@@ -705,7 +705,10 @@ class DnsconfdContext:
 
                     self.lgr.info(f"new route is {new_route}")
                     valid_routes[server_str] = new_route
-                    connection["ipv4"]["route-data"].append(new_route)
+                    if max_prefix == 32:
+                        connection["ipv4"]["route-data"].append(new_route)
+                    else:
+                        connection["ipv6"]["route-data"].append(new_route)
                     reapply_needed = True
             for checked_route in list(connection["ipv4"]["route-data"]):
                 if (str(checked_route["dest"]) not in valid_routes.keys()
