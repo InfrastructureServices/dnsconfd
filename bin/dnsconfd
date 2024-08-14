@@ -13,7 +13,7 @@ from gi.repository import GLib
 
 if __name__ == "__main__":
     parser = ArgParser(prog='dnsconfd',
-                       description='local DNS cache network_objects daemon')
+                       description='local DNS cache configuration daemon')
     parser.add_arguments()
     parser.add_commands()
     try:
