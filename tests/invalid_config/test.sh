@@ -22,7 +22,7 @@ rlJournalStart
         rlRun "podman exec $dnsconfd_cid /bin/bash -c 'echo listen_address: \"nonsense\" > /etc/dnsconfd.conf'"
         rlRun "podman exec $dnsconfd_cid systemctl restart dnsconfd" 1 "restart dnsconfd"
         sleep 2
-        rlRun "podman exec $dnsconfd_cid systemctl status dnsconfd | grep 'status=6'" 0 "Verify that dnsconfd refused bad option"
+        rlRun "podman exec $dnsconfd_cid systemctl status dnsconfd | grep 'status=13'" 0 "Verify that dnsconfd refused bad option"
     rlPhaseEnd
 
     rlPhaseStartCleanup
