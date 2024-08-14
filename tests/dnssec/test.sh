@@ -31,14 +31,13 @@ rlJournalStart
         rlRun "podman exec $dnsconfd_cid getent hosts not-working.example.com | grep 192.168.6.6" 1 "Verifying correct address resolution"
         rlRun "podman exec $dnsconfd_cid dig not-working.example.com | grep SERVFAIL" 0 "Verifying bad validation"
         rlRun "podman exec $dnsconfd_cid journalctl -u unbound" 0 "getting unbound logs"
-        rlRun "podman ps" 0 "Getting running containers"
-        rlRun "podman logs $bind_parent_cid" 0 "getting bind container logs"
     rlPhaseEnd
 
     rlPhaseStartCleanup
         rlRun "podman exec $dnsconfd_cid journalctl -u dnsconfd" 0 "Saving dnsconfd logs"
         rlRun "podman exec $dnsconfd_cid journalctl -u unbound" 0 "Saving unbound logs"
         rlRun "podman exec $dnsconfd_cid ip route" 0 "Saving present routes"
+        rlRun "podman logs $bind_parent_cid" 0 "Saving bind logs"
         rlRun "popd"
         rlRun "podman stop -t 2 $dnsconfd_cid $bind_parent_cid" 0 "Stopping containers"
         rlRun "podman container rm $dnsconfd_cid $bind_parent_cid" 0 "Removing containers"
