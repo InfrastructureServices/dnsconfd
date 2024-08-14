@@ -6,7 +6,6 @@ ORIG_DIR=$(pwd)
 
 rlJournalStart
     rlPhaseStartSetup
-        rlRun "set -o pipefail"
         rlRun "podman network create dnsconfd_network --internal -d=bridge --gateway=192.168.6.1 --subnet=192.168.6.0/24"
         # dns=none is neccessary, because otherwise resolv.conf is created and
         # mounted by podman as read-only
@@ -15,11 +14,15 @@ rlJournalStart
 
     rlPhaseStartTest
         sleep 2
-        rlRun "podman exec $dnsconfd_cid /bin/bash -c 'echo nonsense >> /etc/dnsconfd.conf' "
-        rlRun "podman exec $dnsconfd_cid systemctl restart dnsconfd" 0 "start dnsconfd"
+        rlRun "podman exec $dnsconfd_cid /bin/bash -c 'echo nonsense > /etc/dnsconfd.conf' "
+        rlRun "podman exec $dnsconfd_cid systemctl restart dnsconfd" 0 "restart dnsconfd"
         sleep 6
         rlRun "podman exec $dnsconfd_cid journalctl -u dnsconfd | grep 'Configuration could not be parsed as YAML'" 0 "Checking dnsconfd logs"
         rlRun "podman exec $dnsconfd_cid systemctl status dnsconfd" 0 "Verify that dnsconfd is running"
+        rlRun "podman exec $dnsconfd_cid /bin/bash -c 'echo listen_address: \"nonsense\" > /etc/dnsconfd.conf'"
+        rlRun "podman exec $dnsconfd_cid systemctl restart dnsconfd" 1 "restart dnsconfd"
+        sleep 2
+        rlRun "podman exec $dnsconfd_cid systemctl status dnsconfd | grep 'status=6'" 0 "Verify that dnsconfd refused bad option"
     rlPhaseEnd
 
     rlPhaseStartCleanup
