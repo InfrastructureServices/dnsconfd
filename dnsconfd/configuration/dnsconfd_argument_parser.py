@@ -22,14 +22,14 @@ class DnsconfdArgumentParser(ArgumentParser):
         self._parsed = None
         dbus_re = r"([A-Za-z_]+[A-Za-z_0-9]*)(.[A-Za-z_]+[A-Za-z_0-9]*)+"
         self._config_values = [
-            StringOption("dbus_name",
-                         "DBUS name that dnsconfd should use",
-                         "org.freedesktop.resolve1",
-                         validation=dbus_re),
             StringOption("log_level",
                          "Log level of dnsconfd",
                          "DEBUG",
                          validation=r"DEBUG|INFO|WARNING|ERROR|CRITICAL"),
+            StringOption("dbus_name",
+                         "DBUS name that dnsconfd should use",
+                         "org.freedesktop.resolve1",
+                         validation=dbus_re),
             Option("resolv_conf_path",
                    "Path to resolv.conf that the dnsconfd should manage",
                    "/etc/resolv.conf"),
@@ -174,26 +174,40 @@ class DnsconfdArgumentParser(ArgumentParser):
             config = self._read_config(os.environ.get("CONFIG_FILE",
                                                       "/etc/dnsconfd.conf"))
 
-        for option in self._config_values:
-            final_val = option.default
-            if (option.in_file
-                    and config.get(option.name, None) is not None):
-                final_val = config[option.name]
-            if (option.in_env
-                    and os.environ.get(option.name.upper(), None) is not None):
-                if isinstance(option, BoolOption):
-                    final_val = os.environ[option.name.upper()] == "yes"
-                else:
-                    final_val = os.environ[option.name.upper()]
-            if (option.in_args
-                    and getattr(self._parsed, option.name) is not None):
-                final_val = getattr(self._parsed, option.name)
-            if not option.validate(final_val):
-                raise ValueError
+        debug_level = self._get_option_value(config, self._config_values[0])
+        logging.basicConfig(level=debug_level)
 
-            setattr(self._parsed, option.name, final_val)
+        for option in self._config_values[1:]:
+            setattr(self._parsed,
+                    option.name,
+                    self._get_option_value(config, option))
 
         return self._parsed
+
+    def _get_option_value(self, config: dict, option: Option):
+        final_val = option.default
+        if (option.in_file
+                and config.get(option.name, None) is not None):
+            final_val = config[option.name]
+            self.lgr.debug(f"Applying value {final_val}"
+                           f" to {option.name} from file")
+        if (option.in_env
+                and os.environ.get(option.name.upper(), None) is not None):
+            if isinstance(option, BoolOption):
+                final_val = os.environ[option.name.upper()] == "yes"
+            else:
+                final_val = os.environ[option.name.upper()]
+            self.lgr.debug(f"Applying value {final_val}"
+                           f" to {option.name} from env variable")
+        if (option.in_args
+                and getattr(self._parsed, option.name) is not None):
+            final_val = getattr(self._parsed, option.name)
+            self.lgr.debug(f"Applying value {final_val}"
+                           f" to {option.name} from cmdline")
+        if not option.validate(final_val):
+            raise ValueError
+
+        return final_val
 
     def _read_config(self, path: str) -> dict:
         config = {}
