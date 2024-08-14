@@ -8,9 +8,8 @@ from dnsconfd.fsm import ExitCode
 from gi.repository import GLib
 from typing import Callable
 import logging
-import dbus.service
+import dbus
 import json
-import dbus.connection
 import ipaddress
 
 
@@ -510,8 +509,8 @@ class DnsconfdContext:
             applied = dev_int.GetAppliedConnection(0)
             self.lgr.debug(f"Applied connection is {applied}")
         except dbus.DBusException as e:
-            self.lgr.info(f"Failed to retrieve info about {int_name} "
-                          "from NetworkManager, will not handle its routing")
+            self.lgr.error(f"Failed to retrieve info about {int_name} "
+                           "from NetworkManager")
             self.lgr.debug(f"{e}")
             return None, None, None
 
@@ -546,11 +545,17 @@ class DnsconfdContext:
 
         # we need to refresh the dbus connection, because NetworkManager
         # restart would invalidate it
-
-        nm_object = self.bus.get_object('org.freedesktop.NetworkManager',
-                                        '/org/freedesktop/NetworkManager')
-        self._nm_interface = dbus.Interface(nm_object,
-                                            "org.freedesktop.NetworkManager")
+        try:
+            nm_dbus_name = "org.freedesktop.NetworkManager"
+            nm_object = self.bus.get_object(nm_dbus_name,
+                                            '/org/freedesktop/NetworkManager')
+            self._nm_interface = dbus.Interface(nm_object,
+                                                nm_dbus_name)
+        except dbus.DBusException as e:
+            self.lgr.error("Failed to connect to NetworkManager through DBUS,"
+                           f" {e}")
+            self._set_exit_code(ExitCode.ROUTE_FAILURE)
+            return ContextEvent("FAIL")
 
         interface_and_routes = []
         interface_to_connection = {}
@@ -605,7 +610,6 @@ class DnsconfdContext:
                     self.lgr.debug("Routing is right, no additional action "
                                    "required continuing")
                     # this means that there is no additional action required
-                    # as we submit only routes with prefix 32
                     continue
                 elif routing_right:
                     # routing is right, but chosen route has been submitted by
@@ -724,20 +728,27 @@ class DnsconfdContext:
                     self.lgr.info(f"Removing route {checked_route}")
             if reapply_needed:
                 self.lgr.debug("Reapplying changed connection")
-                device_path = self._nm_interface.GetDeviceByIpIface(ifname)
-                self.lgr.debug(f"Device path is {device_path}")
-                nm_int_str = "org.freedesktop.NetworkManager"
-                device_object = self.bus.get_object(nm_int_str, device_path)
-                dev_int_str = "org.freedesktop.NetworkManager.Device"
-                dev_int = dbus.Interface(device_object,
-                                         dev_int_str)
-                self.lgr.info(f"New ipv4 route data "
-                              f"{connection["ipv4"]["route-data"]}")
-                self.lgr.info(f"New ipv6 route data "
-                              f"{connection["ipv6"]["route-data"]}")
-                dev_int.Reapply(connection,
-                                interface_to_connection[int_index][1],
-                                0)
+                try:
+                    device_path = self._nm_interface.GetDeviceByIpIface(ifname)
+                    self.lgr.debug(f"Device path is {device_path}")
+                    nm_int_str = "org.freedesktop.NetworkManager"
+                    device_object = self.bus.get_object(nm_int_str,
+                                                        device_path)
+                    dev_int_str = "org.freedesktop.NetworkManager.Device"
+                    dev_int = dbus.Interface(device_object,
+                                             dev_int_str)
+                    self.lgr.info(f"New ipv4 route data "
+                                  f"{connection["ipv4"]["route-data"]}")
+                    self.lgr.info(f"New ipv6 route data "
+                                  f"{connection["ipv6"]["route-data"]}")
+                    dev_int.Reapply(connection,
+                                    interface_to_connection[int_index][1],
+                                    0)
+                except dbus.DBusException as e:
+                    self.lgr.error(f"Failed to reapply connection to {ifname}"
+                                   f", {e}")
+                    self._set_exit_code(ExitCode.ROUTE_FAILURE)
+                    return ContextEvent("FAIL")
 
         self.routes = valid_routes
         return ContextEvent("SUCCESS", data=event.data)
@@ -790,8 +801,13 @@ class DnsconfdContext:
                               f"{connection[0]["ipv4"]["route-data"]}")
                 self.lgr.info(f"New ipv6 route data "
                               f"{connection[0]["ipv6"]["route-data"]}")
-                dev_int = dbus.Interface(device_object, dev_int_str)
-                dev_int.Reapply(connection[0], connection[1], 0)
+                try:
+                    dev_int = dbus.Interface(device_object, dev_int_str)
+                    dev_int.Reapply(connection[0], connection[1], 0)
+                except dbus.DBusException as e:
+                    self.lgr.info(f"Failed to reapply connection of {ifname}"
+                                  f", Will not remove its routes. {e}")
+                    continue
         return ContextEvent("SUCCESS")
 
     def _srv_fail_remove_routes_transition(self, event: ContextEvent) \
