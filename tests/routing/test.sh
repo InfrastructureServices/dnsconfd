@@ -37,6 +37,7 @@ rlJournalStart
         sleep 2
         rlRun "podman exec $dnsconfd_cid /bin/bash -c 'nmcli connection show eth0 | grep 192.168.6.2 && nmcli connection mod eth0 ipv4.dns 192.168.6.3 && nmcli connection mod eth0 ipv4.gateway 192.168.6.1 || true'" 0 "Adding dns server to the first NM active profile"
         rlRun "podman exec $dnsconfd_cid /bin/bash -c 'nmcli connection show eth0 | grep 192.168.7.2 && nmcli connection mod eth0 ipv4.dns 192.168.8.3 && nmcli connection mod eth0 ipv4.gateway 192.168.7.3 || true'" 0 "Adding dns server to the first NM active profile"
+        rlRun "podman exec $dnsconfd_cid nmcli connection mod eth0 +ipv4.routes '192.168.122.0/24 10.10.10.10'" 0 "Adding test route"
         rlRun "podman exec $dnsconfd_cid /bin/bash -c 'nmcli connection show eth1 | grep 192.168.6.2 && nmcli connection mod eth1 ipv4.dns 192.168.6.3 && nmcli connection mod eth1 ipv4.gateway 192.168.6.1 || true'" 0 "Adding dns server to the second NM active profile"
         rlRun "podman exec $dnsconfd_cid /bin/bash -c 'nmcli connection show eth1 | grep 192.168.7.2 && nmcli connection mod eth1 ipv4.dns 192.168.8.3 && nmcli connection mod eth1 ipv4.gateway 192.168.7.3 || true'" 0 "Adding dns server to the second NM active profile"
         # now the connection listing DNS server 192.168.8.3 should be used for routing (dnsconfd->192.168.7.3->192.168.8.3)
@@ -44,8 +45,14 @@ rlJournalStart
         rlRun "podman exec $dnsconfd_cid nmcli connection up eth1"
         sleep 5
         #rlRun "diff status1 $ORIG_DIR/expected_status.json || diff status1 $ORIG_DIR/expected_status2.json" 0 "verifying status"
+        rlRun "podman exec $dnsconfd_cid ip route | grep 192.168.8.3" 0 "Verify that route to DNS is present"
         rlRun "podman exec $dnsconfd_cid getent hosts first-address.test.com | grep 192.168.6.3" 0 "Verifying correct address resolution"
         rlRun "podman exec $dnsconfd_cid getent hosts second-address.test.com | grep 192.168.8.3" 0 "Verifying correct address resolution"
+        rlRun "podman exec $dnsconfd_cid ip route | grep 10.10.10.10" 0 "Verify that test route is still present"
+        rlRun "podman exec $dnsconfd_cid systemctl stop dnsconfd" 0 "Stop dnsconfd"
+        sleep 5
+        rlRun "podman exec $dnsconfd_cid ip route | grep 192.168.8.3" 1 "Verify that route to DNS server was removed"
+        rlRun "podman exec $dnsconfd_cid ip route | grep 10.10.10.10" 0 "Verify that test route is still present"
     rlPhaseEnd
 
     rlPhaseStartCleanup
