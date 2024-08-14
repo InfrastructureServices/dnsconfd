@@ -116,7 +116,7 @@ class ResolveDbusInterface(dbus.service.Object):
     @dbus.service.method(dbus_interface='org.freedesktop.resolve1.Manager',
                          in_signature='is', out_signature='')
     def SetLinkDNSSEC(self, interface_index: int, mode: str):
-        self.lgr.debug("SetLinkDNSSEC called and ignored, "
+        self.lgr.debug("SetLinkDNSSEC called, "
                        f"interface index: {interface_index}, mode: {mode}")
         if self.ignore_api:
             self.lgr.debug("Call ignored, since ignore_api is set")
@@ -172,5 +172,6 @@ class ResolveDbusInterface(dbus.service.Object):
 
     def _update_if_ready(self, interface: InterfaceConfiguration):
         if interface.is_ready():
+            self.lgr.info(f"API pushing update {interface}")
             event = ContextEvent("UPDATE", interface)
             self.runtime_context.transition_function(event)

@@ -35,7 +35,7 @@ class UnboundManager(DnsManager):
                                       f"\tmodule-config: \"{modules}\"\n",
                                       f"\tinterface: {my_address}\n"])
         except OSError as e:
-            self.lgr.error(f"Could not write Unbound configuration, {e}")
+            self.lgr.critical(f"Could not write Unbound configuration, {e}")
             return False
 
         self.lgr.debug(f"DNS cache should be listening on {my_address}")
@@ -66,8 +66,8 @@ class UnboundManager(DnsManager):
         :rtype: bool
         """
         control_args = ["unbound-control", f'{command}']
-        self.lgr.debug("Executing unbound-control as "
-                       f"{' '.join(control_args)}")
+        self.lgr.info("Executing unbound-control as "
+                      f"{' '.join(control_args)}")
         proc = subprocess.run(control_args,
                               stdout=subprocess.PIPE,
                               stderr=subprocess.PIPE)

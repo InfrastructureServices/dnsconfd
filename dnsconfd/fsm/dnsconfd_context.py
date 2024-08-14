@@ -221,11 +221,11 @@ class DnsconfdContext:
                 self.state, callback \
                     = self.transition[self.state][event.name]
                 event = callback(event)
-                self.lgr.debug(f"New state: {self.state}, new event: "
-                               f"{'None' if event is None else event.name}")
+                self.lgr.info(f"New state: {self.state}, new event: "
+                              f"{'None' if event is None else event.name}")
         except KeyError:
-            self.lgr.warning("There is no transition defined from "
-                             f"{self.state} on {event.name} event, ignoring")
+            self.lgr.error("There is no transition defined from "
+                           f"{self.state} on {event.name} event, ignoring")
         # a bit of a hack, so loop add functions remove this immediately
         return False
 
@@ -243,7 +243,7 @@ class DnsconfdContext:
 
         self.dns_mgr = UnboundManager()
         if self.dns_mgr.configure(self.my_address, self.dnssec_enabled):
-            self.lgr.debug("Successfully configured DNS manager")
+            self.lgr.info("Successfully configured DNS manager")
             return ContextEvent("SUCCESS")
 
         self.lgr.error("Unable to configure DNS manager")
@@ -272,7 +272,7 @@ class DnsconfdContext:
             self._set_exit_code(ExitCode.DBUS_FAILURE)
             return ContextEvent("FAIL")
         else:
-            self.lgr.debug("Successfully connected to systemd through DBUS")
+            self.lgr.info("Successfully connected to systemd through DBUS")
             return ContextEvent("SUCCESS")
 
     def _connecting_dbus_success_transition(self, event: ContextEvent) \
@@ -295,13 +295,13 @@ class DnsconfdContext:
         self._systemd_jobs[service_start_job] = (
             ContextEvent("START_OK"), ContextEvent("START_FAIL"))
         # end of part that will be configured
-        self.lgr.debug("Successfully submitted dns cache service start job")
+        self.lgr.info("Successfully submitted dns cache service start job")
         return ContextEvent("SUCCESS")
 
     def _service_failure_exit_transition(self, event: ContextEvent) \
             -> ContextEvent | None:
         self._set_exit_code(ExitCode.SERVICE_FAILURE)
-        self.lgr.debug("Stopping event loop and FSM")
+        self.lgr.info("Stopping event loop and FSM")
         self._main_loop.quit()
         return None
 
@@ -315,7 +315,7 @@ class DnsconfdContext:
         :return: None
         :rtype: ContextEvent | None
         """
-        self.lgr.debug("Stopping event loop and FSM")
+        self.lgr.info("Stopping event loop and FSM")
         self._main_loop.quit()
         return None
 
@@ -377,7 +377,7 @@ class DnsconfdContext:
         :return: None
         :rtype: ContextEvent | None
         """
-        self.lgr.debug("Start job finished successfully, starting polling")
+        self.lgr.info("Start job finished successfully, starting polling")
         timer_event = ContextEvent("TIMER_UP", 0)
         GLib.timeout_add_seconds(1,
                                  lambda: self.transition_function(timer_event))
@@ -397,8 +397,8 @@ class DnsconfdContext:
         """
         if not self.dns_mgr.is_ready():
             if event.data == 3:
-                self.lgr.error(f"{self.dns_mgr.service_name} did not respond "
-                               "in time, stopping dnsconfd")
+                self.lgr.critical(f"{self.dns_mgr.service_name} did not"
+                                  " respond in time, stopping dnsconfd")
                 self._set_exit_code(ExitCode.SERVICE_FAILURE)
                 return ContextEvent("TIMEOUT")
             self.lgr.debug(f"{self.dns_mgr.service_name} still not ready, "
@@ -424,11 +424,11 @@ class DnsconfdContext:
         :rtype: ContextEvent | None
         """
         if not self.sys_mgr.set_resolvconf():
-            self.lgr.error("Failed to set up resolv.conf")
+            self.lgr.critical("Failed to set up resolv.conf")
             self._set_exit_code(ExitCode.RESOLV_CONF_FAILURE)
             return ContextEvent("FAIL")
         else:
-            self.lgr.debug("Resolv.conf successfully prepared")
+            self.lgr.info("Resolv.conf successfully prepared")
             return ContextEvent("SUCCESS")
 
     def _running_update_transition(self, event: ContextEvent) \
@@ -451,6 +451,7 @@ class DnsconfdContext:
 
         zones_to_servers, search_domains = self._get_zones_to_servers()
         if not self.sys_mgr.update_resolvconf(search_domains):
+            self.lgr.critical("Failed to update resolv.conf")
             self._set_exit_code(ExitCode.SERVICE_FAILURE)
             return ContextEvent("FAIL")
         return ContextEvent("SUCCESS", zones_to_servers)
@@ -489,11 +490,11 @@ class DnsconfdContext:
             ip4_routes = dbus.Interface(ip4_object,
                                         prop_interface).Get(
                 "org.freedesktop.NetworkManager.IP4Config", "RouteData")
-            self.lgr.debug(f"ipv4 Route data is {ip4_routes}")
+            self.lgr.info(f"ipv4 Route data is {ip4_routes}")
             ip6_routes = dbus.Interface(ip6_object,
                                         prop_interface).Get(
                 "org.freedesktop.NetworkManager.IP6Config", "RouteData")
-            self.lgr.debug(f"ipv6 Route data is {ip6_routes}")
+            self.lgr.info(f"ipv6 Route data is {ip6_routes}")
             ip4_addresses = dbus.Interface(ip4_object,
                                            prop_interface).Get(
                 "org.freedesktop.NetworkManager.IP4Config", "Addresses")
@@ -553,7 +554,7 @@ class DnsconfdContext:
 
         interface_and_routes = []
         interface_to_connection = {}
-        self.lgr.debug("Commencing route update")
+        self.lgr.info("Commencing route check")
 
         for (key, interface) in self.interfaces.items():
             ip4_rte, ip6_rte, applied = self._get_nm_device_config(interface)
@@ -579,7 +580,7 @@ class DnsconfdContext:
         for (int_index, interface) in self.interfaces.items():
             reapply_needed = False
             ifname = interface.get_if_name()
-            self.lgr.debug(f"Walking through servers of interface {ifname}")
+            self.lgr.info(f"Walking through servers of interface {ifname}")
             if interface_to_connection[int_index] is None:
                 # this will ensure that routes left after downed devices
                 # are cleared
@@ -702,7 +703,7 @@ class DnsconfdContext:
                         dbus.String("next-hop"):
                             dbus.String(def_route[1]["next-hop"])})
 
-                    self.lgr.debug(f"new route is {new_route}")
+                    self.lgr.info(f"new route is {new_route}")
                     valid_routes[server_str] = new_route
                     connection["ipv4"]["route-data"].append(new_route)
                     reapply_needed = True
@@ -711,13 +712,13 @@ class DnsconfdContext:
                         and str(checked_route["dest"]) in self.routes.keys()):
                     connection["ipv4"]["route-data"].remove(checked_route)
                     reapply_needed = True
-                    self.lgr.debug(f"Removing route {checked_route}")
+                    self.lgr.info(f"Removing route {checked_route}")
             for checked_route in list(connection["ipv6"]["route-data"]):
                 if (str(checked_route["dest"]) not in valid_routes.keys()
                         and str(checked_route["dest"]) in self.routes.keys()):
                     connection["ipv6"]["route-data"].remove(checked_route)
                     reapply_needed = True
-                    self.lgr.debug(f"Removing route {checked_route}")
+                    self.lgr.info(f"Removing route {checked_route}")
             if reapply_needed:
                 self.lgr.debug("Reapplying changed connection")
                 device_path = self._nm_interface.GetDeviceByIpIface(ifname)
@@ -727,6 +728,10 @@ class DnsconfdContext:
                 dev_int_str = "org.freedesktop.NetworkManager.Device"
                 dev_int = dbus.Interface(device_object,
                                          dev_int_str)
+                self.lgr.info(f"New ipv4 route data "
+                              f"{connection["ipv4"]["route-data"]}")
+                self.lgr.info(f"New ipv6 route data "
+                              f"{connection["ipv6"]["route-data"]}")
                 dev_int.Reapply(connection,
                                 interface_to_connection[int_index][1],
                                 0)
@@ -768,16 +773,20 @@ class DnsconfdContext:
                 if str(checked_route["dest"]) in self.routes.keys():
                     connection[0]["ipv4"]["route-data"].remove(checked_route)
                     reapply_needed = True
-                    self.lgr.debug(f"Removing route {checked_route}")
+                    self.lgr.info(f"Removing route {checked_route}")
             for checked_route in list(connection[0]["ipv6"]["route-data"]):
                 if str(checked_route["dest"]) in self.routes.keys():
                     connection[0]["ipv6"]["route-data"].remove(checked_route)
                     reapply_needed = True
-                    self.lgr.debug(f"Removing route {checked_route}")
+                    self.lgr.info(f"Removing route {checked_route}")
             if reapply_needed:
                 self.lgr.debug("Reapplying changed connection")
                 del connection[0]["ipv6"]["routes"]
                 del connection[0]["ipv4"]["routes"]
+                self.lgr.info(f"New ipv4 route data "
+                              f"{connection[0]["ipv4"]["route-data"]}")
+                self.lgr.info(f"New ipv6 route data "
+                              f"{connection[0]["ipv6"]["route-data"]}")
                 dev_int = dbus.Interface(device_object, dev_int_str)
                 dev_int.Reapply(connection[0], connection[1], 0)
         return ContextEvent("SUCCESS")
@@ -887,7 +896,7 @@ class DnsconfdContext:
         :return: EXIT event with exit code
         :rtype: ContextEvent | None
         """
-        self.lgr.debug("Stop job after error successfully finished")
+        self.lgr.info("Stop job after error successfully finished")
         return ContextEvent("EXIT", event.data)
 
     def _waiting_stop_job_fail_transition(self, event: ContextEvent) \
@@ -902,7 +911,7 @@ class DnsconfdContext:
         :return: EXIT event with exit code + service failure
         :rtype: ContextEvent | None
         """
-        self.lgr.debug("Stop job after error failed")
+        self.lgr.info("Stop job after error failed")
         self._set_exit_code(ExitCode.SERVICE_FAILURE)
         return ContextEvent("EXIT")
 
@@ -917,7 +926,7 @@ class DnsconfdContext:
         :return: SUCCESS or FAIL with exit code
         :rtype: ContextEvent | None
         """
-        self.lgr.error("Failed to update DNS service, stopping")
+        self.lgr.info("Failed to update DNS service, stopping")
         if not self.sys_mgr.revert_resolvconf():
             self._set_exit_code(ExitCode.RESOLV_CONF_FAILURE)
             return ContextEvent("FAIL")
