@@ -24,7 +24,7 @@ class DnsconfdArgumentParser(ArgumentParser):
         self._config_values = [
             StringOption("log_level",
                          "Log level of dnsconfd",
-                         "DEBUG",
+                         "INFO",
                          validation=r"DEBUG|INFO|WARNING|ERROR|CRITICAL"),
             StringOption("dbus_name",
                          "DBUS name that dnsconfd should use",
