@@ -97,7 +97,7 @@ class SystemManager:
         :return: True if operation was successful, otherwise False
         :rtype: bool
         """
-        self.lgr.debug(f"Updating resolvconf with domains {search_domains}")
+        self.lgr.info(f"Updating resolvconf with domains {search_domains}")
         try:
             with open(self._resolv_conf_path, "w") as new_resolv:
                 new_resolv.write(self._get_resolvconf_string(search_domains))
