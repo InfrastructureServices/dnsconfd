@@ -6,8 +6,6 @@ DBUS_NAME=org.freedesktop.resolve1
 rlJournalStart
     rlPhaseStartSetup
         rlRun "set -o pipefail"
-        rlFileBackup /etc/sysconfig/dnsconfd
-        rlRun "echo 'LOG_LEVEL=DEBUG' >> /etc/sysconfig/dnsconfd"
     rlPhaseEnd
 
     rlPhaseStartTest
