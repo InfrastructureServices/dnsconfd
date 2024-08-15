@@ -38,3 +38,7 @@ prepare:
     order: 4
     how: shell
     script: dnf install -y ./tests/*.rpm
+  - name: increase-verbosity
+    order: 5
+    how: shell
+    script: "echo 'LOG_LEVEL=DEBUG' >> /etc/sysconfig/dnsconfd && sed -i 's/verbosity.*/verbosity: 5/g' /etc/unbound/unbound.conf"

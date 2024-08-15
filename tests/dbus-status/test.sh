@@ -7,8 +7,6 @@ rlJournalStart
     rlPhaseStartSetup
         rlRun "set -o pipefail"
         rlRun "useradd dummy" 0 "Adding dummy user"
-        rlFileBackup /etc/sysconfig/dnsconfd
-        rlRun "echo 'LOG_LEVEL=DEBUG' >> /etc/sysconfig/dnsconfd"
     rlPhaseEnd
 
     rlPhaseStartTest
