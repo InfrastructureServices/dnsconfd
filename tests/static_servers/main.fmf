@@ -1,4 +1,4 @@
-summary: Test global_resolvers option
+summary: Test static_servers option
 test: ./test.sh
 framework: beakerlib
 recommend:

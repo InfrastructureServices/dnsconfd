@@ -33,10 +33,16 @@ class DnsconfdContext:
 
         self.global_resolvers = {}
 
-        for zone, servers_str in config["global_resolvers"].items():
+        for zone, resolvers in config["static_servers"].items():
             self.global_resolvers[zone] = []
-            for srv_string in servers_str:
-                new_srv = ServerDescription.from_unbound_string(srv_string)
+            for resolver in resolvers:
+                prot = resolver.get("protocol", "plain")
+                port = resolver.get("port", None)
+                sni = resolver.get("sni", None)
+                new_srv = ServerDescription.from_config(resolver["address"],
+                                                        prot,
+                                                        port,
+                                                        sni)
                 self.global_resolvers[zone].append(new_srv)
 
         self.sys_mgr = SystemManager(config)
@@ -1180,7 +1186,8 @@ class DnsconfdContext:
         for zone, servers in self.global_resolvers.items():
             self.lgr.debug(f"Adding zone {zone} from global_resolvers option")
             if zone in new_zones_to_servers.keys():
-                new_zones_to_servers[zone] = servers + new_zones_to_servers
+                new_zones_to_servers[zone] = (servers
+                                              + new_zones_to_servers[zone])
             else:
                 new_zones_to_servers[zone] = servers
 

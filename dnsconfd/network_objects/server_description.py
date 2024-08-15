@@ -1,5 +1,4 @@
 import socket
-import re
 import ipaddress
 from typing import Optional
 
@@ -51,30 +50,20 @@ class ServerDescription:
         return srv_string
 
     @staticmethod
-    def from_unbound_string(address: str) -> Optional["ServerDescription"]:
-        """ Construct Server description from unbound formatted string
+    def from_config(address: str,
+                    protocol: str | None = None,
+                    port: int | None = None,
+                    sni: str | None = None) -> Optional["ServerDescription"]:
+        """ Create instance of ServerDescription from string and protocol
 
-        :param address: unbound formatted server string
-        :return: ServerDescription if address is valid, otherwise None
-        :rtype: Optional["ServerDescription"]
+        :param address: String containing ip address
+        :param protocol: Either 'plain' or 'DoT'
+        :param port: port for connection
+        :param sni: server name indication that should be presented in
+                    certificate
+        :return:
         """
-        unbound_addr_re = r"([0-9a-fA-F.:]+)(@[0-9]+)?(#.+)?"
-        match_object = re.fullmatch(unbound_addr_re, address)
-        if match_object is None:
-            return None
-        try:
-            address_parsed = ipaddress.ip_address(match_object.group(1))
-        except ValueError:
-            return None
-
-        if match_object.group(2) is not None:
-            port = int(match_object.group(2)[1:])
-        else:
-            port = None
-        if match_object.group(3) is not None:
-            sni = match_object.group(3)[1:]
-        else:
-            sni = None
+        address_parsed = ipaddress.ip_address(address)
         if address_parsed.version == 4:
             address_family = socket.AF_INET
         else:
@@ -85,7 +74,7 @@ class ServerDescription:
                                                  str(address_parsed)),
                                 port,
                                 sni)
-        srv.tls = sni is not None
+        srv.tls = protocol == "DoT"
         return srv
 
     def get_server_string(self) -> str:

@@ -1,6 +1,6 @@
 from argparse import ArgumentParser, BooleanOptionalAction
 from dnsconfd.cli_commands import CLI_Commands as Cmds
-from dnsconfd.configuration import Option, GlobalResolversOption, StringOption
+from dnsconfd.configuration import Option, StaticServersOption, StringOption
 from dnsconfd.configuration import IpOption, BoolOption
 from dnsconfd.fsm.exit_code import ExitCode
 
@@ -52,13 +52,13 @@ class DnsconfdArgumentParser(ArgumentParser):
                        "Dnsconfd will submit necessary"
                        " routes to routing manager",
                        True),
-            GlobalResolversOption("global_resolvers",
-                                  "Map of zones and resolvers that"
-                                  " should be globally used for ",
-                                  {},
-                                  in_file=True,
-                                  in_args=False,
-                                  in_env=False),
+            StaticServersOption("static_servers",
+                                "Map of zones and resolvers that"
+                                " should be globally used for them",
+                                {},
+                                in_file=True,
+                                in_args=False,
+                                in_env=False),
             BoolOption("ignore_api",
                        "If enabled, dnsconfd will ignore"
                        " configuration received through API",
