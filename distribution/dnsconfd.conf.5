@@ -26,14 +26,34 @@ Options to be used in resolv.conf for alteration of resolver, default "edns0 tru
 Enable dnssec record validation, default no
 .IP "handle_routing"
 Dnsconfd will submit necessary routes to routing manager, default yes
-.IP "global_resolvers"
-Map of zones and resolvers that should be globally used for them, default empty
+.IP "static_servers"
+Map of zones and servers that should be globally used for them, default empty
 
-Example:
+Available attributes of servers are:
 
-global_resolvers:
+ \(bu \fBaddress\fP required, string of servers ip address
+ \(bu \fBprotocol\fP optional, DoT or plain
+ \(bu \fBsni\fP optional, server name indication used for TLS checks
+ \(bu \fBport\fP optional, port on which server is listening. If not given then 53 is used for plain protocol and 853 for DoT
+
+Examples:
+
+Enabling one global server using DNS over TLS
+
+static_servers:
     .:
-        - "192.168.6.3#named"
+        - address: 192.168.6.3
+          protocol: "DoT"
+          sni: named
+          port: 853
+
+Enabling one server for specific domain and second for everything else
+
+static_servers:
+    .:
+        - address: 192.168.6.3
+    .domain.com:
+        - address: 192.168.6.4
 
 .IP "ignore_api"
 If enabled, dnsconfd will ignore configuration received through API, default no
