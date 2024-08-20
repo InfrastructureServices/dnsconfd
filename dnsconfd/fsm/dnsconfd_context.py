@@ -31,10 +31,10 @@ class DnsconfdContext:
         self.wire_priority = config["prioritize_wire"]
         self.handle_routes = config["handle_routing"]
 
-        self.global_resolvers = {}
+        self.static_servers = {}
 
         for zone, resolvers in config["static_servers"].items():
-            self.global_resolvers[zone] = []
+            self.static_servers[zone] = []
             for resolver in resolvers:
                 prot = resolver.get("protocol", "plain")
                 port = resolver.get("port", None)
@@ -43,7 +43,7 @@ class DnsconfdContext:
                                                         prot,
                                                         port,
                                                         sni)
-                self.global_resolvers[zone].append(new_srv)
+                self.static_servers[zone].append(new_srv)
 
         self.sys_mgr = SystemManager(config)
         self._main_loop = main_loop
@@ -1183,7 +1183,7 @@ class DnsconfdContext:
             new_zones_to_servers[zone].sort(key=lambda x: (x.tls,
                                                            x.priority),
                                             reverse=True)
-        for zone, servers in self.global_resolvers.items():
+        for zone, servers in self.static_servers.items():
             self.lgr.debug(f"Adding zone {zone} from global_resolvers option")
             if zone in new_zones_to_servers.keys():
                 new_zones_to_servers[zone] = (servers
