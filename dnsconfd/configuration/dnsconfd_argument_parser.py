@@ -21,6 +21,7 @@ class DnsconfdArgumentParser(ArgumentParser):
         super(DnsconfdArgumentParser, self).__init__(*args, **kwargs)
         self.lgr = logging.getLogger(self.__class__.__name__)
         self._parsed = None
+        self._env = os.environ
         dbus_re = r"([A-Za-z_]+[A-Za-z_0-9]*)(.[A-Za-z_]+[A-Za-z_0-9]*)+"
         self._config_values = [
             StringOption("log_level",
@@ -55,7 +56,7 @@ class DnsconfdArgumentParser(ArgumentParser):
             StaticServersOption("static_servers",
                                 "Map of zones and resolvers that"
                                 " should be globally used for them",
-                                {},
+                                [],
                                 in_file=True,
                                 in_args=False,
                                 in_env=False),
@@ -71,7 +72,11 @@ class DnsconfdArgumentParser(ArgumentParser):
                    "/etc/dnsconfd.conf",
                    in_file=False,
                    in_args=True,
-                   in_env=True)
+                   in_env=True),
+            StringOption("api_choice",
+                         "API which should be used",
+                         "resolve1",
+                         validation=r"resolve1|dnsconfd")
         ]
 
     def add_arguments(self):
@@ -108,11 +113,13 @@ class DnsconfdArgumentParser(ArgumentParser):
                             action="store_true",
                             help="Status should be formatted as JSON string")
         status.set_defaults(func=lambda: Cmds.status(self._parsed.dbus_name,
-                                                     self._parsed.json))
+                                                     self._parsed.json,
+                                                     self._parsed.api_choice))
 
         reload = subparsers.add_parser("reload",
                                        help="Reload running cache service")
-        reload.set_defaults(func=lambda: Cmds.reload(self._parsed.dbus_name))
+        reload.set_defaults(func=lambda: Cmds.reload(self._parsed.dbus_name,
+                                                     self._parsed.api_choice))
 
         config = subparsers.add_parser("config",
                                        help="Change configuration of "
@@ -157,6 +164,20 @@ class DnsconfdArgumentParser(ArgumentParser):
                                                help="perform Dnsconfd steps")
         uninstall.set_defaults(func=lambda: Cmds.uninstall(vars(self._parsed)))
 
+        reload = subparsers.add_parser("update",
+                                       help="update dnsconfd forwarders list")
+
+        reload.add_argument("server_list",
+                            default="[]",
+                            help="JSON formatted list of servers")
+        reload.set_defaults(func=lambda: Cmds.update(self._parsed.dbus_name,
+                                                     self._parsed.server_list,
+                                                     self._parsed.api_choice))
+
+    @staticmethod
+    def _config_log(log_level):
+        logging.basicConfig(level=log_level)
+
     def parse_args(self, *args, **kwargs):
         """ Parse arguments
 
@@ -175,10 +196,10 @@ class DnsconfdArgumentParser(ArgumentParser):
             config = self._read_config(os.environ.get("CONFIG_FILE",
                                                       "/etc/dnsconfd.conf"))
 
-        debug_level = self._get_option_value(config, self._config_values[0])
-        logging.basicConfig(level=debug_level)
+        log_level = self._get_option_value(config, self._config_values[0])
+        self._config_log(log_level)
 
-        for option in self._config_values[1:]:
+        for option in self._config_values:
             setattr(self._parsed,
                     option.name,
                     self._get_option_value(config, option))
@@ -193,11 +214,11 @@ class DnsconfdArgumentParser(ArgumentParser):
             self.lgr.debug(f"Applying value {final_val}"
                            f" to {option.name} from file")
         if (option.in_env
-                and os.environ.get(option.name.upper(), None) is not None):
+                and self._env.get(option.name.upper(), None) is not None):
             if isinstance(option, BoolOption):
-                final_val = os.environ[option.name.upper()] == "yes"
+                final_val = self._env[option.name.upper()] == "yes"
             else:
-                final_val = os.environ[option.name.upper()]
+                final_val = self._env[option.name.upper()]
             self.lgr.debug(f"Applying value {final_val}"
                            f" to {option.name} from env variable")
         if (option.in_args
@@ -210,10 +231,15 @@ class DnsconfdArgumentParser(ArgumentParser):
 
         return final_val
 
+    @staticmethod
+    def _open_config_file(path):
+        # this method exists mainly for the sake of unit testing
+        return open(path, "r")
+
     def _read_config(self, path: str) -> dict:
         config = {}
         try:
-            with open(path, "r") as config_file:
+            with self._open_config_file(path) as config_file:
                 temp_config = yaml.safe_load(config_file)
             if temp_config is not None:
                 config = temp_config

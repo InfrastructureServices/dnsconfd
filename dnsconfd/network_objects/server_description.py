@@ -1,3 +1,5 @@
+from dnsconfd.network_objects import DnsProtocol
+
 import socket
 import ipaddress
 from typing import Optional
@@ -9,7 +11,11 @@ class ServerDescription:
                  address: bytes,
                  port: int = None,
                  sni: str = None,
-                 priority: int = 50):
+                 priority: int = 100,
+                 domains: list[tuple[str, bool]] = None,
+                 interface: int = None,
+                 protocol: DnsProtocol = DnsProtocol.PLAIN,
+                 dnssec: bool = False):
         """ Object holding information about DNS server
 
         :param address_family: Indicates whether this is IPV4 of IPV6
@@ -30,7 +36,10 @@ class ServerDescription:
         self.port = port
         self.sni = sni
         self.priority = priority
-        self.tls = False
+        self.domains = domains
+        self.interface = interface
+        self.protocol = protocol if protocol is not None else DnsProtocol.PLAIN
+        self.dnssec = dnssec
 
     def to_unbound_string(self) -> str:
         """ Get string formatted in unbound format
@@ -43,7 +52,7 @@ class ServerDescription:
         srv_string = socket.inet_ntop(self.address_family, self.address)
         if self.port:
             srv_string += f"@{self.port}"
-        elif self.tls:
+        elif self.protocol == DnsProtocol.DNS_OVER_TLS:
             srv_string += "@853"
         if self.sni:
             srv_string += f"#{self.sni}"
@@ -51,11 +60,17 @@ class ServerDescription:
 
     @staticmethod
     def from_config(address: str,
-                    protocol: str | None = None,
+                    protocol: DnsProtocol | None = None,
                     port: int | None = None,
-                    sni: str | None = None) -> Optional["ServerDescription"]:
-        """ Create instance of ServerDescription from string and protocol
+                    sni: str | None = None,
+                    domains: list[tuple[bool, str]] | None = None,
+                    interface: int = None,
+                    dnssec: bool = False) -> Optional["ServerDescription"]:
+        """ Create instance of ServerDescription
 
+        :param dnssec:
+        :param interface:
+        :param domains:
         :param address: String containing ip address
         :param protocol: Either 'plain' or 'DoT'
         :param port: port for connection
@@ -73,8 +88,11 @@ class ServerDescription:
                                 socket.inet_pton(address_family,
                                                  str(address_parsed)),
                                 port,
-                                sni)
-        srv.tls = protocol == "DoT"
+                                sni,
+                                domains=domains,
+                                interface=interface,
+                                protocol=protocol,
+                                dnssec=dnssec)
         return srv
 
     def get_server_string(self) -> str:
@@ -91,8 +109,11 @@ class ServerDescription:
             return (self.address == __value.address
                     and self.port == __value.port
                     and self.sni == __value.sni
-                    and self.tls == __value.tls
-                    and self.priority == __value.priority)
+                    and self.protocol == __value.protocol
+                    and self.priority == __value.priority
+                    and self.dnssec == __value.dnssec
+                    and self.interface == __value.interface
+                    and self.domains == __value.domains)
         except AttributeError:
             return False
 
@@ -103,3 +124,19 @@ class ServerDescription:
         :rtype: str
         """
         return self.to_unbound_string()
+
+    def to_dict(self):
+        if self.port:
+            port = self.port
+        elif self.protocol == DnsProtocol.DNS_OVER_TLS:
+            port = 853
+        else:
+            port = 53
+        domains = [a[0] for a in self.domains] if self.domains else None
+        return {"address": self.get_server_string(),
+                "port": port,
+                "sni": self.sni,
+                "domains": domains,
+                "interface": self.interface,
+                "protocol": self.protocol.name,
+                "dnssec": self.dnssec}

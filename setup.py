@@ -8,6 +8,6 @@ setup(
         'dbus-python',
         'pyyaml'
     ],
-    packages=find_packages(),
+    packages=find_packages(exclude=["unittests*"]),
     scripts=["bin/dnsconfd"],
 )

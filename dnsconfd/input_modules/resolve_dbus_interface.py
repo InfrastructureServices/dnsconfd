@@ -2,6 +2,7 @@ from dnsconfd.network_objects import InterfaceConfiguration
 from dnsconfd.network_objects import ServerDescription
 from dnsconfd.fsm import DnsconfdContext
 from dnsconfd.fsm import ContextEvent
+from dnsconfd.network_objects import DnsProtocol
 
 import logging
 import dbus.service
@@ -39,7 +40,8 @@ class ResolveDbusInterface(dbus.service.Object):
         interface_cfg.servers = servers
         servers_to_string = ' '.join([str(server) for server in servers])
         self.lgr.info("Incoming DNS servers on "
-                      f"{interface_cfg.get_if_name()}: {servers_to_string}")
+                      f"{interface_cfg.get_if_name(interface_cfg.index)}:"
+                      f"{servers_to_string}")
         self._update_if_ready(interface_cfg)
 
     @dbus.service.method(dbus_interface='org.freedesktop.resolve1.Manager',
@@ -58,7 +60,8 @@ class ResolveDbusInterface(dbus.service.Object):
         interface_cfg.servers = servers
         servers_to_string = ' '.join([str(server) for server in servers])
         self.lgr.info("Incoming DNS servers on "
-                      f"{interface_cfg.get_if_name()}: {servers_to_string}")
+                      f"{interface_cfg.get_if_name(interface_cfg.index)}:"
+                      f"{servers_to_string}")
         self._update_if_ready(interface_cfg)
 
     @dbus.service.method(dbus_interface='org.freedesktop.resolve1.Manager',
@@ -69,7 +72,9 @@ class ResolveDbusInterface(dbus.service.Object):
         if self.ignore_api:
             self.lgr.debug("Call ignored, since ignore_api is set")
         interface_cfg = self._iface_config(interface_index)
-        interface_cfg.domains = [(str(domain), bool(is_routing))
+        # not is_routing because we consider this boolean in a sense
+        # 'should be added to search domains?'
+        interface_cfg.domains = [(str(domain), not bool(is_routing))
                                  for domain, is_routing in domains]
         self._update_if_ready(interface_cfg)
 
@@ -105,12 +110,8 @@ class ResolveDbusInterface(dbus.service.Object):
         interface_cfg = self.interfaces[interface_index]
         if mode == "yes" or mode == "opportunistic":
             interface_cfg.dns_over_tls = True
-            for server in interface_cfg.servers:
-                server.tls = True
         else:
             interface_cfg.dns_over_tls = False
-            for server in interface_cfg.servers:
-                server.tls = False
         self._update_if_ready(interface_cfg)
 
     @dbus.service.method(dbus_interface='org.freedesktop.resolve1.Manager',
@@ -122,9 +123,9 @@ class ResolveDbusInterface(dbus.service.Object):
             self.lgr.debug("Call ignored, since ignore_api is set")
         interface_cfg = self._iface_config(interface_index)
         if mode == "no" or mode == "allow-downgrade":
-            interface_cfg.dns_over_tls = False
+            interface_cfg.dnssec = False
         else:
-            interface_cfg.dns_over_tls = True
+            interface_cfg.dnssec = True
         self._update_if_ready(interface_cfg)
 
     @dbus.service.method(dbus_interface='org.freedesktop.resolve1.Manager',
@@ -164,14 +165,39 @@ class ResolveDbusInterface(dbus.service.Object):
                                           InterfaceConfiguration(interface_id))
 
     def _ifprio(self, interface_cfg: InterfaceConfiguration) -> int:
-        if interface_cfg.is_interface_wireless():
+        if interface_cfg.is_interface_wireless(interface_cfg.index):
             self.lgr.debug("Interface "
-                           f"{interface_cfg.interface_index} is wireless")
+                           f"{interface_cfg.index} is wireless")
             return 50
         return 100
 
     def _update_if_ready(self, interface: InterfaceConfiguration):
         if interface.is_ready():
             self.lgr.info(f"API pushing update {interface}")
-            event = ContextEvent("UPDATE", interface)
+            servers: list[ServerDescription] = []
+            for cur_interface in self.interfaces.values():
+                for server in cur_interface.servers:
+                    domains = []
+                    domains.extend(cur_interface.domains)
+                    if cur_interface.is_default:
+                        domains.append((".", False))
+                    if cur_interface.dns_over_tls:
+                        protocol = DnsProtocol.DNS_OVER_TLS
+                    else:
+                        protocol = DnsProtocol.PLAIN
+                    new_srv = ServerDescription(server.address_family,
+                                                server.address,
+                                                server.port,
+                                                server.sni,
+                                                server.priority,
+                                                domains,
+                                                cur_interface.index,
+                                                protocol,
+                                                cur_interface.dnssec)
+
+                    servers.append(new_srv)
+
+            event = ContextEvent("UPDATE", servers)
+            self.lgr.debug(f"UPDATE IS {interface.index}, "
+                           f"{[a.to_dict() for a in servers]}")
             self.runtime_context.transition_function(event)

@@ -1,7 +1,8 @@
 from enum import Enum
 
 
-# states marked with interrupt need to handle UPDATE and STOP events
+# states marked with interrupt need to handle INTERFACE_UPDATE,
+# FULL_UPDATE and STOP events
 class ContextState(Enum):
     """ State the Dnsconfd FSM can be in """
     STARTING = 1  # interrupt
