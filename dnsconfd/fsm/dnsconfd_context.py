@@ -1,4 +1,5 @@
 from dnsconfd.network_objects import InterfaceConfiguration, ServerDescription
+from dnsconfd.network_objects import DnsProtocol
 from dnsconfd.dns_managers import UnboundManager
 from dnsconfd.fsm import ContextEvent
 from dnsconfd.fsm import ContextState
@@ -31,19 +32,37 @@ class DnsconfdContext:
         self.wire_priority = config["prioritize_wire"]
         self.handle_routes = config["handle_routing"]
 
-        self.static_servers = {}
+        self.static_servers = []
 
-        for zone, resolvers in config["static_servers"].items():
-            self.static_servers[zone] = []
-            for resolver in resolvers:
-                prot = resolver.get("protocol", "plain")
-                port = resolver.get("port", None)
-                sni = resolver.get("sni", None)
-                new_srv = ServerDescription.from_config(resolver["address"],
-                                                        prot,
-                                                        port,
-                                                        sni)
-                self.static_servers[zone].append(new_srv)
+        for resolver in config["static_servers"]:
+            prot = resolver.get("protocol", None)
+            if prot is not None:
+                if prot == "plain":
+                    prot = DnsProtocol.PLAIN
+                elif prot == "DoT":
+                    prot = DnsProtocol.DNS_OVER_TLS
+            port = resolver.get("port", None)
+            sni = resolver.get("sni", None)
+            domains = resolver.get("domains", None)
+            if domains is not None:
+                transformed_domains = []
+                for x in domains:
+                    transformed_domains.append((x["domain"], x["search"]))
+                domains = transformed_domains
+            interface = resolver.get("interface", None)
+            dnssec = resolver.get("dnssec", False)
+
+            new_srv = ServerDescription.from_config(resolver["address"],
+                                                    prot,
+                                                    port,
+                                                    sni,
+                                                    domains,
+                                                    interface,
+                                                    dnssec)
+            new_srv.priority = 150
+            self.static_servers.append(new_srv)
+        if len(self.static_servers) > 0:
+            self.lgr.info(f"Configured static servers: {self.static_servers}")
 
         self.sys_mgr = SystemManager(config)
         self._main_loop = main_loop
@@ -53,7 +72,7 @@ class DnsconfdContext:
         self._signal_connection = None
 
         self.dns_mgr = None
-        self.interfaces: dict[int, InterfaceConfiguration] = {}
+        self.servers: list[ServerDescription] = []
 
         self.routes = {}
 
@@ -447,12 +466,8 @@ class DnsconfdContext:
         :return: SUCCESS if update was successful otherwise FAIL
         :rtype: ContextEvent | None
         """
-        int_config: InterfaceConfiguration = event.data
-        if int_config is not None:
-            if len(int_config.servers) > 0:
-                self.interfaces[int_config.interface_index] = int_config
-            else:
-                self.interfaces.pop(int_config.interface_index, None)
+        if event.data is not None:
+            self.servers = event.data
 
         zones_to_servers, search_domains = self._get_zones_to_servers()
         if not self.sys_mgr.update_resolvconf(search_domains):
@@ -461,8 +476,8 @@ class DnsconfdContext:
             return ContextEvent("FAIL")
         return ContextEvent("SUCCESS", zones_to_servers)
 
-    def _get_nm_device_config(self, interface):
-        int_name = interface.get_if_name(strict=True)
+    def _get_nm_device_config(self, index):
+        int_name = InterfaceConfiguration.get_if_name(index, strict=True)
         if int_name is None:
             self.lgr.info(f"interface {int_name} has no name and thus "
                           f"we will not handle its routing")
@@ -517,7 +532,7 @@ class DnsconfdContext:
         except dbus.DBusException as e:
             self.lgr.error(f"Failed to retrieve info about {int_name} "
                            "from NetworkManager")
-            self.lgr.debug(f"{e}")
+            self.lgr.error(f"{e}")
             return None, None, None
 
         return ip4_routes, ip6_routes, applied
@@ -617,31 +632,52 @@ class DnsconfdContext:
         interface_to_connection = {}
         self.lgr.info("Commencing route check")
 
-        for (key, interface) in self.interfaces.items():
-            ip4_rte, ip6_rte, applied = self._get_nm_device_config(interface)
+        found_interfaces = []
+
+        for server in self.servers:
+            if (server.interface is not None
+                    and server.interface not in found_interfaces):
+                found_interfaces.append(server.interface)
+
+        for if_index in found_interfaces:
+            ip4_rte, ip6_rte, applied = self._get_nm_device_config(if_index)
             if ip4_rte is None:
                 self._set_exit_code(ExitCode.ROUTE_FAILURE)
                 return ContextEvent("FAIL")
             elif applied is None:
                 # we have to also remove routes of this interface,
                 # so they do not interfere with further processing
-                for server in interface.servers:
+                interface_servers = []
+                for server in self.servers:
+                    if server.interface == if_index:
+                        interface_servers.append(server)
+                for server in interface_servers:
                     self.routes.pop(server.get_server_string(), None)
-                interface_to_connection[key] = None
+                interface_to_connection[if_index] = None
                 continue
             for route in ip4_rte + ip6_rte:
-                interface_and_routes.append((key, route))
-            interface_to_connection[key] = applied
+                interface_and_routes.append((if_index, route))
+            interface_to_connection[if_index] = applied
 
         self.lgr.debug(f"interface and routes is {interface_and_routes}")
         self.lgr.debug("interface and connections "
                        f"is {interface_to_connection}")
         valid_routes = {}
-        self.lgr.debug(f"interfaces are {self.interfaces}")
-        for (int_index, interface) in self.interfaces.items():
-            reapply_needed = False
-            ifname = interface.get_if_name()
-            self.lgr.info(f"Walking through servers of interface {ifname}")
+        interface_names = []
+
+        for x in found_interfaces:
+            interface_names.append(InterfaceConfiguration.get_if_name(x))
+
+        self.lgr.debug(f"interfaces are {interface_names}")
+
+        interfaces_to_servers = {}
+        for index in found_interfaces:
+            interfaces_to_servers.setdefault(index, [])
+        for server in self.servers:
+            if server.interface is not None:
+                interfaces_to_servers[server.interface].append(server)
+
+        for int_index in found_interfaces:
             if interface_to_connection[int_index] is None:
                 # this will ensure that routes left after downed devices
                 # are cleared
@@ -649,7 +685,7 @@ class DnsconfdContext:
             connection = interface_to_connection[int_index][0]
             self._reset_bin_routes(connection)
 
-            for server in interface.servers:
+            for server in interfaces_to_servers[int_index]:
                 server_str = server.get_server_string()
                 best_route = self._choose_best_route(server_str,
                                                      interface_and_routes)
@@ -707,18 +743,24 @@ class DnsconfdContext:
                     # the situation
                     duplicate = False
                     if best_route is not None:
-                        for x in self.interfaces[best_route[0]].servers:
-                            if x == server:
+                        for x in interfaces_to_servers[best_route[0]]:
+                            # this is a bit of a problem, because using routes
+                            # does not allow us to create separate rules
+                            if x.address == server.address:
                                 duplicate = True
                                 break
                     if duplicate:
                         # different interface also should use this server, we
                         # should handle which one of them has priority
-                        other_wireless = (self.interfaces[best_route[0]]
-                                          .is_interface_wireless())
-                        this_wireless = interface.is_interface_wireless()
-                        other_name = (self.interfaces[best_route[0]]
-                                      .get_if_name())
+                        other_wireless = (
+                            InterfaceConfiguration.
+                            is_interface_wireless(best_route[0]))
+                        this_wireless = (
+                            InterfaceConfiguration.
+                            is_interface_wireless(int_index))
+                        other_name = (
+                            InterfaceConfiguration.
+                            get_if_name(best_route[0]))
                         if (self.wire_priority
                                 and other_wireless
                                 and not this_wireless):
@@ -792,9 +834,22 @@ class DnsconfdContext:
                           "will not remove routes")
             return ContextEvent("SUCCESS")
 
-        for (int_index, interface) in self.interfaces.items():
+        found_interfaces = []
+
+        for server in self.servers:
+            if (server.interface is not None
+                    and server.interface not in found_interfaces):
+                found_interfaces.append(server.interface)
+
+        interfaces_to_servers = {}
+        for index in found_interfaces:
+            interfaces_to_servers.setdefault(index, [])
+        for server in self.servers:
+            interfaces_to_servers[server.interface].append(server)
+
+        for int_index in found_interfaces:
             reapply_needed = False
-            ifname = interface.get_if_name()
+            ifname = InterfaceConfiguration.get_if_name(int_index)
             try:
                 dev_int = self._get_nm_device_interface(ifname)
                 connection, cver = dev_int.GetAppliedConnection(0)
@@ -811,8 +866,9 @@ class DnsconfdContext:
                 try:
                     self._reapply_routes(ifname, connection, cver)
                 except dbus.DBusException as e:
-                    self.lgr.info(f"Failed to reapply connection of {ifname}"
-                                  f", Will not remove its routes. {e}")
+                    self.lgr.warning("Failed to reapply connection of "
+                                     f"{ifname}, Will not remove its routes. "
+                                     f"{e}")
                     continue
         return ContextEvent("SUCCESS")
 
@@ -1099,11 +1155,7 @@ class DnsconfdContext:
         """
         if event.data is None:
             return None
-        if_config: InterfaceConfiguration = event.data
-        if len(if_config.servers) > 0:
-            self.interfaces[if_config.interface_index] = if_config
-        else:
-            self.interfaces.pop(if_config.interface_index, None)
+        self.servers = event.data
         return None
 
     def _start_unit(self):
@@ -1149,48 +1201,26 @@ class DnsconfdContext:
 
         search_domains = []
 
-        for interface in self.interfaces.values():
-            self.lgr.debug(f"Processing interface {interface}")
-            interface: InterfaceConfiguration
-            interface_zones = []
-            for dom in interface.domains:
-                interface_zones.append(dom[0])
-                if not dom[1]:
-                    search_domains.append(dom[0])
-            if interface.is_default:
-                self.lgr.debug("Interface is default, appending . as its zone")
-                interface_zones.append(".")
-            for zone in interface_zones:
-                self.lgr.debug(f"Handling zone {zone} of the interface")
-                new_zones_to_servers[zone] = new_zones_to_servers.get(zone, [])
-                for server in interface.servers:
-                    self.lgr.debug(f"Handling server {server}")
-                    found_server = []
-                    for a in new_zones_to_servers[zone]:
-                        if server == a:
-                            found_server.append(a)
-                    if len(found_server) > 0:
-                        self.lgr.debug(f"Server {server} already in zone, "
-                                       "handling priority")
-                        prio = max(found_server[0].priority, server.priority)
-                        found_server[0].priority = prio
-                    else:
-                        self.lgr.debug("Appending server "
-                                       f"{server} to zone {zone}")
-                        new_zones_to_servers[zone].append(server)
+        for server in self.servers + self.static_servers:
+            if server.domains is None:
+                try:
+                    new_zones_to_servers["."].append(server)
+                except KeyError:
+                    new_zones_to_servers["."] = [server]
+            else:
+                for zone in server.domains:
+                    try:
+                        new_zones_to_servers[zone[0]].append(server)
+                    except KeyError:
+                        new_zones_to_servers[zone[0]] = [server]
+                    if zone[1]:
+                        search_domains.append(zone[0])
 
         for zone in new_zones_to_servers.keys():
-            new_zones_to_servers[zone].sort(key=lambda x: (x.tls,
-                                                           x.priority),
+            new_zones_to_servers[zone].sort(key=lambda x: x.priority,
                                             reverse=True)
-        for zone, servers in self.static_servers.items():
-            self.lgr.debug(f"Adding zone {zone} from global_resolvers option")
-            if zone in new_zones_to_servers.keys():
-                new_zones_to_servers[zone] = (servers
-                                              + new_zones_to_servers[zone])
-            else:
-                new_zones_to_servers[zone] = servers
-
+        self.lgr.debug(f"New zones to server prepared: {new_zones_to_servers}")
+        self.lgr.debug(f"New search domains prepared: {search_domains}")
         return new_zones_to_servers, search_domains
 
     def get_status(self, json_format: bool) -> str:
@@ -1201,19 +1231,30 @@ class DnsconfdContext:
         :rtype: str
         """
         self.lgr.debug("Handling request for status")
-        interfaces = self.interfaces.values()
+        servers = [a.to_dict() for a in self.servers]
+        found_interfaces = {}
+        for srv in servers:
+            if srv["interface"] is not None:
+                found_interfaces[srv["interface"]] = True
+        for key in found_interfaces.keys():
+            found_interfaces[key] = InterfaceConfiguration.get_if_name(key)
+        for srv in servers:
+            if srv["interface"] is not None:
+                srv["interface"] = found_interfaces[srv["interface"]]
+        servers += [a.to_dict() for a in self.static_servers]
+
         if json_format:
             status = {"service": self.dns_mgr.service_name,
                       "cache_config": self.dns_mgr.get_status(),
                       "state": self.state.name,
-                      "interfaces": [a.to_dict() for a in interfaces]}
+                      "servers": servers}
             return json.dumps(status)
         return (f"Running cache service:\n{self.dns_mgr.service_name}\n"
                 "Config present in service:\n"
                 f"{json.dumps(self.dns_mgr.get_status(), indent=4)}\n"
                 f"State of Dnsconfd:\n{self.state.name}\n"
-                "Info about interfaces: "
-                f"{json.dumps([a.to_dict() for a in interfaces], indent=4)}")
+                "Info about servers: "
+                f"{json.dumps(servers, indent=4)}")
 
     def reload_service(self) -> str:
         """ Perform reload of cache service if possible

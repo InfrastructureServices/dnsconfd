@@ -2,7 +2,7 @@
 
 from dnsconfd.fsm import ContextEvent
 from dnsconfd.fsm import DnsconfdContext
-from dnsconfd.input_modules import ResolveDbusInterface
+from dnsconfd.input_modules import ResolveDbusInterface, DnsconfdDbusInterface
 from dnsconfd.configuration import DnsconfdArgumentParser as ArgParser
 from dnsconfd.fsm.exit_code import ExitCode
 
@@ -26,12 +26,17 @@ if __name__ == "__main__":
     args.func()
 
     dbus.mainloop.glib.DBusGMainLoop(set_as_default=True)
-
+    config = vars(args)
     main_loop = GLib.MainLoop()
-    ctx = DnsconfdContext(vars(args), main_loop)
+    ctx = DnsconfdContext(config, main_loop)
     # this has to happen before we expose the API
     GLib.idle_add(lambda: ctx.transition_function(ContextEvent("KICKOFF")))
-    input_module = ResolveDbusInterface(ctx, vars(args))
+
+    if config["api_choice"] == "resolve1":
+        input_module = ResolveDbusInterface(ctx, config)
+    else:
+        input_module = DnsconfdDbusInterface(ctx, config)
+
     # using lambdas here allows us to not use exit in DnsconfdContext class
     signal.signal(signal.SIGTERM,
                   lambda signum, frame:

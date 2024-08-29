@@ -1,5 +1,6 @@
 import socket
 import os.path
+
 from dnsconfd.network_objects import ServerDescription
 
 
@@ -37,7 +38,7 @@ class InterfaceConfiguration:
         self.dns_over_tls: bool = dns_over_tls
         self.dnssec: bool = dnssec
         self.is_default: bool = is_default
-        self.interface_index: int = interface_index
+        self.index: int = interface_index
 
     def is_ready(self) -> bool:
         """ Get whether this interface is ready for insertion into cache
@@ -60,24 +61,26 @@ class InterfaceConfiguration:
         """
         domains_str = ' '.join([domain for (domain, _) in self.domains])
         servers_str = ' '.join([str(server) for server in self.servers])
-        return (f"iface {self.get_if_name()} "
-                + f"(#{self.interface_index}), domains: {domains_str}, "
+        return (f"iface {self.get_if_name(self.index)} "
+                + f"(#{self.index}), domains: {domains_str}, "
                 + f"servers: {servers_str}, "
                 + f"is_default: {self.is_default}")
 
-    def is_interface_wireless(self) -> bool:
+    @staticmethod
+    def is_interface_wireless(index: int) -> bool:
         """ Get whether this interface is wireless or not
 
         :return: True if interface is wireless, otherwise False
         :rtype: bool
         """
         try:
-            name = socket.if_indextoname(self.interface_index)
+            name = socket.if_indextoname(index)
             return os.path.isdir(f"/sys/class/net/{name}/wireless")
         except OSError:
             return False
 
-    def get_if_name(self, strict=False) -> str | None:
+    @staticmethod
+    def get_if_name(index: int, strict=False) -> str | None:
         """ Get interface name
 
         :return: Name of the interface, if socket is unable
@@ -85,9 +88,9 @@ class InterfaceConfiguration:
         :rtype: str | None
         """
         try:
-            return socket.if_indextoname(self.interface_index)
+            return socket.if_indextoname(index)
         except OSError:
-            return str(self.interface_index) if not strict else None
+            return str(index) if not strict else None
 
     def to_dict(self) -> dict:
         """ Get dictionary containing all information about interface
@@ -100,4 +103,4 @@ class InterfaceConfiguration:
                 "dns_over_tls": self.dns_over_tls,
                 "dnssec": self.dnssec,
                 "is_default": self.is_default,
-                "interface_name": self.get_if_name()}
+                "interface_name": self.get_if_name(self.index)}

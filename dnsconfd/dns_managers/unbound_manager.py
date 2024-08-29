@@ -1,5 +1,5 @@
 from dnsconfd.dns_managers import DnsManager
-from dnsconfd.network_objects import ServerDescription
+from dnsconfd.network_objects import ServerDescription, DnsProtocol
 
 import subprocess
 import logging
@@ -93,17 +93,9 @@ class UnboundManager(DnsManager):
         removed_zones = []
         for zone in zones_to_servers.keys():
             if zone in self.zones_to_servers.keys():
-                if len(zones_to_servers[zone]) != 0:
-                    stable_zones.append(zone)
-                else:
-                    self.lgr.debug(f"Zone {zone} was update to no servers,"
-                                   " thus has to be considered as removed")
-            elif len(zones_to_servers[zone]) != 0:
-                added_zones.append(zone)
+                stable_zones.append(zone)
             else:
-                self.lgr.debug(f"Zone {zone} was added, but does not have "
-                               "assigned servers and thus will not be "
-                               "considered as added")
+                added_zones.append(zone)
 
         for zone in self.zones_to_servers.keys():
             if zone not in zones_to_servers.keys():
@@ -145,7 +137,7 @@ class UnboundManager(DnsManager):
                 return False
 
         # since we need to break references to ServerDescription objects
-        # held by interfaces but keep all the metadata, deepcopy is required
+        # held before, but keep all the metadata, deepcopy is required
         self.zones_to_servers = deepcopy(zones_to_servers)
         self.lgr.info(f"Unbound updated to configuration: {self.get_status()}")
         return True
@@ -154,13 +146,14 @@ class UnboundManager(DnsManager):
     def _get_forward_add_command(zone: str,
                                  servers: list[ServerDescription]):
         max_prio = servers[0].priority
-        tls = servers[0].tls
+        used_protocol = servers[0].protocol
         servers_str = []
         for srv in servers:
-            if srv.tls == tls and srv.priority == max_prio:
+            if srv.protocol == used_protocol and srv.priority == max_prio:
                 servers_str.append(srv.to_unbound_string())
             else:
                 break
+        tls = used_protocol == DnsProtocol.DNS_OVER_TLS
         return (f"forward_add{' +t ' if tls else ' '}"
                 f"{zone} {' '.join(servers_str)}")
 

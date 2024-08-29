@@ -1,3 +1,6 @@
+from typing import Any
+
+
 class ContextEvent:
     def __init__(self, name: str, data: object = None):
         """ Object representing event meant to be handled by Dnsconfd FSM
@@ -7,5 +10,5 @@ class ContextEvent:
         :param data: Data about event, defaults to None
         :type data: object, Optional
         """
-        self.name = name
-        self.data = data
+        self.name: str = name
+        self.data: Any = data

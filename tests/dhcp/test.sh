@@ -34,8 +34,6 @@ rlJournalStart
         rlRun "podman exec $dnsconfd_cid systemctl restart NetworkManager"
         sleep 5
         rlRun "podman exec $dnsconfd_cid dnsconfd --dbus-name=$DBUS_NAME status --json > status1" 0 "Getting status of dnsconfd"
-        # in this test we are verifying that the DNS of non-wireless interface has higher priority
-        # than the wireless one
         rlAssertNotDiffer status1 $ORIG_DIR/expected_status.json
         rlRun "podman exec $dnsconfd_cid getent hosts first-address.test.com | grep 192.168.6.3" 0 "Verifying correct address resolution"
         rlRun "podman exec $dnsconfd_cid getent hosts second-address.test.com | grep 192.168.6.4" 0 "Verifying correct address resolution"
