@@ -551,51 +551,54 @@ class DnsconfdContext:
 
         return self._handle_routes_process(event)
 
-    def _remove_routes(self, family, connection, checked_route, valid_routes):
+    def _remove_checked_routes(self, family, connection, valid_routes):
         modified = False
         for checked_route in list(connection[family]["route-data"]):
-            if (str(checked_route["dest"]) not in valid_routes.keys()
-                    and str(checked_route["dest"]) in self.routes.keys()):
+            if ((str(checked_route["dest"]) in self.routes.keys()) and
+                (valid_routes is None or
+                 str(checked_route["dest"]) not in valid_routes.keys()):
                 connection[family]["route-data"].remove(checked_route)
                 modified = True
                 self.lgr.info(f"Removing {family} route {checked_route}")
         return modified
 
-    def _apply_routes(self, int_index, ifname, connection, interface_to_connection):
+    def _nm_device_interface(self, ifname):
+        """Get DBus proxy object of Device identified by ifname."""
+        device_path = self._nm_interface.GetDeviceByIpIface(ifname)
+        self.lgr.debug(f"Device path is {device_path}")
+        nm_int_str = "org.freedesktop.NetworkManager"
+        dev_int_str = "org.freedesktop.NetworkManager.Device"
+        device_object = self.bus.get_object(nm_int_str,
+                                            device_path)
+        dev_int = dbus.Interface(device_object,
+                                 dev_int_str)
+        return dev_int
+
+    def _get_nm_interface(self):
+        nm_dbus_name = "org.freedesktop.NetworkManager"
+        nm_object = self.bus.get_object(nm_dbus_name,
+                                        '/org/freedesktop/NetworkManager')
+        self._nm_interface = dbus.Interface(nm_object,
+                                            nm_dbus_name)
+        return self._nm_interface
+
+    def _reapply_routes(self, int_index, ifname, connection, interface_to_connection):
         self.lgr.debug("Reapplying changed connection")
-        try:
-            device_path = self._nm_interface.GetDeviceByIpIface(ifname)
-            self.lgr.debug(f"Device path is {device_path}")
-            nm_int_str = "org.freedesktop.NetworkManager"
-            device_object = self.bus.get_object(nm_int_str,
-                                                device_path)
-            dev_int_str = "org.freedesktop.NetworkManager.Device"
-            dev_int = dbus.Interface(device_object,
-                                     dev_int_str)
-            self.lgr.info(f"New ipv4 route data "
-                          f"{connection["ipv4"]["route-data"]}")
-            self.lgr.info(f"New ipv6 route data "
-                          f"{connection["ipv6"]["route-data"]}")
-            dev_int.Reapply(connection,
-                            interface_to_connection[int_index][1],
-                            0)
-            return None
-        except dbus.DBusException as e:
-            self.lgr.error(f"Failed to reapply connection to {ifname}"
-                            f", {e}")
-            self._set_exit_code(ExitCode.ROUTE_FAILURE)
-            return ContextEvent("FAIL")
+        self.lgr.info(f"New ipv4 route data "
+                        f"{connection["ipv4"]["route-data"]}")
+        self.lgr.info(f"New ipv6 route data "
+                        f"{connection["ipv6"]["route-data"]}")
+        dev_int = self._nm_device_interface(ifname);
+        dev_int.Reapply(connection,
+                        interface_to_connection[int_index][1],
+                        0)
 
     def _handle_routes_process(self, event: ContextEvent):
 
         # we need to refresh the dbus connection, because NetworkManager
         # restart would invalidate it
         try:
-            nm_dbus_name = "org.freedesktop.NetworkManager"
-            nm_object = self.bus.get_object(nm_dbus_name,
-                                            '/org/freedesktop/NetworkManager')
-            self._nm_interface = dbus.Interface(nm_object,
-                                                nm_dbus_name)
+            self._get_nm_interface()
         except dbus.DBusException as e:
             self.lgr.error("Failed to connect to NetworkManager through DBUS,"
                            f" {e}")
@@ -759,27 +762,26 @@ class DnsconfdContext:
                         connection["ipv6"]["route-data"].append(new_route)
                     reapply_needed = True
 
-            reapply_needed = self._remove_routes(self, "ipv4", connection, checked_route, valid_routes) or reapply_needed
-            reapply_needed = self._remove_routes(self, "ipv6", connection, checked_route, valid_routes) or reapply_needed
+            reapply_needed = self._remove_checked_routes(self, "ipv4", connection, valid_routes) or reapply_needed
+            reapply_needed = self._remove_checked_routes(self, "ipv6", connection, valid_routes) or reapply_needed
 
             if reapply_needed:
-                ret = self._apply_routes(int_index, ifname, connection, interface_to_connection):
-                if ret is not None:
-                    return ret
+                try:
+                    ret = self._reapply_routes(int_index, ifname, connection, interface_to_connection):
+                except dbus.DBusException as e:
+                    self.lgr.error(f"Failed to reapply connection to {ifname}"
+                                    f", {e}")
+                    self._set_exit_code(ExitCode.ROUTE_FAILURE)
+                    return ContextEvent("FAIL")
 
         self.routes = valid_routes
         return ContextEvent("SUCCESS", data=event.data)
 
     def _remove_routes(self):
-        nm_int_str = "org.freedesktop.NetworkManager"
-        dev_int_str = "org.freedesktop.NetworkManager.Device"
         try:
             # we need to refresh the dbus connection, because NetworkManager
             # restart would invalidate it
-            nm_object = self.bus.get_object("org.freedesktop.NetworkManager",
-                                            "/org/freedesktop/NetworkManager")
-            self._nm_interface = dbus.Interface(nm_object,
-                                                nm_int_str)
+            self._get_nm_interface()
         except dbus.DBusException:
             self.lgr.info("Failed to contact NetworkManager through dbus, "
                           "will not remove routes")
@@ -789,37 +791,25 @@ class DnsconfdContext:
             reapply_needed = False
             ifname = interface.get_if_name()
             try:
-                device_path = self._nm_interface.GetDeviceByIpIface(ifname)
-                device_object = self.bus.get_object(nm_int_str,
-                                                    device_path)
-                dev_int = dbus.Interface(device_object,
-                                         dev_int_str)
+                dev_int = self._nm_device_interface(ifname)
                 connection = dev_int.GetAppliedConnection(0)
             except dbus.DBusException:
                 self.lgr.info("Failed to retrieve info about interface "
                               f" {ifname}, Will not remove its routes")
                 continue
 
-            for checked_route in list(connection[0]["ipv4"]["route-data"]):
-                if str(checked_route["dest"]) in self.routes.keys():
-                    connection[0]["ipv4"]["route-data"].remove(checked_route)
-                    reapply_needed = True
-                    self.lgr.info(f"Removing route {checked_route}")
-            for checked_route in list(connection[0]["ipv6"]["route-data"]):
-                if str(checked_route["dest"]) in self.routes.keys():
-                    connection[0]["ipv6"]["route-data"].remove(checked_route)
-                    reapply_needed = True
-                    self.lgr.info(f"Removing route {checked_route}")
+            reapply_needed = self._remove_checked_routes(self, "ipv4", connection, None) or reapply_needed
+            reapply_needed = self._remove_checked_routes(self, "ipv6", connection, None) or reapply_needed
             if reapply_needed:
-                self.lgr.debug("Reapplying changed connection")
                 del connection[0]["ipv6"]["routes"]
                 del connection[0]["ipv4"]["routes"]
+                # TODO: merge with _reapply_routes
+                self.lgr.debug("Reapplying changed connection")
                 self.lgr.info(f"New ipv4 route data "
                               f"{connection[0]["ipv4"]["route-data"]}")
                 self.lgr.info(f"New ipv6 route data "
                               f"{connection[0]["ipv6"]["route-data"]}")
                 try:
-                    dev_int = dbus.Interface(device_object, dev_int_str)
                     dev_int.Reapply(connection[0], connection[1], 0)
                 except dbus.DBusException as e:
                     self.lgr.info(f"Failed to reapply connection of {ifname}"
