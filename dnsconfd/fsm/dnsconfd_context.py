@@ -528,7 +528,7 @@ class DnsconfdContext:
         self.lgr.debug(f"Handling server {server_str}")
         for (route_int_index, route) in interface_and_routes:
             net = ipaddress.ip_network(f"{route['dest']}/{route['prefix']}")
-            if server_ip in net:
+            if server_ip.version == net.version and server_ip in net:
                 if (best_route is None
                         or best_route[1]["prefix"] < route["prefix"]):
                     best_route = (route_int_index, route)
@@ -703,19 +703,18 @@ class DnsconfdContext:
                         continue
                     self.lgr.debug(f"Default route is {def_route}")
                     dest_str = str(def_route[1]["dest"])
-                    max_prefix = ipaddress.ip_address(dest_str).max_prefixlen
-                    prefix = dbus.UInt32(max_prefix)
+                    dest_ip = ipaddress.ip_address(dest_str)
                     new_route = dbus.Dictionary({
                         dbus.String("dest"):
                             dbus.String(server_str),
                         dbus.String("prefix"):
-                            prefix,
+                            dbus.UInt32(dest_ip.max_prefixlen),
                         dbus.String("next-hop"):
                             dbus.String(def_route[1]["next-hop"])})
 
                     self.lgr.info(f"new route is {new_route}")
                     valid_routes[server_str] = new_route
-                    if max_prefix == 32:
+                    if dest_ip.version == 4:
                         connection["ipv4"]["route-data"].append(new_route)
                     else:
                         connection["ipv6"]["route-data"].append(new_route)
