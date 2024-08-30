@@ -21,7 +21,7 @@ rlJournalStart
         # dns=none is neccessary, because otherwise resolv.conf is created and
         # mounted by podman as read-only
         rlRun "dnsconfd_cid=\$(podman run -d --dns='none' --cap-add=NET_ADMIN --cap-add=NET_RAW \
-                               --network dnsconfd_network1:ip=192.168.5.2 --network dnsconfd_network3:ip=192.168.7.2\
+                               --network dnsconfd_network1:interface_name=eth0,ip=192.168.5.2 --network dnsconfd_network3:interface_name=eth1,ip=192.168.7.2\
                                dnsconfd_testing:latest)" 0 "Starting dnsconfd container"
 
         rlRun "routing1_cid=\$(podman run -d --dns='none' --network dnsconfd_network1:ip=192.168.5.3 --network dnsconfd_network2:ip=192.168.6.2 --cap-add=NET_ADMIN --cap-add=NET_RAW --privileged localhost/dnsconfd_utilities:latest\
@@ -50,11 +50,9 @@ rlJournalStart
         rlRun "podman exec $routing2_cid iptables -t nat -I POSTROUTING -o eth1 -j MASQUERADE" 0 "enable masquerade on eth1 of routing server"
 
         sleep 2
-        rlRun "podman exec $dnsconfd_cid /bin/bash -c 'nmcli connection show eth0 | grep 192.168.5.2 && nmcli connection mod eth0 ipv4.dns 192.168.6.3 && nmcli connection mod eth0 ipv4.gateway 192.168.5.3 || true'" 0 "Adding dns server to the first NM active profile"
-        rlRun "podman exec $dnsconfd_cid /bin/bash -c 'nmcli connection show eth0 | grep 192.168.7.2 && nmcli connection mod eth0 ipv4.dns 192.168.8.3 && nmcli connection mod eth0 ipv4.gateway 192.168.7.3 || true'" 0 "Adding dns server to the first NM active profile"
+        rlRun "podman exec $dnsconfd_cid /bin/bash -c 'nmcli connection mod eth0 ipv4.dns 192.168.6.3 && nmcli connection mod eth0 ipv4.gateway 192.168.5.3'" 0 "Adding dns server to the first NM active profile"
+        rlRun "podman exec $dnsconfd_cid /bin/bash -c 'nmcli connection mod eth1 ipv4.dns 192.168.8.3 && nmcli connection mod eth1 ipv4.gateway 192.168.7.3 || true'" 0 "Adding dns server to the first NM active profile"
         rlRun "podman exec $dnsconfd_cid nmcli connection mod eth0 +ipv4.routes '192.168.122.0/24 10.10.10.10'" 0 "Adding test route"
-        rlRun "podman exec $dnsconfd_cid /bin/bash -c 'nmcli connection show eth1 | grep 192.168.5.2 && nmcli connection mod eth1 ipv4.dns 192.168.6.3 && nmcli connection mod eth1 ipv4.gateway 192.168.5.3 || true'" 0 "Adding dns server to the second NM active profile"
-        rlRun "podman exec $dnsconfd_cid /bin/bash -c 'nmcli connection show eth1 | grep 192.168.7.2 && nmcli connection mod eth1 ipv4.dns 192.168.8.3 && nmcli connection mod eth1 ipv4.gateway 192.168.7.3 || true'" 0 "Adding dns server to the second NM active profile"
         # now the connection listing DNS server 192.168.8.3 should be used for routing (dnsconfd->192.168.7.3->192.168.8.3)
         rlRun "podman exec $dnsconfd_cid nmcli connection up eth0"
         rlRun "podman exec $dnsconfd_cid nmcli connection up eth1"

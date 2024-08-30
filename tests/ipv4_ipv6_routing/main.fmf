@@ -1,0 +1,8 @@
+summary: | 
+  verify that ipv4 and ipv6 mixed routing works as expected
+test: ./test.sh
+framework: beakerlib
+recommend:
+  - podman
+tag:
+  - integration
