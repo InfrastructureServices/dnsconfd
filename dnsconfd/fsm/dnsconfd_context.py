@@ -494,7 +494,7 @@ class DnsconfdContext:
                                                "org.freedesktop"
                                                ".DBus.Properties").GetAll(
                 "org.freedesktop.NetworkManager.Device")
-            if 40 <= device_properties["State"] < 100:
+            if not 80 <= device_properties["State"] <= 100:
                 self.lgr.info(f"Interface {int_name} is not yet activated, "
                               f"state: {device_properties["State"]}, "
                               f"scheduling refresh")
