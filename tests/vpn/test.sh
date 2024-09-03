@@ -32,7 +32,6 @@ rlJournalStart
         rlRun "podman exec $dnsconfd_cid nmcli connection mod eth0 connection.autoconnect yes ipv4.gateway '' ipv4.addr '' ipv4.method auto" 0 "Setting eth0 to autoconfiguration"
         sleep 2
         rlRun "podman exec $dnsconfd_cid dnsconfd --dbus-name=$DBUS_NAME status --json > status1" 0 "Getting status of dnsconfd"
-        rlRun "cat status1"
         rlAssertNotDiffer status1 $ORIG_DIR/expected_status1.json
         rlRun "podman exec $dnsconfd_cid getent hosts first-address.test.com | grep 192.168.6.3" 0 "Verifying correct address resolution"
         rlRun "podman exec $dnsconfd_cid getent hosts second-address.test.com | grep 192.168.6.4" 0 "Verifying correct address resolution"
@@ -46,7 +45,6 @@ rlJournalStart
         rlRun "podman exec $dnsconfd_cid nmcli connection up vpn" 0 "Connecting to vpn"
         sleep 2
         rlRun "podman exec $dnsconfd_cid dnsconfd --dbus-name=$DBUS_NAME status --json > status2" 0 "Getting status of dnsconfd"
-        rlRun "cat status2"
         rlAssertNotDiffer status2 $ORIG_DIR/expected_status2.json
         rlRun "podman exec $dnsconfd_cid getent hosts dummy | grep 192.168.6.5" 0 "Verifying correct address resolution"
         rlRun "podman exec $dnsconfd_cid getent hosts second-address | grep 192.168.6.4" 0 "Verifying correct address resolution"
@@ -57,7 +55,7 @@ rlJournalStart
         rlRun "podman exec $dnsconfd_cid journalctl -u unbound" 0 "Saving unbound logs"
         rlRun "podman exec $dnsconfd_cid ip route" 0 "Saving present routes"
         rlRun "popd"
-        rlRun "podman stop -t 2 $dnsconfd_cid $dnsmasq1_cid $dnsmasq2_cid $dnsmasq3_cid $dhcp_cid $vpn_cid" 0 "Stopping containers"
+        rlRun "podman stop -t 0 $dnsconfd_cid $dnsmasq1_cid $dnsmasq2_cid $dnsmasq3_cid $dhcp_cid $vpn_cid" 0 "Stopping containers"
         rlRun "podman container rm $dnsconfd_cid $dnsmasq1_cid $dnsmasq2_cid $dnsmasq3_cid $dhcp_cid $vpn_cid" 0 "Removing containers"
         rlRun "podman network rm dnsconfd_network dnsconfd_network2" 0 "Removing networks"
         rlRun "rm -r $tmp" 0 "Remove tmp directory"
