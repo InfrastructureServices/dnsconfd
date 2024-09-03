@@ -46,6 +46,7 @@ def filled_conf_instance():
                                       'dnssec_enabled': False,
                                       'handle_routing': True,
                                       'config_file': '/etc/dnsconfd.conf',
+                                      'api_choice': 'resolve1',
                                       'static_servers': [],
                                       'ignore_api': False}),
     (["--log-level", "DEB"], ValueError, {}),
@@ -74,6 +75,7 @@ def test_parse(args, raised_exception, parsed, empty_conf_instance):
       'dnssec_enabled': False,
       'handle_routing': True,
       'config_file': '/etc/dnsconfd.conf',
+      'api_choice': 'resolve1',
       'static_servers': [],
       'ignore_api': True}),
     (["--listen-address", "127.0.0.4"],
@@ -87,6 +89,7 @@ def test_parse(args, raised_exception, parsed, empty_conf_instance):
       'dnssec_enabled': False,
       'handle_routing': True,
       'config_file': '/etc/dnsconfd.conf',
+      'api_choice': 'resolve1',
       'static_servers': [],
       'ignore_api': True}),
 ])
