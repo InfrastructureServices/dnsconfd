@@ -1193,6 +1193,9 @@ class DnsconfdContext:
 
         return new_zones_to_servers, search_domains
 
+    def get_status_interfaces(self) -> list:
+        return [a.to_dict() for a in self.interfaces.values()]
+
     def get_status(self, json_format: bool) -> str:
         """ Get current status of Dnsconfd
 
@@ -1201,19 +1204,23 @@ class DnsconfdContext:
         :rtype: str
         """
         self.lgr.debug("Handling request for status")
-        interfaces = self.interfaces.values()
+        status = None
+        service = None
+        if self.dns_mgr:
+            status = self.dns_mgr.get_status()
+            service = self.dns_mgr.service_name
         if json_format:
-            status = {"service": self.dns_mgr.service_name,
-                      "cache_config": self.dns_mgr.get_status(),
+            status = {"service": service,
+                      "cache_config": status,
                       "state": self.state.name,
-                      "interfaces": [a.to_dict() for a in interfaces]}
+                      "interfaces": self.get_status_interfaces()}
             return json.dumps(status)
-        return (f"Running cache service:\n{self.dns_mgr.service_name}\n"
+        return (f"Running cache service:\n{service}\n"
                 "Config present in service:\n"
-                f"{json.dumps(self.dns_mgr.get_status(), indent=4)}\n"
+                f"{json.dumps(status, indent=4)}\n"
                 f"State of Dnsconfd:\n{self.state.name}\n"
                 "Info about interfaces: "
-                f"{json.dumps([a.to_dict() for a in interfaces], indent=4)}")
+                f"{json.dumps(self.get_status_interfaces(), indent=4)}")
 
     def reload_service(self) -> str:
         """ Perform reload of cache service if possible

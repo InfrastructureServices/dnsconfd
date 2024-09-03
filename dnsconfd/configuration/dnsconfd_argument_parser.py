@@ -169,7 +169,7 @@ class DnsconfdArgumentParser(ArgumentParser):
                         .parse_args(*args, **kwargs))
 
         # config will provide defaults
-        if self._parsed.config_file is not None:
+        if 'config_file' in self._parsed and self._parsed.config_file is not None:
             config = self._read_config(self._parsed.config_file)
         else:
             config = self._read_config(os.environ.get("CONFIG_FILE",
