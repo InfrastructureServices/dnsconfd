@@ -26,7 +26,7 @@ rlJournalStart
         # clean up after the container
         rlRun "podman exec $dnsconfd_cid nmcli connection mod eth0 ipv4.gateway '' ipv4.addr '' ipv4.method auto" 0 "Setting eth0 to autoconfiguration"
         sleep 3
-        rlRun "podman stop -t 2 $dhcp_cid" 0 "Stopping containers"
+        rlRun "podman stop -t 0 $dhcp_cid" 0 "Stopping containers"
         rlRun "podman container rm $dhcp_cid" 0 "Removing containers"
         rlRun "dhcp_cid=\$(podman run -d --cap-add=NET_RAW --network dnsconfd_network:ip=192.168.6.5 localhost/dnsconfd_utilities:latest dhcp_entry.sh /etc/dhcp/dhcpd-common.conf)" 0 "Starting dhcpd container with dns list"
         sleep 3
@@ -45,7 +45,7 @@ rlJournalStart
         rlRun "podman exec $dnsconfd_cid journalctl -u unbound" 0 "Saving unbound logs"
         rlRun "podman exec $dnsconfd_cid ip route" 0 "Saving present routes"
         rlRun "popd"
-        rlRun "podman stop -t 2 $dnsconfd_cid $dnsmasq1_cid $dnsmasq2_cid $dhcp_cid" 0 "Stopping containers"
+        rlRun "podman stop -t 0 $dnsconfd_cid $dnsmasq1_cid $dnsmasq2_cid $dhcp_cid" 0 "Stopping containers"
         rlRun "podman container rm $dnsconfd_cid $dnsmasq1_cid $dnsmasq2_cid $dhcp_cid" 0 "Removing containers"
         rlRun "podman network rm dnsconfd_network" 0 "Removing networks"
         rlRun "rm -r $tmp" 0 "Remove tmp directory"

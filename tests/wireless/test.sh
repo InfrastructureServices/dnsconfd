@@ -37,7 +37,7 @@ rlJournalStart
         rlRun "podman exec $dnsconfd_cid journalctl -u unbound" 0 "Saving unbound logs"
         rlRun "podman exec $dnsconfd_cid ip route" 0 "Saving present routes"
         rlRun "popd"
-        rlRun "podman stop -t 2 $dnsconfd_cid $dnsmasq1_cid $dnsmasq2_cid" 0 "Stopping containers"
+        rlRun "podman stop -t 0 $dnsconfd_cid $dnsmasq1_cid $dnsmasq2_cid" 0 "Stopping containers"
         rlRun "podman container rm $dnsconfd_cid $dnsmasq1_cid $dnsmasq2_cid" 0 "Removing containers"
         rlRun "podman network rm dnsconfd_network dnsconfd_network2" 0 "Removing networks"
         rlRun "rm -r $tmp" 0 "Remove tmp directory"
