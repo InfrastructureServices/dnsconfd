@@ -792,7 +792,7 @@ class DnsconfdContext:
             ifname = interface.get_if_name()
             try:
                 dev_int = self._nm_device_interface(ifname)
-                connection = dev_int.GetAppliedConnection(0)
+                connection, cver = dev_int.GetAppliedConnection(0)
             except dbus.DBusException:
                 self.lgr.info("Failed to retrieve info about interface "
                               f" {ifname}, Will not remove its routes")
@@ -801,8 +801,8 @@ class DnsconfdContext:
             reapply_needed = self._remove_checked_routes("ipv4", connection, None) or reapply_needed
             reapply_needed = self._remove_checked_routes("ipv6", connection, None) or reapply_needed
             if reapply_needed:
-                del connection[0]["ipv6"]["routes"]
-                del connection[0]["ipv4"]["routes"]
+                del connection["ipv6"]["routes"]
+                del connection["ipv4"]["routes"]
                 # TODO: merge with _reapply_routes
                 self.lgr.debug("Reapplying changed connection")
                 self.lgr.info(f"New ipv4 route data "
@@ -810,7 +810,7 @@ class DnsconfdContext:
                 self.lgr.info(f"New ipv6 route data "
                               f"{connection[0]["ipv6"]["route-data"]}")
                 try:
-                    dev_int.Reapply(connection[0], connection[1], 0)
+                    dev_int.Reapply(connection, cver, 0)
                 except dbus.DBusException as e:
                     self.lgr.info(f"Failed to reapply connection of {ifname}"
                                   f", Will not remove its routes. {e}")
