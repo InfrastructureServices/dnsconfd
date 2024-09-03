@@ -730,12 +730,13 @@ class DnsconfdContext:
                         # by us that is not right
                         self.lgr.debug("Gateway is not right, changing")
                         conn = interface_to_connection[int_index][0]
-                        for route in conn["ipv4"]["route-data"]:
-                            if route["dest"] == best_route[1]["dest"]:
-                                route["next-hop"] = def_route[1]["next-hop"]
-                                dest = str(best_route[1]["dest"])
-                                valid_routes[dest] = route
-                                break
+                        for family in [ipv4, ipv6]:
+                            for route in conn[family]["route-data"]:
+                                if route["dest"] == best_route[1]["dest"]:
+                                    route["next-hop"] = def_route[1]["next-hop"]
+                                    dest = str(best_route[1]["dest"])
+                                    valid_routes[dest] = route
+                                    break
                         reapply_needed = True
                     else:
                         self.lgr.debug("Gateway is right continuing")
