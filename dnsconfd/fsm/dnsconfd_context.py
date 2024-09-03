@@ -582,7 +582,7 @@ class DnsconfdContext:
                                             nm_dbus_name)
         return self._nm_interface
 
-    def _reapply_routes(self, int_index, ifname, connection, interface_to_connection):
+    def _reapply_routes(self, ifname, connection, cver):
         self.lgr.debug("Reapplying changed connection")
         self.lgr.info(f"New ipv4 route data "
                         f"{connection["ipv4"]["route-data"]}")
@@ -590,8 +590,14 @@ class DnsconfdContext:
                         f"{connection["ipv6"]["route-data"]}")
         dev_int = self._nm_device_interface(ifname);
         dev_int.Reapply(connection,
-                        interface_to_connection[int_index][1],
+                        cver,
                         0)
+
+    def _reset_bin_routes(self, connection):
+        # we need to remove this, so we can use route-data field
+        # undocumented NetworkManager implementation detail
+        del connection["ipv4"]["routes"]
+        del connection["ipv6"]["routes"]
 
     def _handle_routes_process(self, event: ContextEvent):
 
@@ -638,11 +644,8 @@ class DnsconfdContext:
                 # this will ensure that routes left after downed devices
                 # are cleared
                 continue
-            # we need to remove this, so we can use route-data field
-            # undocumented NetworkManager implementation detail
-            del interface_to_connection[int_index][0]["ipv4"]["routes"]
-            del interface_to_connection[int_index][0]["ipv6"]["routes"]
             connection = interface_to_connection[int_index][0]
+            self._reset_bin_routes(connection)
 
             for server in interface.servers:
                 server_str = server.get_server_string()
@@ -767,7 +770,8 @@ class DnsconfdContext:
 
             if reapply_needed:
                 try:
-                    ret = self._reapply_routes(int_index, ifname, connection, interface_to_connection)
+                    cver = interface_to_connection[int_index][1]
+                    self._reapply_routes(ifname, connection, cver)
                 except dbus.DBusException as e:
                     self.lgr.error(f"Failed to reapply connection to {ifname}"
                                     f", {e}")
@@ -793,6 +797,7 @@ class DnsconfdContext:
             try:
                 dev_int = self._nm_device_interface(ifname)
                 connection, cver = dev_int.GetAppliedConnection(0)
+                self._reset_bin_routes(connection)
             except dbus.DBusException:
                 self.lgr.info("Failed to retrieve info about interface "
                               f" {ifname}, Will not remove its routes")
@@ -801,16 +806,8 @@ class DnsconfdContext:
             reapply_needed = self._remove_checked_routes("ipv4", connection, None) or reapply_needed
             reapply_needed = self._remove_checked_routes("ipv6", connection, None) or reapply_needed
             if reapply_needed:
-                del connection["ipv6"]["routes"]
-                del connection["ipv4"]["routes"]
-                # TODO: merge with _reapply_routes
-                self.lgr.debug("Reapplying changed connection")
-                self.lgr.info(f"New ipv4 route data "
-                              f"{connection[0]["ipv4"]["route-data"]}")
-                self.lgr.info(f"New ipv6 route data "
-                              f"{connection[0]["ipv6"]["route-data"]}")
                 try:
-                    dev_int.Reapply(connection, cver, 0)
+                    self._reapply_routes(ifname, connection, cver)
                 except dbus.DBusException as e:
                     self.lgr.info(f"Failed to reapply connection of {ifname}"
                                   f", Will not remove its routes. {e}")
