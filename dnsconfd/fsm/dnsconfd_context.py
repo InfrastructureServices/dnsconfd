@@ -568,7 +568,7 @@ class DnsconfdContext:
 
     def _remove_checked_routes(self,
                                connection: dict[str, dict[str, Any]],
-                               valid_routes: dict) -> bool:
+                               valid_routes: dict | None) -> bool:
         modified = False
         for family in ["ipv4", "ipv6"]:
             for checked_route in list(connection[family]["route-data"]):
@@ -678,6 +678,8 @@ class DnsconfdContext:
                 interfaces_to_servers[server.interface].append(server)
 
         for int_index in found_interfaces:
+            reapply_needed = False
+            ifname = InterfaceConfiguration.get_if_name(int_index)
             if interface_to_connection[int_index] is None:
                 # this will ensure that routes left after downed devices
                 # are cleared
