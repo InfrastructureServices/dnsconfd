@@ -6,7 +6,7 @@ from dnsconfd import SystemManager
 from dnsconfd.fsm import ExitCode
 
 from gi.repository import GLib
-from typing import Callable
+from typing import Callable, Any
 import logging
 import dbus
 import json
@@ -551,18 +551,21 @@ class DnsconfdContext:
 
         return self._handle_routes_process(event)
 
-    def _remove_checked_routes(self, family, connection, valid_routes):
+    def _remove_checked_routes(self,
+                               connection: dict[str, dict[str, Any]],
+                               valid_routes: dict) -> bool:
         modified = False
-        for checked_route in list(connection[family]["route-data"]):
-            if ((str(checked_route["dest"]) in self.routes.keys()) and
-                (valid_routes is None or
-                 str(checked_route["dest"]) not in valid_routes.keys())):
-                connection[family]["route-data"].remove(checked_route)
-                modified = True
-                self.lgr.info(f"Removing {family} route {checked_route}")
+        for family in ["ipv4", "ipv6"]:
+            for checked_route in list(connection[family]["route-data"]):
+                if (str(checked_route["dest"]) in self.routes and
+                    (valid_routes is None or
+                     str(checked_route["dest"]) not in valid_routes)):
+                    connection[family]["route-data"].remove(checked_route)
+                    modified = True
+                    self.lgr.info(f"Removing {family} route {checked_route}")
         return modified
 
-    def _nm_device_interface(self, ifname):
+    def _get_nm_device_interface(self, ifname):
         """Get DBus proxy object of Device identified by ifname."""
         device_path = self._nm_interface.GetDeviceByIpIface(ifname)
         self.lgr.debug(f"Device path is {device_path}")
@@ -585,15 +588,14 @@ class DnsconfdContext:
     def _reapply_routes(self, ifname, connection, cver):
         self.lgr.debug("Reapplying changed connection")
         self.lgr.info(f"New ipv4 route data "
-                        f"{connection["ipv4"]["route-data"]}")
+                      f"{connection["ipv4"]["route-data"]}")
         self.lgr.info(f"New ipv6 route data "
-                        f"{connection["ipv6"]["route-data"]}")
-        dev_int = self._nm_device_interface(ifname);
-        dev_int.Reapply(connection,
-                        cver,
-                        0)
+                      f"{connection["ipv6"]["route-data"]}")
+        dev_int = self._get_nm_device_interface(ifname)
+        dev_int.Reapply(connection, cver, 0)
 
-    def _reset_bin_routes(self, connection):
+    @staticmethod
+    def _reset_bin_routes(connection):
         # we need to remove this, so we can use route-data field
         # undocumented NetworkManager implementation detail
         del connection["ipv4"]["routes"]
@@ -617,7 +619,7 @@ class DnsconfdContext:
 
         for (key, interface) in self.interfaces.items():
             ip4_rte, ip6_rte, applied = self._get_nm_device_config(interface)
-            if ip4_rte is None and ip6_rte is None:
+            if ip4_rte is None:
                 self._set_exit_code(ExitCode.ROUTE_FAILURE)
                 return ContextEvent("FAIL")
             elif applied is None:
@@ -764,17 +766,16 @@ class DnsconfdContext:
                     else:
                         connection["ipv6"]["route-data"].append(new_route)
                     reapply_needed = True
-
-            reapply_needed = self._remove_checked_routes("ipv4", connection, valid_routes) or reapply_needed
-            reapply_needed = self._remove_checked_routes("ipv6", connection, valid_routes) or reapply_needed
+            if self._remove_checked_routes(connection, valid_routes):
+                reapply_needed = True
 
             if reapply_needed:
                 try:
                     cver = interface_to_connection[int_index][1]
                     self._reapply_routes(ifname, connection, cver)
                 except dbus.DBusException as e:
-                    self.lgr.error(f"Failed to reapply connection to {ifname}"
-                                    f", {e}")
+                    self.lgr.error("Failed to reapply connection to "
+                                   f"{ifname}, {e}")
                     self._set_exit_code(ExitCode.ROUTE_FAILURE)
                     return ContextEvent("FAIL")
 
@@ -795,7 +796,7 @@ class DnsconfdContext:
             reapply_needed = False
             ifname = interface.get_if_name()
             try:
-                dev_int = self._nm_device_interface(ifname)
+                dev_int = self._get_nm_device_interface(ifname)
                 connection, cver = dev_int.GetAppliedConnection(0)
                 self._reset_bin_routes(connection)
             except dbus.DBusException:
@@ -803,8 +804,9 @@ class DnsconfdContext:
                               f" {ifname}, Will not remove its routes")
                 continue
 
-            reapply_needed = self._remove_checked_routes("ipv4", connection, None) or reapply_needed
-            reapply_needed = self._remove_checked_routes("ipv6", connection, None) or reapply_needed
+            if self._remove_checked_routes(connection, None):
+                reapply_needed = True
+
             if reapply_needed:
                 try:
                     self._reapply_routes(ifname, connection, cver)
