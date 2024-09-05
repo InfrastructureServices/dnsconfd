@@ -11,6 +11,8 @@ RUN dnf install -y --setopt=install_weak_deps=False --setopt=tsflags=nodocs syst
 RUN sed -i "s#/sys/class/net/#/tmp/is_wireless/#" /usr/lib/python3.12/site-packages/dnsconfd/network_objects/interface_configuration.py \
     && echo 'LOG_LEVEL=DEBUG' >> /etc/sysconfig/dnsconfd
 
+RUN echo 'Environment="DISABLE_UNBOUND_ANCHOR=yes"' >> /usr/lib/systemd/system/unbound-anchor.service.d/dnsconfd.conf
+
 # increase unbound logging
 RUN sed -i "s/verbosity.*/verbosity: 5/g" /etc/unbound/unbound.conf
 

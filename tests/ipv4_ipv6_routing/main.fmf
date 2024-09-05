@@ -6,3 +6,4 @@ recommend:
   - podman
 tag:
   - integration
+duration: 120m

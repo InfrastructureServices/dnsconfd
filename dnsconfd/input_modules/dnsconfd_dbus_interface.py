@@ -28,7 +28,7 @@ class DnsconfdDbusInterface(dbus.service.Object):
 
     @dbus.service.method(dbus_interface='com.redhat.dnsconfd.Manager',
                          in_signature='aa{sv}', out_signature='bs')
-    def update(self, servers: list[dict[str, typing.Any]]):
+    def Update(self, servers: list[dict[str, typing.Any]]):
         new_servers = []
         self.lgr.info(f"update dbus method called with args: {servers}")
         if self.ignore_api:
@@ -56,7 +56,7 @@ class DnsconfdDbusInterface(dbus.service.Object):
                     self.lgr.error(msg)
                     return False, msg
                 else:
-                    port = server["port"]
+                    port = int(server["port"])
 
             protocol = DnsProtocol.PLAIN
             if server.get("protocol", None) is not None:
@@ -78,7 +78,7 @@ class DnsconfdDbusInterface(dbus.service.Object):
                     self.lgr.error(msg)
                     return False, msg
                 else:
-                    sni = server["sni"]
+                    sni = str(server["sni"])
 
             domains = None
             if server.get("domains", None) is not None:
@@ -99,10 +99,10 @@ class DnsconfdDbusInterface(dbus.service.Object):
                     self.lgr.error(msg)
                     return False, msg
 
-                for search, domain in server["domains"]:
+                for domain, search in server["domains"]:
                     if not isinstance(search, bool):
-                        msg = f"{index + 1}. server domains first member " \
-                              f"has to be boolean {server["domains"]}"
+                        msg = f"{index + 1}. server domains second member " \
+                              f"has to be bool {server["domains"]}"
                         self.lgr.error(msg)
                         return False, msg
                     elif not self.domain_pattern.fullmatch(domain):
@@ -110,7 +110,8 @@ class DnsconfdDbusInterface(dbus.service.Object):
                                f"server domain is not domain {domain}")
                         self.lgr.error(msg)
                         return False, msg
-                domains = server["domains"]
+                domains = [(str(domain), bool(search))
+                           for (domain, search) in server["domains"]]
 
             interface = None
             is_wireless = False
@@ -121,7 +122,7 @@ class DnsconfdDbusInterface(dbus.service.Object):
                     self.lgr.error(msg)
                     return False, msg
                 else:
-                    interface = server["interface"]
+                    interface = int(server["interface"])
                     is_wireless = (self.prio_wire
                                    and (InterfaceConfiguration.
                                         is_interface_wireless(interface)))
@@ -133,7 +134,11 @@ class DnsconfdDbusInterface(dbus.service.Object):
                     self.lgr.error(msg)
                     return False, msg
                 else:
-                    dnssec = server["dnssec"]
+                    dnssec = bool(server["dnssec"])
+
+            # you may notice the type conversions throughout this method,
+            # these are present to get rid of dbus types and prevent
+            # unexpected problems in further processing
 
             addr_family = AF_INET if parsed_address.version == 4 else AF_INET6
             serv_desc = ServerDescription(addr_family,
