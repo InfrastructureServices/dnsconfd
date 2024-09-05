@@ -51,7 +51,7 @@ rlJournalStart
 
         sleep 2
         rlRun "podman exec $dnsconfd_cid /bin/bash -c 'nmcli connection mod eth0 ipv4.dns 192.168.6.3 && nmcli connection mod eth0 ipv4.gateway 192.168.5.3'" 0 "Adding dns server to the first NM active profile"
-        rlRun "podman exec $dnsconfd_cid /bin/bash -c 'nmcli connection mod eth1 ipv4.dns 192.168.8.3 && nmcli connection mod eth1 ipv4.gateway 192.168.7.3 || true'" 0 "Adding dns server to the first NM active profile"
+        rlRun "podman exec $dnsconfd_cid /bin/bash -c 'nmcli connection mod eth1 ipv4.dns 192.168.8.3 && nmcli connection mod eth1 ipv4.gateway 192.168.7.3'" 0 "Adding dns server to the first NM active profile"
         rlRun "podman exec $dnsconfd_cid nmcli connection mod eth0 +ipv4.routes '192.168.122.0/24 10.10.10.10'" 0 "Adding test route"
         # now the connection listing DNS server 192.168.8.3 should be used for routing (dnsconfd->192.168.7.3->192.168.8.3)
         rlRun "podman exec $dnsconfd_cid nmcli connection up eth0"

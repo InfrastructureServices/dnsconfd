@@ -111,6 +111,35 @@ rlJournalStart
         rlRun "podman exec $dnsconfd_cid ip route | grep 2001:db8::303" 1 "Verify that routes to DNS server was removed"
 
         rlRun "podman exec $dnsconfd_cid ip route | grep 10.10.10.10" 0 "Verify that test route is still present"
+
+        # new api testing
+        rlRun "podman exec $dnsconfd_cid /bin/bash -c 'echo api_choice: dnsconfd >> /etc/dnsconfd.conf'" 0 "switching API"
+        rlRun "podman exec $dnsconfd_cid systemctl restart dnsconfd" 0 "restarting dnsconfd"
+        sleep 5
+        interface0_num=$(podman exec $dnsconfd_cid ip -json a s eth0 | jq '.[] | .ifindex')
+        interface1_num=$(podman exec $dnsconfd_cid ip -json a s eth1 | jq '.[] | .ifindex')
+        interface2_num=$(podman exec $dnsconfd_cid ip -json a s eth2 | jq '.[] | .ifindex')
+        interface3_num=$(podman exec $dnsconfd_cid ip -json a s eth3 | jq '.[] | .ifindex')
+        rlRun "podman exec $dnsconfd_cid dnsconfd update '[{\"address\":\"192.168.6.3\", \"interface\": $interface0_num}, {\"address\":\"2001:db8::103\", \"interface\": $interface1_num}, {\"address\":\"192.168.8.3\", \"interface\": $interface2_num}, {\"address\":\"2001:db8::303\", \"interface\": $interface3_num}]'" 0 "submit update"
+        sleep 5
+        rlRun "podman exec $dnsconfd_cid /bin/bash -c 'ip route | grep 192.168.6.3 || ip route | grep 192.168.8.3'" 0 "Verify that route to one of the ipv4 DNS is present"
+        rlRun "podman exec $dnsconfd_cid /bin/bash -c 'ip -6 route | grep 2001:db8::103 || ip -6 route | grep 2001:db8::303'" 0 "Verify that route to one of the ipv6 DNS is present"
+
+        rlRun "podman exec $dnsconfd_cid getent hosts first-address.test.com | grep 192.168.6.3" 0 "Verifying correct address resolution"
+        rlRun "podman exec $dnsconfd_cid getent hosts second-address.test.com | grep 2001:db8::103" 0 "Verifying correct address resolution"
+        rlRun "podman exec $dnsconfd_cid getent hosts third-address.test.com | grep 192.168.8.3" 0 "Verifying correct address resolution"
+        rlRun "podman exec $dnsconfd_cid getent hosts fourth-address.test.com | grep 2001:db8::303" 0 "Verifying correct address resolution"
+
+        rlRun "podman exec $dnsconfd_cid ip route | grep 10.10.10.10" 0 "Verify that test route is still present"
+        rlRun "podman exec $dnsconfd_cid systemctl stop dnsconfd" 0 "Stop dnsconfd"
+        sleep 5
+        rlRun "podman exec $dnsconfd_cid ip route | grep 192.168.6.3" 1 "Verify that routes to DNS server was removed"
+        rlRun "podman exec $dnsconfd_cid ip route | grep 2001:db8::103" 1 "Verify that routes to DNS server was removed"
+        rlRun "podman exec $dnsconfd_cid ip route | grep 192.168.8.3" 1 "Verify that routes to DNS server was removed"
+        rlRun "podman exec $dnsconfd_cid ip route | grep 2001:db8::303" 1 "Verify that routes to DNS server was removed"
+
+        rlRun "podman exec $dnsconfd_cid ip route | grep 10.10.10.10" 0 "Verify that test route is still present"
+
     rlPhaseEnd
 
     rlPhaseStartCleanup

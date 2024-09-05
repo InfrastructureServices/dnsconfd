@@ -1,18 +1,28 @@
 #!/bin/bash
 # vim: dict+=/usr/share/beakerlib/dictionary.vim cpt=.,w,b,u,t,i,k
 . /usr/share/beakerlib/beakerlib.sh || exit 1
-DBUS_NAME=org.freedesktop.resolve1
 
 rlJournalStart
     rlPhaseStartSetup
         rlRun "set -o pipefail"
+        rlFileBackup /etc/dnsconfd.conf
     rlPhaseEnd
 
     rlPhaseStartTest
         rlRun "dnsconfd config install" 0 "Installing dnsconfd"
         rlServiceStart dnsconfd
         sleep 2
-        rlRun "dnsconfd --dbus-name=$DBUS_NAME status | grep unbound" 0 "Verifying status of dnsconfd"
+        rlRun "dnsconfd status | grep unbound" 0 "Verifying status of dnsconfd"
+
+        # test also new api
+        rlRun "echo 'api_choice: dnsconfd' >> /etc/dnsconfd.conf"
+        interface_num=$(ip -json a s eth0 | jq '.[] | .ifindex')
+
+        rlServiceStart dnsconfd
+        sleep 5
+        rlRun "dnsconfd update '[{\"address\":\"192.168.6.3\", \"interface\": $interface_num}]'"
+        sleep 2
+        rlRun "dnsconfd status | grep unbound" 0 "Verifying status of dnsconfd"
         # we can not simply check for a AVC until chrony issue is fixed
         rlRun "ausearch -m avc --start recent | grep dnsconfd" 1 "Check no AVC occured"
     rlPhaseEnd

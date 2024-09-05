@@ -1204,19 +1204,13 @@ class DnsconfdContext:
         search_domains = []
 
         for server in self.servers + self.static_servers:
-            if server.domains is None:
+            for domain, search in server.domains:
                 try:
-                    new_zones_to_servers["."].append(server)
+                    new_zones_to_servers[domain].append(server)
                 except KeyError:
-                    new_zones_to_servers["."] = [server]
-            else:
-                for zone in server.domains:
-                    try:
-                        new_zones_to_servers[zone[0]].append(server)
-                    except KeyError:
-                        new_zones_to_servers[zone[0]] = [server]
-                    if zone[1]:
-                        search_domains.append(zone[0])
+                    new_zones_to_servers[domain] = [server]
+                if search:
+                    search_domains.append(domain)
 
         for zone in new_zones_to_servers.keys():
             new_zones_to_servers[zone].sort(key=lambda x: x.priority,

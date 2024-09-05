@@ -145,14 +145,14 @@ class CLI_Commands:
                 exit(1)
             dnsconfd_object = bus.get_object(dbus_name,
                                              "/com/redhat/dnsconfd")
+            dnsconfd_interface = dbus.Interface(dnsconfd_object,
+                                                "com.redhat.dnsconfd.Manager")
         except DBusException as e:
             print(f"Dnsconfd is not listening on name {dbus_name}, {e}")
             exit(1)
         try:
-            int_name = "com.redhat.dnsconfd.Manager"
-            print(server_list)
-            all_ok, message = dnsconfd_object.update(server_list,
-                                                     dbus_interface=int_name)
+            all_ok, message = dnsconfd_interface.Update(server_list,
+                                                        signature="aa{sv}")
             print(f"{message}")
         except DBusException as e:
             print("Was not able to call update method, check your DBus policy:"

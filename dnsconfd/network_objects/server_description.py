@@ -36,7 +36,7 @@ class ServerDescription:
         self.port = port
         self.sni = sni
         self.priority = priority
-        self.domains = domains
+        self.domains = domains if domains is not None else [('.', False)]
         self.interface = interface
         self.protocol = protocol if protocol is not None else DnsProtocol.PLAIN
         self.dnssec = dnssec
