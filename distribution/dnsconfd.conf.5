@@ -1,4 +1,4 @@
-.TH "dnsconfd.conf" "5" "10 Oct 2023" "dnsconfd-1.2.0" ""
+.TH "dnsconfd.conf" "5" "10 Oct 2023" "dnsconfd-1.3.0" ""
 
 .SH NAME
 
@@ -41,19 +41,18 @@ Examples:
 Enabling one global server using DNS over TLS
 
 static_servers:
-    .:
-        - address: 192.168.6.3
-          protocol: "DoT"
-          sni: named
-          port: 853
+   - address: 192.168.6.3
+     protocol: "DoT"
+     sni: named
 
 Enabling one server for specific domain and second for everything else
 
 static_servers:
-    .:
-        - address: 192.168.6.3
-    .domain.com:
-        - address: 192.168.6.4
+    - address: 192.168.6.3
+    - address: 192.168.6.4
+      domains:
+        - domain: domain.com
+          search: true
 
 .IP "ignore_api"
 If enabled, dnsconfd will ignore configuration received through API, default no
