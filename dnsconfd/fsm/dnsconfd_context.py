@@ -1252,18 +1252,18 @@ class DnsconfdContext:
                 "Info about servers: "
                 f"{json.dumps(servers, indent=4)}")
 
-    def reload_service(self) -> str:
+    def reload_service(self) -> tuple[bool, str]:
         """ Perform reload of cache service if possible
 
-        :return: String with answer
-        :rtype: str
+        :return: Tuple, True and message on success otherwise False and message
+        :rtype: tuple[bool, str]
         """
         if self.state != ContextState.RUNNING:
-            return ("Reload can not be performed at this time. "
+            return (False, "Reload can not be performed at this time. "
                     + f"Current state: {self.state}")
         else:
             self.transition_function(ContextEvent("RELOAD"))
-            return "Starting reload"
+            return True, "Starting reload"
 
     def get_exit_code(self) -> int:
         """ Get exit code Dnsconfd should stop with

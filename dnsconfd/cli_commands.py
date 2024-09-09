@@ -66,6 +66,8 @@ class CLI_Commands:
                api_choice: str) -> typing.NoReturn:
         """ Call Dnsconfd reload method through DBUS
 
+        :param api_choice: dnsconfd or resolve1
+        :type api_choice: str
         :param dbus_name: DBUS name Dnsconfd listens on
         :type dbus_name: str
         :return: No return
@@ -84,12 +86,13 @@ class CLI_Commands:
             print(f"Dnsconfd is not listening on name {dbus_name}, {e}")
             exit(1)
         try:
-            print(dnsconfd_object.Reload(dbus_interface=int_name))
+            all_ok, msg = dnsconfd_object.Reload(dbus_interface=int_name)
+            print(msg)
+            exit(0 if all_ok else 1)
         except DBusException as e:
             print("Was not able to call Status method, check your DBus policy:"
                   + f"{e}")
             exit(1)
-        exit(0)
 
     @staticmethod
     def chown_resolvconf(config: dict, user: str) -> typing.NoReturn:

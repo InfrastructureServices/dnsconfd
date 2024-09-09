@@ -154,7 +154,7 @@ class ResolveDbusInterface(dbus.service.Object):
         return self.runtime_context.get_status(json_format)
 
     @dbus.service.method(dbus_interface='org.freedesktop.resolve1.Dnsconfd',
-                         in_signature='', out_signature='s')
+                         in_signature='', out_signature='bs')
     def Reload(self):
         self.lgr.info("Received request for reload of plugin")
         return self.runtime_context.reload_service()
