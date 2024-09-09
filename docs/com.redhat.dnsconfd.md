@@ -26,7 +26,7 @@
 - **Status**(IN b **json_formatted**, OUT s **status**)
   
   Get status of dnsconfd.
- 
+  
   Arguments are:
   - **json_formatted**: Boolean indicating whether the output should be JSON formatted.
   Returns:
