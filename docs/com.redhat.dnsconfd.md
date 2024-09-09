@@ -32,7 +32,8 @@
   Returns:
   - **status**: string indicating status of dnsconfd.
 
-- **Reload**(OUT s **message**)
+- **Reload**(OUT b **all_ok**, OUT s **message**)
   Reapply configuration of underlying cache service.
   Returns:
+  - **all_ok**: boolean indicating whether reload was successfully submitted
   - **message**: String with dnsconfd reply.
