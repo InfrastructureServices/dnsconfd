@@ -1,0 +1,73 @@
+.TH "dnsconfd-status" "8" "10 Oct 2023" "dnsconfd-1.3.1" ""
+
+.SH NAME
+
+dnsconfd-update - Change Dnsconfd configuration
+
+.SH SYNOPSIS
+
+dnsconfd update <server_list>
+
+.SH DESCRIPTION
+
+Update command changes dnsconfd configuration of forwarders.
+
+.SH OPTIONS
+
+.IP "server_list"
+JSON formatted List of forwarders that should be used by dnsconfd and
+underlying cache service.
+
+Available fields of servers are:
+
+ \(bu \fBaddress\fP required, string of servers ip address
+ \(bu \fBprotocol\fP optional, DoT or plain
+ \(bu \fBsni\fP optional, server name indication used for TLS checks
+ \(bu \fBport\fP optional, port on which server is listening. If not given then 53 is used for plain protocol and 853 for DoT
+ \(bu \fBdomains\fP optional, list of lists with 2 members. The first member is string with the domain name whose members will be resolved only by this or other servers with the same domain entry. The second member is boolean or integer (0 or 1 value) indicating whether the domain should be used for resolving of host names.
+ \(bu \fBinterface\fP optional, integer indicating if server can be used only through interface with this interface index.
+ \(bu \fBdnssec\fP optional, boolean indicating whether this server supports dnssec or not
+
+.IP "-h, --help"
+Show help message and exit
+
+.SH "EXIT STATUS"
+
+.IP 0
+Everything went as expected.
+.IP 1
+Error occurred.
+.IP 13
+Bad arguments.
+
+.SH EXAMPLES
+# dnsconfd update '[{"address":"192.168.6.3", "interface": 3}]'
+
+Use only one server for all queries and only through interface with index 3.
+
+# dnsconfd update '[{"address":"192.168.6.3", "protocol": "DoT", "sni": "named"}]'
+
+Use only one server for all queries, enable dns over tls and verify that server
+presents certificate containing hostname 'named'.
+
+# dnsconfd update '[{"address":"192.168.6.3", "domains": [["first-domain.com", false]]}, {"address":"2001:db8::103"}]'
+
+Use server 192.168.6.3 for resolving names under domain first-domain.com, but do not use the domain for
+resolving plain hostnames and use 2001:db8::103 for resolving of any other name.
+
+.SH "LIMITATIONS"
+This command only supports dnsconfd API. See api_choice option for further information.
+
+.SH "REPORTING BUGS"
+Please for reporting bugs use Github repository https://github.com/InfrastructureServices/dnsconfd
+
+.SH "SEE ALSO"
+\fB dnsconfd(8)\fP Dnsconfd daemon
+\fB dnsconfd-reload(8)\fP Reload running cache service
+\fB dnsconfd-config(8)\fP Change configuration of underlying service or host
+\fB dnsconfd-status(8)\fP Check status of dnsconfd
+\fB dnsconfd.conf(5)\fP Dnsconfd configuration file
+
+.SH COPYRIGHT
+
+Copyright (c) 2023 Red Hat, Inc.
