@@ -142,6 +142,19 @@ class CLI_Commands:
             print("Servers are not valid JSON string")
             exit(1)
         bus = dbus.SystemBus()
+
+        # unfortunately domains have to be converted explicitly,
+        # because dbus-python can not guess type of array containing
+        # string and boolean
+        try:
+            for server in server_list:
+                if "domains" in server:
+                    server["domains"] = [dbus.Struct((dom[0], dom[1]))
+                                         for dom in server["domains"]]
+        except (IndexError, TypeError) as e:
+            print(f"Failed to convert domains, {e}")
+            exit(1)
+
         try:
             if api_choice != "dnsconfd":
                 print(f"This command does not support resolve1")

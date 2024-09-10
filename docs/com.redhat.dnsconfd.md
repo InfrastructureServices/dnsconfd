@@ -15,7 +15,7 @@
     - port: integer indicating port number that should be used. Defaulting to `53` or `853` when `DoT` is used as protocol.
     - protocol: string either `plain` or `DoT`. Defaulting to `plain`.
     - sni: server name indication. Used when `DoT` is used to verify, presence of a right certificate. Defaulting to None.
-    - domains: list of tuples with 2 members. The first member is string with the domain name whose members will be resolved only by this or other servers with the same domain entry. the second member is boolean indicating whether the domain should be used for resolving of host names.
+    - domains: list of Dbus structures with 2 members. The first member is string with the domain name whose members will be resolved only by this or other servers with the same domain entry. The second member is boolean or integer (0 or 1 value) indicating whether the domain should be used for resolving of host names.
       If '.' is present in the list, this server can be used for any name when no more specific domain entry of different server is present. Defaulting to `[('.', False)]`.
     - interface: integer indicating if server can be used only through interface with this interface index.
     - dnssec: boolean indicating whether this server supports dnssec or not. Defaulting to `False`.

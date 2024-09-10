@@ -99,10 +99,11 @@ class DnsconfdDbusInterface(dbus.service.Object):
                     self.lgr.error(msg)
                     return False, msg
 
-                for domain, search in server["domains"]:
-                    if not isinstance(search, bool):
+                for (domain, search) in server["domains"]:
+                    if (not isinstance(search, bool)
+                            and not isinstance(search, int)):
                         msg = f"{index + 1}. server domains second member " \
-                              f"has to be bool {server["domains"]}"
+                              f"has to be either bool or int {search}"
                         self.lgr.error(msg)
                         return False, msg
                     elif not self.domain_pattern.fullmatch(domain):
