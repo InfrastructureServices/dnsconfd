@@ -4,6 +4,22 @@
 DBUS_NAME=org.freedesktop.resolve1
 ORIG_DIR=$(pwd)
 
+function routing_setup {
+  rlRun "podman exec $1 /bin/bash -c 'echo 1 > /proc/sys/net/ipv4/ip_forward'" 0 "enable ip forwarding on routing server"
+  rlRun "podman exec $2 /bin/bash -c 'echo 1 > /proc/sys/net/ipv6/conf/all/forwarding'" 0 "enable ip forwarding on routing server"
+  rlRun "podman exec $3 /bin/bash -c 'echo 1 > /proc/sys/net/ipv4/ip_forward'" 0 "enable ip forwarding on routing server"
+  rlRun "podman exec $4 /bin/bash -c 'echo 1 > /proc/sys/net/ipv6/conf/all/forwarding'" 0 "enable ip forwarding on routing server"
+  # easier to enable masquerade on both interfaces than to find out which one is connected to the right network
+  rlRun "podman exec $1 iptables -t nat -I POSTROUTING -o eth0 -j MASQUERADE" 0 "enable masquerade on eth0 of routing server"
+  rlRun "podman exec $1 iptables -t nat -I POSTROUTING -o eth1 -j MASQUERADE" 0 "enable masquerade on eth1 of routing server"
+  rlRun "podman exec $2 ip6tables -t nat -I POSTROUTING -o eth0 -j MASQUERADE" 0 "enable masquerade on eth0 of routing server"
+  rlRun "podman exec $2 ip6tables -t nat -I POSTROUTING -o eth1 -j MASQUERADE" 0 "enable masquerade on eth1 of routing server"
+  rlRun "podman exec $3 iptables -t nat -I POSTROUTING -o eth0 -j MASQUERADE" 0 "enable masquerade on eth0 of routing server"
+  rlRun "podman exec $3 iptables -t nat -I POSTROUTING -o eth1 -j MASQUERADE" 0 "enable masquerade on eth1 of routing server"
+  rlRun "podman exec $4 ip6tables -t nat -I POSTROUTING -o eth0 -j MASQUERADE" 0 "enable masquerade on eth0 of routing server"
+  rlRun "podman exec $4 ip6tables -t nat -I POSTROUTING -o eth1 -j MASQUERADE" 0 "enable masquerade on eth1 of routing server"
+}
+
 rlJournalStart
     rlPhaseStartSetup
         rlRun "tmp=\$(mktemp -d)" 0 "Create tmp directory"
@@ -40,53 +56,38 @@ rlJournalStart
                /bin/bash -c 'sleep 10000')" 0 "Starting routing container 1"
 
         rlRun "dnsmasq1_cid=\$(podman run -d --dns='none' --network dnsconfd_network2:ip=192.168.6.3 localhost/dnsconfd_utilities:latest\
-               dnsmasq_entry.sh --listen-address=192.168.6.3 --address=/first-address.test.com/192.168.6.3)" 0 "Starting first dnsmasq container"
+               dnsmasq_entry.sh --listen-address=192.168.6.3 --address=/first-address.first-domain.com/192.168.6.3 --address=/fifth-address.first-domain.com/192.168.6.10)" 0 "Starting first dnsmasq container"
 
         rlRun "routing2_cid=\$(podman run -d --dns='none' --network dnsconfd_network3:ip=2001:db8::3 --network dnsconfd_network4:ip=2001:db8::102 --cap-add=NET_ADMIN --cap-add=NET_RAW --privileged localhost/dnsconfd_utilities:latest\
                /bin/bash -c 'sleep 10000')" 0 "Starting routing container"
 
         rlRun "dnsmasq2_cid=\$(podman run -d --dns='none' --network dnsconfd_network4:ip=2001:db8::103 localhost/dnsconfd_utilities:latest\
-               dnsmasq_entry.sh --listen-address=2001:db8::103 --address=/second-address.test.com/2001:db8::103)" 0 "Starting second dnsmasq container"
+               dnsmasq_entry.sh --listen-address=2001:db8::103 --address=/second-address.second-domain.com/2001:db8::103 --address=/sixth-address.second-domain.com/2001:db8::110)" 0 "Starting second dnsmasq container"
 
         rlRun "routing3_cid=\$(podman run -d --dns='none' --network dnsconfd_network5:ip=192.168.7.3 --network dnsconfd_network6:ip=192.168.8.2 --cap-add=NET_ADMIN --cap-add=NET_RAW --privileged localhost/dnsconfd_utilities:latest\
                /bin/bash -c 'sleep 10000')" 0 "Starting routing container 1"
 
         rlRun "dnsmasq3_cid=\$(podman run -d --dns='none' --network dnsconfd_network6:ip=192.168.8.3 localhost/dnsconfd_utilities:latest\
-               dnsmasq_entry.sh --listen-address=192.168.8.3 --address=/third-address.test.com/192.168.8.3)" 0 "Starting first dnsmasq container"
+               dnsmasq_entry.sh --listen-address=192.168.8.3 --address=/third-address.third-domain.com/192.168.8.3 --address=/seventh-address.third-domain.com/192.168.8.10)" 0 "Starting first dnsmasq container"
 
         rlRun "routing4_cid=\$(podman run -d --dns='none' --network dnsconfd_network7:ip=2001:db8::203 --network dnsconfd_network8:ip=2001:db8::302 --cap-add=NET_ADMIN --cap-add=NET_RAW --privileged localhost/dnsconfd_utilities:latest\
                /bin/bash -c 'sleep 10000')" 0 "Starting routing container"
 
         rlRun "dnsmasq4_cid=\$(podman run -d --dns='none' --network dnsconfd_network8:ip=2001:db8::303 localhost/dnsconfd_utilities:latest\
-               dnsmasq_entry.sh --listen-address=2001:db8::303 --address=/fourth-address.test.com/2001:db8::303)" 0 "Starting second dnsmasq container"
+               dnsmasq_entry.sh --listen-address=2001:db8::303 --address=/fourth-address.fourth-domain.com/2001:db8::303 --address=/eighth-address.fourth-domain.com/2001:db8::310)" 0 "Starting second dnsmasq container"
 
     rlPhaseEnd
 
     rlPhaseStartTest
         sleep 2
-        rlRun "podman exec $routing1_cid /bin/bash -c 'echo 1 > /proc/sys/net/ipv4/ip_forward'" 0 "enable ip forwarding on routing server"
-        rlRun "podman exec $routing2_cid /bin/bash -c 'echo 1 > /proc/sys/net/ipv6/conf/all/forwarding'" 0 "enable ip forwarding on routing server"
-        rlRun "podman exec $routing3_cid /bin/bash -c 'echo 1 > /proc/sys/net/ipv4/ip_forward'" 0 "enable ip forwarding on routing server"
-        rlRun "podman exec $routing4_cid /bin/bash -c 'echo 1 > /proc/sys/net/ipv6/conf/all/forwarding'" 0 "enable ip forwarding on routing server"
-
-        # easier to enable masquerade on both interfaces than to find out which one is connected to the right network
-        rlRun "podman exec $routing1_cid iptables -t nat -I POSTROUTING -o eth0 -j MASQUERADE" 0 "enable masquerade on eth0 of routing server"
-        rlRun "podman exec $routing1_cid iptables -t nat -I POSTROUTING -o eth1 -j MASQUERADE" 0 "enable masquerade on eth1 of routing server"
-        rlRun "podman exec $routing2_cid ip6tables -t nat -I POSTROUTING -o eth0 -j MASQUERADE" 0 "enable masquerade on eth0 of routing server"
-        rlRun "podman exec $routing2_cid ip6tables -t nat -I POSTROUTING -o eth1 -j MASQUERADE" 0 "enable masquerade on eth1 of routing server"
-        rlRun "podman exec $routing3_cid iptables -t nat -I POSTROUTING -o eth0 -j MASQUERADE" 0 "enable masquerade on eth0 of routing server"
-        rlRun "podman exec $routing3_cid iptables -t nat -I POSTROUTING -o eth1 -j MASQUERADE" 0 "enable masquerade on eth1 of routing server"
-        rlRun "podman exec $routing4_cid ip6tables -t nat -I POSTROUTING -o eth0 -j MASQUERADE" 0 "enable masquerade on eth0 of routing server"
-        rlRun "podman exec $routing4_cid ip6tables -t nat -I POSTROUTING -o eth1 -j MASQUERADE" 0 "enable masquerade on eth1 of routing server"
-
+        routing_setup "$routing1_cid" "$routing2_cid" "$routing3_cid" "$routing4_cid"
         sleep 2
-        rlRun "podman exec $dnsconfd_cid /bin/bash -c 'nmcli connection mod eth0 ipv4.dns 192.168.6.3 && nmcli connection mod eth0 ipv4.gateway 192.168.5.3'" 0 "Adding dns server to the first NM active profile"
-        rlRun "podman exec $dnsconfd_cid /bin/bash -c 'nmcli connection mod eth1 ipv6.dns 2001:db8::103 && nmcli connection mod eth1 ipv6.gateway 2001:db8::3'" 0 "Adding dns server to the second NM active profile"
-        rlRun "podman exec $dnsconfd_cid /bin/bash -c 'nmcli connection mod eth2 ipv4.dns 192.168.8.3 && nmcli connection mod eth2 ipv4.gateway 192.168.7.3'" 0 "Adding dns server to the third NM active profile"
-        rlRun "podman exec $dnsconfd_cid /bin/bash -c 'nmcli connection mod eth3 ipv6.dns 2001:db8::303 && nmcli connection mod eth3 ipv6.gateway 2001:db8::203'" 0 "Adding dns server to the fourth NM active profile"
+        rlRun "podman exec $dnsconfd_cid /bin/bash -c 'nmcli connection mod eth0 ipv4.dns 192.168.6.3 && nmcli connection mod eth0 ipv4.dns-search first-domain.com && nmcli connection mod eth0 ipv4.gateway 192.168.5.3'" 0 "Adding dns server to the first NM active profile"
+        rlRun "podman exec $dnsconfd_cid /bin/bash -c 'nmcli connection mod eth1 ipv6.dns 2001:db8::103 && nmcli connection mod eth1 ipv6.dns-search second-domain.com && nmcli connection mod eth1 ipv6.gateway 2001:db8::3'" 0 "Adding dns server to the second NM active profile"
+        rlRun "podman exec $dnsconfd_cid /bin/bash -c 'nmcli connection mod eth2 ipv4.dns 192.168.8.3 && nmcli connection mod eth2 ipv4.dns-search third-domain.com && nmcli connection mod eth2 ipv4.gateway 192.168.7.3'" 0 "Adding dns server to the third NM active profile"
+        rlRun "podman exec $dnsconfd_cid /bin/bash -c 'nmcli connection mod eth3 ipv6.dns 2001:db8::303 && nmcli connection mod eth3 ipv6.dns-search fourth-domain.com && nmcli connection mod eth3 ipv6.gateway 2001:db8::203'" 0 "Adding dns server to the fourth NM active profile"
 
         rlRun "podman exec $dnsconfd_cid nmcli connection mod eth0 +ipv4.routes '192.168.122.0/24 10.10.10.10'" 0 "Adding test route"
-
 
         rlRun "podman exec $dnsconfd_cid nmcli connection up eth0"
         rlRun "podman exec $dnsconfd_cid nmcli connection up eth1"
@@ -97,13 +98,52 @@ rlJournalStart
         rlRun "podman exec $dnsconfd_cid /bin/bash -c 'ip route | grep 192.168.6.3 || ip route | grep 192.168.8.3'" 0 "Verify that route to one of the ipv4 DNS is present"
         rlRun "podman exec $dnsconfd_cid /bin/bash -c 'ip -6 route | grep 2001:db8::103 || ip -6 route | grep 2001:db8::303'" 0 "Verify that route to one of the ipv6 DNS is present"
 
-        rlRun "podman exec $dnsconfd_cid getent hosts first-address.test.com | grep 192.168.6.3" 0 "Verifying correct address resolution"
-        rlRun "podman exec $dnsconfd_cid getent hosts second-address.test.com | grep 2001:db8::103" 0 "Verifying correct address resolution"
-        rlRun "podman exec $dnsconfd_cid getent hosts third-address.test.com | grep 192.168.8.3" 0 "Verifying correct address resolution"
-        rlRun "podman exec $dnsconfd_cid getent hosts fourth-address.test.com | grep 2001:db8::303" 0 "Verifying correct address resolution"
+        rlRun "podman exec $dnsconfd_cid getent hosts first-address.first-domain.com | grep 192.168.6.3" 0 "Verifying correct address resolution"
+        rlRun "podman exec $dnsconfd_cid getent hosts second-address.second-domain.com | grep 2001:db8::103" 0 "Verifying correct address resolution"
+        rlRun "podman exec $dnsconfd_cid getent hosts third-address.third-domain.com | grep 192.168.8.3" 0 "Verifying correct address resolution"
+        rlRun "podman exec $dnsconfd_cid getent hosts fourth-address.fourth-domain.com | grep 2001:db8::303" 0 "Verifying correct address resolution"
 
         rlRun "podman exec $dnsconfd_cid ip route | grep 10.10.10.10" 0 "Verify that test route is still present"
+
+        # here we will test change of gateways
+
+        rlRun "podman stop -t 0 $routing1_cid  $routing2_cid  $routing3_cid  $routing4_cid" 0 "Stopping routing containers"
+        rlRun "podman container rm $routing1_cid  $routing2_cid  $routing3_cid  $routing4_cid" 0 "Removing routing containers"
+
+        rlRun "routing1_cid=\$(podman run -d --dns='none' --network dnsconfd_network1:ip=192.168.5.10 --network dnsconfd_network2:ip=192.168.6.2 --cap-add=NET_ADMIN --cap-add=NET_RAW --privileged localhost/dnsconfd_utilities:latest\
+               /bin/bash -c 'sleep 10000')" 0 "Starting routing container 1"
+        rlRun "routing2_cid=\$(podman run -d --dns='none' --network dnsconfd_network3:ip=2001:db8::10 --network dnsconfd_network4:ip=2001:db8::102 --cap-add=NET_ADMIN --cap-add=NET_RAW --privileged localhost/dnsconfd_utilities:latest\
+               /bin/bash -c 'sleep 10000')" 0 "Starting routing container"
+        rlRun "routing3_cid=\$(podman run -d --dns='none' --network dnsconfd_network5:ip=192.168.7.10 --network dnsconfd_network6:ip=192.168.8.2 --cap-add=NET_ADMIN --cap-add=NET_RAW --privileged localhost/dnsconfd_utilities:latest\
+               /bin/bash -c 'sleep 10000')" 0 "Starting routing container 1"
+        rlRun "routing4_cid=\$(podman run -d --dns='none' --network dnsconfd_network7:ip=2001:db8::210 --network dnsconfd_network8:ip=2001:db8::302 --cap-add=NET_ADMIN --cap-add=NET_RAW --privileged localhost/dnsconfd_utilities:latest\
+               /bin/bash -c 'sleep 10000')" 0 "Starting routing container"
+
+        routing_setup "$routing1_cid" "$routing2_cid" "$routing3_cid" "$routing4_cid"
+
+        rlRun "podman exec $dnsconfd_cid nmcli connection mod eth0 ipv4.gateway 192.168.5.10" 0 "Changing gateway of the first NM active profile"
+        rlRun "podman exec $dnsconfd_cid nmcli connection mod eth1 ipv6.gateway 2001:db8::10" 0 "Changing gateway of the second NM active profile"
+        rlRun "podman exec $dnsconfd_cid nmcli connection mod eth2 ipv4.gateway 192.168.7.10" 0 "Changing gateway of the third NM active profile"
+        rlRun "podman exec $dnsconfd_cid nmcli connection mod eth3 ipv6.gateway 2001:db8::210" 0 "Changing gateway of the fourth NM active profile"
+        rlRun "podman exec $dnsconfd_cid nmcli connection up eth0"
+        rlRun "podman exec $dnsconfd_cid nmcli connection up eth1"
+        rlRun "podman exec $dnsconfd_cid nmcli connection up eth2"
+        rlRun "podman exec $dnsconfd_cid nmcli connection up eth3"
+        sleep 5
+
+        rlRun "podman exec $dnsconfd_cid /bin/bash -c 'ip -6 route'" 0 "Get me all ipv6 routes"
+        rlRun "podman exec $dnsconfd_cid /bin/bash -c 'ip route | grep 192.168.6.3 || ip route | grep 192.168.8.3'" 0 "Verify that route to one of the ipv4 DNS is present"
+        rlRun "podman exec $dnsconfd_cid /bin/bash -c 'ip -6 route | grep 2001:db8::103 || ip -6 route | grep 2001:db8::303'" 0 "Verify that route to one of the ipv6 DNS is present"
+
+        rlRun "podman exec $dnsconfd_cid getent hosts fifth-address.first-domain.com | grep 192.168.6.10" 0 "Verifying correct address resolution"
+        rlRun "podman exec $dnsconfd_cid getent hosts sixth-address.second-domain.com | grep 2001:db8::110" 0 "Verifying correct address resolution"
+        rlRun "podman exec $dnsconfd_cid getent hosts seventh-address.third-domain.com | grep 192.168.8.10" 0 "Verifying correct address resolution"
+        rlRun "podman exec $dnsconfd_cid getent hosts eighth-address.fourth-domain.com | grep 2001:db8::310" 0 "Verifying correct address resolution"
+
+        rlRun "podman exec $dnsconfd_cid ip route | grep 10.10.10.10" 0 "Verify that test route is still present"
+
         rlRun "podman exec $dnsconfd_cid systemctl stop dnsconfd" 0 "Stop dnsconfd"
+
         sleep 5
         rlRun "podman exec $dnsconfd_cid ip route | grep 192.168.6.3" 1 "Verify that routes to DNS server was removed"
         rlRun "podman exec $dnsconfd_cid ip route | grep 2001:db8::103" 1 "Verify that routes to DNS server was removed"
@@ -120,15 +160,15 @@ rlJournalStart
         interface1_num=$(podman exec $dnsconfd_cid ip -json a s eth1 | jq '.[] | .ifindex')
         interface2_num=$(podman exec $dnsconfd_cid ip -json a s eth2 | jq '.[] | .ifindex')
         interface3_num=$(podman exec $dnsconfd_cid ip -json a s eth3 | jq '.[] | .ifindex')
-        rlRun "podman exec $dnsconfd_cid dnsconfd update '[{\"address\":\"192.168.6.3\", \"interface\": $interface0_num}, {\"address\":\"2001:db8::103\", \"interface\": $interface1_num}, {\"address\":\"192.168.8.3\", \"interface\": $interface2_num}, {\"address\":\"2001:db8::303\", \"interface\": $interface3_num}]'" 0 "submit update"
+        rlRun "podman exec $dnsconfd_cid dnsconfd update '[{\"address\":\"192.168.6.3\", \"interface\": $interface0_num, \"domains\": [[\"first-domain.com\", false]]}, {\"address\":\"2001:db8::103\", \"interface\": $interface1_num, \"domains\": [[\"second-domain.com\", false]]}, {\"address\":\"192.168.8.3\", \"interface\": $interface2_num, \"domains\": [[\"third-domain.com\", false]]}, {\"address\":\"2001:db8::303\", \"interface\": $interface3_num, \"domains\": [[\"fourth-domain.com\", false]]}]'" 0 "submit update"
         sleep 5
         rlRun "podman exec $dnsconfd_cid /bin/bash -c 'ip route | grep 192.168.6.3 || ip route | grep 192.168.8.3'" 0 "Verify that route to one of the ipv4 DNS is present"
         rlRun "podman exec $dnsconfd_cid /bin/bash -c 'ip -6 route | grep 2001:db8::103 || ip -6 route | grep 2001:db8::303'" 0 "Verify that route to one of the ipv6 DNS is present"
 
-        rlRun "podman exec $dnsconfd_cid getent hosts first-address.test.com | grep 192.168.6.3" 0 "Verifying correct address resolution"
-        rlRun "podman exec $dnsconfd_cid getent hosts second-address.test.com | grep 2001:db8::103" 0 "Verifying correct address resolution"
-        rlRun "podman exec $dnsconfd_cid getent hosts third-address.test.com | grep 192.168.8.3" 0 "Verifying correct address resolution"
-        rlRun "podman exec $dnsconfd_cid getent hosts fourth-address.test.com | grep 2001:db8::303" 0 "Verifying correct address resolution"
+        rlRun "podman exec $dnsconfd_cid getent hosts first-address.first-domain.com | grep 192.168.6.3" 0 "Verifying correct address resolution"
+        rlRun "podman exec $dnsconfd_cid getent hosts second-address.second-domain.com | grep 2001:db8::103" 0 "Verifying correct address resolution"
+        rlRun "podman exec $dnsconfd_cid getent hosts third-address.third-domain.com | grep 192.168.8.3" 0 "Verifying correct address resolution"
+        rlRun "podman exec $dnsconfd_cid getent hosts fourth-address.fourth-domain.com | grep 2001:db8::303" 0 "Verifying correct address resolution"
 
         rlRun "podman exec $dnsconfd_cid ip route | grep 10.10.10.10" 0 "Verify that test route is still present"
         rlRun "podman exec $dnsconfd_cid systemctl stop dnsconfd" 0 "Stop dnsconfd"
