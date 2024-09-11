@@ -146,7 +146,7 @@ class CLICommands:
         """
         try:
             server_list = json.loads(servers)
-        except json.JSONDecodeError as e:
+        except json.JSONDecodeError:
             print(f"Servers are not valid JSON string: {e}")
             sys.exit(1)
         bus = dbus.SystemBus()
