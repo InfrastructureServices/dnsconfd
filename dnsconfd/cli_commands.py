@@ -138,7 +138,7 @@ class CLI_Commands:
                api_choice: str) -> typing.NoReturn:
         try:
             server_list = json.loads(servers)
-        except json.JSONDecodeError as e:
+        except json.JSONDecodeError:
             print("Servers are not valid JSON string")
             exit(1)
         bus = dbus.SystemBus()
@@ -157,7 +157,7 @@ class CLI_Commands:
 
         try:
             if api_choice != "dnsconfd":
-                print(f"This command does not support resolve1")
+                print("This command does not support resolve1")
                 exit(1)
             dnsconfd_object = bus.get_object(dbus_name,
                                              "/com/redhat/dnsconfd")
