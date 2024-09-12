@@ -30,7 +30,7 @@ def filled_conf_instance():
     ins.lgr.disabled = True
     ins._config_log = lambda x: None
     ins._open_config_file = filled_config_file_stream
-    ins._env = {"LISTEN_ADDRESS": "127.0.0.3"}
+    ins._env = {"LISTEN_ADDRESS": "127.0.0.3", "DNSSEC_ENABLED": "1"}
     ins.add_commands()
     ins.add_arguments()
     return ins
@@ -72,7 +72,7 @@ def test_parse(args, raised_exception, parsed, empty_conf_instance):
       'listen_address': '127.0.0.3',
       'prioritize_wire': True,
       'resolver_options': 'edns0 trust-ad',
-      'dnssec_enabled': False,
+      'dnssec_enabled': True,
       'handle_routing': True,
       'config_file': '/etc/dnsconfd.conf',
       'api_choice': 'resolve1',
@@ -86,7 +86,7 @@ def test_parse(args, raised_exception, parsed, empty_conf_instance):
       'listen_address': '127.0.0.4',
       'prioritize_wire': True,
       'resolver_options': 'edns0 trust-ad',
-      'dnssec_enabled': False,
+      'dnssec_enabled': True,
       'handle_routing': True,
       'config_file': '/etc/dnsconfd.conf',
       'api_choice': 'resolve1',
