@@ -22,6 +22,8 @@ rlJournalStart
                dnsmasq_entry.sh --listen-address=192.168.6.10 --address=/first-address.test.com/192.168.6.10)" 0 "Starting first dnsmasq container"
         rlRun "dnsmasq2_cid=\$(podman run -d --dns='none' --network dnsconfd_network:ip=192.168.6.20 localhost/dnsconfd_utilities:latest\
                dnsmasq_entry.sh --listen-address=192.168.6.20 --address=/second-address.testdomain.com/192.168.6.20)" 0 "Starting second dnsmasq container"
+        rlRun "dnsmasq3_cid=\$(podman run -d --dns='none' --network dnsconfd_network:ip=192.168.6.30 localhost/dnsconfd_utilities:latest\
+               dnsmasq_entry.sh --listen-address=192.168.6.30 --address=/third-address.second-domain.com/192.168.6.30)" 0 "Starting second dnsmasq container"
     rlPhaseEnd
 
     rlPhaseStartTest
@@ -47,6 +49,7 @@ rlJournalStart
         sleep 5
         rlRun "podman exec $dnsconfd_cid getent hosts first-address.test.com | grep 192.168.6.10" 0 "Verifying correct address resolution"
         rlRun "podman exec $dnsconfd_cid getent hosts second-address.testdomain.com | grep 192.168.6.20" 0 "Verifying correct address resolution"
+        rlRun "podman exec $dnsconfd_cid getent hosts third-address.second-domain.com | grep 192.168.6.30" 0 "Verifying correct address resolution"
     rlPhaseEnd
 
     rlPhaseStartCleanup
@@ -54,8 +57,8 @@ rlJournalStart
         rlRun "podman exec $dnsconfd_cid journalctl -u unbound" 0 "Saving unbound logs"
         rlRun "podman exec $dnsconfd_cid ip route" 0 "Saving present routes"
         rlRun "popd"
-        rlRun "podman stop -t 0 $dnsconfd_cid $bind_cid $dnsmasq1_cid $dnsmasq2_cid" 0 "Stopping containers"
-        rlRun "podman container rm $dnsconfd_cid $bind_cid $dnsmasq1_cid $dnsmasq2_cid" 0 "Removing containers"
+        rlRun "podman stop -t 0 $dnsconfd_cid $bind_cid $dnsmasq1_cid $dnsmasq2_cid $dnsmasq3_cid" 0 "Stopping containers"
+        rlRun "podman container rm $dnsconfd_cid $bind_cid $dnsmasq1_cid $dnsmasq2_cid $dnsmasq3_cid" 0 "Removing containers"
         rlRun "podman network rm dnsconfd_network" 0 "Removing networks"
         rlRun "rm -r $tmp" 0 "Remove tmp directory"
     rlPhaseEnd
