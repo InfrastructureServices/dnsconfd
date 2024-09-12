@@ -148,9 +148,14 @@ class UnboundManager(DnsManager):
         max_prio = servers[0].priority
         used_protocol = servers[0].protocol
         servers_str = []
+        # this will remove duplicate servers
+        unique_servers = {}
         for srv in servers:
             if srv.protocol == used_protocol and srv.priority == max_prio:
-                servers_str.append(srv.to_unbound_string())
+                srv_string = srv.to_unbound_string()
+                if srv_string not in unique_servers:
+                    servers_str.append(srv_string)
+                    unique_servers[srv.to_unbound_string()] = True
             else:
                 break
         tls = used_protocol == DnsProtocol.DNS_OVER_TLS
