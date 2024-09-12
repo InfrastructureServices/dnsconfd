@@ -111,6 +111,11 @@ class DnsconfdDbusInterface(dbus.service.Object):
                                f"server domain is not domain {domain}")
                         self.lgr.error(msg)
                         return False, msg
+                    elif domain == "." and search:
+                        msg = (f"{index + 1}."
+                               f"domain is '.' and cannot be used for search")
+                        self.lgr.error(msg)
+                        return False, msg
                 domains = [(str(domain), bool(search))
                            for (domain, search) in server["domains"]]
 
