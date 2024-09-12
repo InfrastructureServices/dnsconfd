@@ -58,7 +58,8 @@ Bad arguments.
 
 .SH ENVIRONMENT
 Environment variables have lower priority than command line options but higher
-than configuration file.
+than configuration file. Boolean options recognize 'yes' or '1' as True, all
+other values are considered as False.
 
 .IP DBUS_NAME
 DBUS name that dnsconfd should use, default org.freedesktop.resolve1

@@ -216,7 +216,7 @@ class DnsconfdArgumentParser(ArgumentParser):
         if (option.in_env
                 and self._env.get(option.name.upper(), None) is not None):
             if isinstance(option, BoolOption):
-                final_val = self._env[option.name.upper()] == "yes"
+                final_val = self._env[option.name.upper()] in ["yes", "1"]
             else:
                 final_val = self._env[option.name.upper()]
             self.lgr.debug(f"Applying value {final_val}"
