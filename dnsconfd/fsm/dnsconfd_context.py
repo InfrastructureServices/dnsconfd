@@ -1,7 +1,7 @@
 from dnsconfd.network_objects import InterfaceConfiguration
 from dnsconfd.fsm import ContextEvent, SharedContainer
 from dnsconfd.fsm import ContextState
-from dnsconfd.fsm.transitions import NotStarted, Starting, Running, Stopping
+from dnsconfd.fsm.transitions import Starting, Running, Stopping
 
 import logging
 import json
@@ -28,7 +28,6 @@ class DnsconfdContext:
         self.state = ContextState.STARTING
 
         transitions_implementations = [
-            NotStarted(self.container, self.transition_function),
             Starting(self.container, self.transition_function),
             Running(self.container, self.transition_function),
             Stopping(self.container, self.transition_function)
