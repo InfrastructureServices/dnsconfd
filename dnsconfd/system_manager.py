@@ -22,7 +22,7 @@ class SystemManager:
         self._resolver_options = config["resolver_options"]
         self.lgr = logging.getLogger(self.__class__.__name__)
 
-    def set_resolvconf(self) -> bool:
+    def set_resolvconf(self, search_domains: list[str]) -> bool:
         """ Replace resolv.conf content with our config and perform backup
 
         :return: True if operation was successful, otherwise False
@@ -47,7 +47,7 @@ class SystemManager:
 
         try:
             with open(self._resolv_conf_path, "w") as new_resolv:
-                new_resolv.write(self._get_resolvconf_string())
+                new_resolv.write(self._get_resolvconf_string(search_domains))
         except OSError as e:
             self.lgr.error(f"OSError encountered while writing "
                            f"resolv.conf: {e}")
