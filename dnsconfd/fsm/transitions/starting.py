@@ -41,7 +41,7 @@ class Starting(WithExit, WithDeferredUpdate):
             ContextState.POLLING: {
                 "TIMER_UP": (ContextState.POLLING,
                              self._polling_timer_up_transition),
-                "SERVICE_UP": (ContextState.SETTING_UP_RESOLVCONF,
+                "SERVICE_UP": (ContextState.UPDATING_RESOLV_CONF,
                                self._polling_service_up_transition),
                 "TIMEOUT": (ContextState.STOPPING,
                             self._exit_transition),
@@ -49,12 +49,6 @@ class Starting(WithExit, WithDeferredUpdate):
                            self._update_transition),
                 "STOP": (ContextState.REVERTING_RESOLV_CONF,
                          self._running_stop_transition)
-            },
-            ContextState.SETTING_UP_RESOLVCONF: {
-                "FAIL": (ContextState.STOPPING,
-                         self._exit_transition),
-                "SUCCESS": (ContextState.UPDATING_RESOLV_CONF,
-                            self._setting_up_resolve_conf_transition)
             }
         }
 
@@ -166,13 +160,15 @@ class Starting(WithExit, WithDeferredUpdate):
         :return: SUCCESS if setting up was successful otherwise FAIL
         :rtype: ContextEvent | None
         """
-        if not self.container.sys_mgr.set_resolvconf():
+        zones_to_servers, search_domains = self.container.get_zones_to_servers()
+        if not self.container.sys_mgr.set_resolvconf(search_domains):
             self.lgr.critical("Failed to set up resolv.conf")
             self.container.set_exit_code(ExitCode.RESOLV_CONF_FAILURE)
             return ContextEvent("FAIL")
-        else:
-            self.lgr.info("Resolv.conf successfully prepared")
-            return ContextEvent("SUCCESS")
+
+        self.lgr.info("Resolv.conf successfully prepared with "
+                      f"domains: {search_domains}")
+        return ContextEvent("SUCCESS", zones_to_servers)
 
     def _running_stop_transition(self, event: ContextEvent) \
             -> ContextEvent | None:
@@ -190,23 +186,3 @@ class Starting(WithExit, WithDeferredUpdate):
             self.container.set_exit_code(ExitCode.RESOLV_CONF_FAILURE)
             return ContextEvent("FAIL")
         return ContextEvent("SUCCESS")
-
-    def _setting_up_resolve_conf_transition(self, event: ContextEvent) \
-            -> ContextEvent | None:
-        """ Transition to SUBMITTING_RESTART_JOB
-
-        Attempt to update resolv.conf
-
-        :param event: Not used
-        :type event: ContextEvent
-        :return: SUCCESS with new zones to servers or FAIL with exit code
-        :rtype: ContextEvent | None
-        """
-        zones_to_servers, search_domains = self.container.get_zones_to_servers()
-        if not self.container.sys_mgr.update_resolvconf(search_domains):
-            self.lgr.error("Failed to update resolv.conf")
-            self.container.set_exit_code(ExitCode.SERVICE_FAILURE)
-            return ContextEvent("FAIL")
-        self.lgr.debug("Successfully updated resolv.conf with search domains:"
-                       f"{search_domains}")
-        return ContextEvent("SUCCESS", zones_to_servers)

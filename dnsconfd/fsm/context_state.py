@@ -9,7 +9,6 @@ class ContextState(Enum):
     POLLING = 3  # interrupt
     RUNNING = 4  # interrupt
     STOPPING = 5
-    SETTING_UP_RESOLVCONF = 6
     CONNECTING_DBUS = 7
     SUBMITTING_START_JOB = 8
     UPDATING = 9
