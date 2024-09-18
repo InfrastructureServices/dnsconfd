@@ -24,27 +24,27 @@ class StaticServersOption(Option):
                 return False
             for resolver in value:
                 resolver: dict
-                if "address" not in resolver.keys():
+                if "address" not in resolver:
                     self.lgr.error("missing resolver address "
                                    "specification")
                     return False
-                if "protocol" in resolver.keys():
+                if "protocol" in resolver:
                     if (resolver["protocol"] != "DoT"
                             and resolver["protocol"] != "plain"):
                         self.lgr.error("protocol contains invalid value")
                         return False
-                if "port" in resolver.keys():
+                if "port" in resolver:
                     if not isinstance(resolver["port"], int):
                         self.lgr.error("port has to be number")
                         return False
                     if resolver["port"] < 1 or resolver["port"] > 65535:
                         self.lgr.error("invalid port number")
                         return False
-                if "sni" in resolver.keys():
+                if "sni" in resolver:
                     if not isinstance(resolver["sni"], str):
                         self.lgr.error("invalid sni")
                         return False
-                if "domains" in resolver.keys():
+                if "domains" in resolver:
                     if not isinstance(resolver["domains"], list):
                         self.lgr.error("domains must be a list")
                         return False
@@ -60,11 +60,11 @@ class StaticServersOption(Option):
                             self.lgr.error(f"invalid domain "
                                            f"{domain['domain']}")
                             return False
-                if "dnssec" in resolver.keys():
+                if "dnssec" in resolver:
                     if not isinstance(resolver["dnssec"], bool):
                         self.lgr.error("dnssec has to be bool")
                         return False
-                for key in resolver.keys():
+                for key in resolver:
                     if key not in ["address", "protocol", "port",
                                    "sni", "domains", "dnssec"]:
                         self.lgr.error(f"Invalid property {key}")

@@ -123,7 +123,7 @@ class Stopping(TransitionImplementations):
             self.lgr.info("Config says we should not handle routes, skipping")
             return ContextEvent("SUCCESS")
         self.lgr.debug("Removing routes")
-        routes_str = " ".join([str(x) for x in self.container.routes.keys()])
+        routes_str = " ".join([str(x) for x in self.container.routes])
         self.lgr.debug(f"routes: {routes_str}")
         return self.container.remove_routes()
 
@@ -186,7 +186,7 @@ class Stopping(TransitionImplementations):
             self.lgr.info("Config says we should not handle routes, skipping")
             return ContextEvent("SUCCESS")
         self.lgr.debug("Removing routes")
-        routes_str = " ".join([str(x) for x in self.container.routes.keys()])
+        routes_str = " ".join([str(x) for x in self.container.routes])
         self.lgr.debug(f"routes: {routes_str}")
 
         self.container.set_exit_code(ExitCode.SERVICE_FAILURE)

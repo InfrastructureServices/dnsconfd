@@ -91,14 +91,14 @@ class UnboundManager(DnsManager):
         added_zones = []
         stable_zones = []
         removed_zones = []
-        for zone in zones_to_servers.keys():
-            if zone in self.zones_to_servers.keys():
+        for zone in zones_to_servers:
+            if zone in self.zones_to_servers:
                 stable_zones.append(zone)
             else:
                 added_zones.append(zone)
 
-        for zone in self.zones_to_servers.keys():
-            if zone not in zones_to_servers.keys():
+        for zone in self.zones_to_servers:
+            if zone not in zones_to_servers:
                 removed_zones.append(zone)
 
         self.lgr.debug(f"Update added zones {added_zones}")
