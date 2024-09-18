@@ -131,7 +131,6 @@ rlJournalStart
         rlRun "podman exec $dnsconfd_cid nmcli connection up eth3"
         sleep 5
 
-        rlRun "podman exec $dnsconfd_cid /bin/bash -c 'ip -6 route'" 0 "Get me all ipv6 routes"
         rlRun "podman exec $dnsconfd_cid /bin/bash -c 'ip route | grep 192.168.6.3 || ip route | grep 192.168.8.3'" 0 "Verify that route to one of the ipv4 DNS is present"
         rlRun "podman exec $dnsconfd_cid /bin/bash -c 'ip -6 route | grep 2001:db8::103 || ip -6 route | grep 2001:db8::303'" 0 "Verify that route to one of the ipv6 DNS is present"
 
