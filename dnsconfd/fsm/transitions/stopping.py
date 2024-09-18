@@ -88,7 +88,7 @@ class Stopping(TransitionImplementations):
                 "STOP_SUCCESS": (ContextState.REMOVING_ROUTES,
                                  self._to_removing_routes_transition),
                 "STOP_FAILURE": (ContextState.REMOVING_ROUTES,
-                                 self._srv_fail_remove_routes_transition),
+                                 self._to_removing_routes_transition),
                 "STOP": (ContextState.WAITING_STOP_JOB, lambda y: None),
                 "UPDATE": (ContextState.WAITING_STOP_JOB, lambda y: None)
             },
@@ -119,6 +119,8 @@ class Stopping(TransitionImplementations):
 
     def _to_removing_routes_transition(self, event: ContextEvent) \
             -> ContextEvent | None:
+        if event.name == "STOP_FAILURE":
+            self.container.set_exit_code(ExitCode.SERVICE_FAILURE)
         if not self.container.handle_routes:
             self.lgr.info("Config says we should not handle routes, skipping")
             return ContextEvent("SUCCESS")
@@ -179,18 +181,6 @@ class Stopping(TransitionImplementations):
         if not self.container.sys_mgr.revert_resolvconf():
             return ContextEvent("FAIL")
         return ContextEvent("SUCCESS")
-
-    def _srv_fail_remove_routes_transition(self, event: ContextEvent) \
-            -> ContextEvent | None:
-        if not self.container.handle_routes:
-            self.lgr.info("Config says we should not handle routes, skipping")
-            return ContextEvent("SUCCESS")
-        self.lgr.debug("Removing routes")
-        routes_str = " ".join([str(x) for x in self.container.routes])
-        self.lgr.debug(f"routes: {routes_str}")
-
-        self.container.set_exit_code(ExitCode.SERVICE_FAILURE)
-        return self.container.remove_routes()
 
     def _reverting_resolv_conf_transition(self, event: ContextEvent) \
             -> ContextEvent | None:
