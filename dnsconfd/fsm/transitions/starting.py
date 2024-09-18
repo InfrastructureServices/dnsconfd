@@ -1,12 +1,11 @@
 from dnsconfd.dns_managers import UnboundManager
 from dnsconfd.fsm import ContextEvent, ExitCode, ContextState
-from dnsconfd.fsm.transitions.with_exit import WithExit
-from dnsconfd.fsm.transitions.with_deferred_update import WithDeferredUpdate
+from dnsconfd.fsm.transitions import TransitionImplementations
 
 from gi.repository import GLib
 
 
-class Starting(WithExit, WithDeferredUpdate):
+class Starting(TransitionImplementations):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -15,50 +14,38 @@ class Starting(WithExit, WithDeferredUpdate):
                 "KICKOFF": (ContextState.CONFIGURING_DNS_MANAGER,
                             self._starting_kickoff_transition),
                 "UPDATE": (ContextState.STARTING,
-                           self._update_transition),
-                "STOP": (ContextState.STOPPING,
-                         self._exit_transition)
+                           self._update_transition)
             },
             ContextState.CONFIGURING_DNS_MANAGER: {
                 "SUCCESS": (ContextState.CONNECTING_DBUS,
-                            self._conf_dns_mgr_success_transition),
-                "FAIL": (ContextState.STOPPING,
-                         self._exit_transition)
+                            self._conf_dns_mgr_success_transition)
             },
             ContextState.CONNECTING_DBUS: {
-                "FAIL": (ContextState.STOPPING,
-                         self._exit_transition),
                 "SUCCESS": (ContextState.SUBMITTING_START_JOB,
                             self._connecting_dbus_success_transition)
             },
             ContextState.SUBMITTING_START_JOB: {
-                "FAIL": (ContextState.STOPPING,
-                         self._exit_transition),
                 "SUCCESS": (ContextState.WAITING_FOR_START_JOB,
                             lambda y: None)
             },
             ContextState.WAITING_FOR_START_JOB: {
                 "START_OK": (ContextState.POLLING,
                              self._job_finished_success_transition),
-                "START_FAIL": (ContextState.STOPPING,
-                               self._service_failure_exit_transition),
                 "UPDATE": (ContextState.WAITING_FOR_START_JOB,
-                           self._update_transition),
-                "STOP": (ContextState.WAITING_TO_SUBMIT_STOP_JOB,
-                         lambda y: None)
+                           self._update_transition)
             },
             ContextState.POLLING: {
                 "TIMER_UP": (ContextState.POLLING,
                              self._polling_timer_up_transition),
-                "SERVICE_UP": (ContextState.UPDATING_RESOLV_CONF,
-                               self._polling_service_up_transition),
-                "TIMEOUT": (ContextState.STOPPING,
-                            self._exit_transition),
                 "UPDATE": (ContextState.POLLING,
-                           self._update_transition),
-                "STOP": (ContextState.REVERTING_RESOLV_CONF,
-                         self._running_stop_transition)
-            }
+                           self._update_transition)
+            },
+            ContextState.WAITING_RESTART_JOB: {
+                "RESTART_SUCCESS": (ContextState.POLLING,
+                                    self._job_finished_success_transition),
+                "UPDATE": (ContextState.WAITING_RESTART_JOB,
+                           self._update_transition)
+            },
         }
 
     def _starting_kickoff_transition(self, event: ContextEvent):
@@ -144,13 +131,6 @@ class Starting(WithExit, WithDeferredUpdate):
                                  lambda: self.transition_function(timer_event))
         return None
 
-    def _service_failure_exit_transition(self, event: ContextEvent) \
-            -> ContextEvent | None:
-        self.container.set_exit_code(ExitCode.SERVICE_FAILURE)
-        self.lgr.info("Stopping event loop and FSM")
-        self.container.main_loop.quit()
-        return None
-
     def _polling_timer_up_transition(self, event: ContextEvent) \
             -> ContextEvent | None:
         """ Transition to POLLING
@@ -180,27 +160,6 @@ class Starting(WithExit, WithDeferredUpdate):
                            "proceeding to setup of resolv.conf")
             return ContextEvent("SERVICE_UP")
 
-    def _polling_service_up_transition(self, event: ContextEvent) \
-            -> ContextEvent | None:
-        """ Transition to SETTING_UP_RESOLVCONF
-
-        Attempt to set up resolv.conf
-
-        :param event: Not used
-        :type event: ContextEvent
-        :return: SUCCESS if setting up was successful otherwise FAIL
-        :rtype: ContextEvent | None
-        """
-        zones_to_servers, search_domains = self.container.get_zones_to_servers()
-        if not self.container.sys_mgr.set_resolvconf(search_domains):
-            self.lgr.critical("Failed to set up resolv.conf")
-            self.container.set_exit_code(ExitCode.RESOLV_CONF_FAILURE)
-            return ContextEvent("FAIL")
-
-        self.lgr.info("Resolv.conf successfully prepared with "
-                      f"domains: {search_domains}")
-        return ContextEvent("SUCCESS", zones_to_servers)
-
     def _running_stop_transition(self, event: ContextEvent) \
             -> ContextEvent | None:
         """ Transition to REVERTING_RESOLV_CONF
@@ -217,3 +176,18 @@ class Starting(WithExit, WithDeferredUpdate):
             self.container.set_exit_code(ExitCode.RESOLV_CONF_FAILURE)
             return ContextEvent("FAIL")
         return ContextEvent("SUCCESS")
+
+    def _update_transition(self, event: ContextEvent):
+        """ Transition to the same state
+
+        Save received network_objects and stay in the current state
+
+        :param event: event with interface config in data
+        :type event: ContextEvent
+        :return: None
+        :rtype: ContextEvent | None
+        """
+        if event.data is None:
+            return None
+        self.container.servers = event.data
+        return None
