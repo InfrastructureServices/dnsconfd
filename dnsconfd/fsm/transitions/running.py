@@ -45,23 +45,6 @@ class Running(TransitionImplementations):
 
         return self.container.handle_routes_process(event)
 
-    def _running_stop_transition(self, event: ContextEvent) \
-            -> ContextEvent | None:
-        """ Transition to REVERTING_RESOLV_CONF
-
-        Attempt to revert resolv.conf content
-
-        :param event: Not used
-        :type event: ContextEvent
-        :return: SUCCESS or FAIL with exit code
-        :rtype: ContextEvent | None
-        """
-        self.lgr.info("Stopping dnsconfd")
-        if not self.container.sys_mgr.revert_resolvconf():
-            self.container.set_exit_code(ExitCode.RESOLV_CONF_FAILURE)
-            return ContextEvent("FAIL")
-        return ContextEvent("SUCCESS")
-
     def _updating_routes_success_transition(self, event: ContextEvent) \
             -> ContextEvent | None:
         """ Transition to UPDATING_DNS_MANAGER
@@ -75,6 +58,7 @@ class Running(TransitionImplementations):
         """
         new_zones_to_servers = event.data
         if not self.container.dns_mgr.update(new_zones_to_servers):
+            self.lgr.error("Failed to update DNS service, stopping")
             self.container.set_exit_code(ExitCode.SERVICE_FAILURE)
             return ContextEvent("FAIL")
         return ContextEvent("SUCCESS")
