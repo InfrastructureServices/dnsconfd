@@ -74,7 +74,7 @@ class DnsconfdContext:
         for srv in servers:
             if srv["interface"] is not None:
                 found_interfaces[srv["interface"]] = True
-        for key in found_interfaces.keys():
+        for key in found_interfaces:
             found_interfaces[key] = InterfaceConfiguration.get_if_name(key)
         for srv in servers:
             if srv["interface"] is not None:

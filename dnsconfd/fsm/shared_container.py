@@ -82,7 +82,7 @@ class SharedContainer:
                 if search:
                     search_domains.append(domain)
 
-        for zone in new_zones_to_servers.keys():
+        for zone in new_zones_to_servers:
             new_zones_to_servers[zone].sort(key=lambda x: x.priority,
                                             reverse=True)
         self.lgr.debug(f"New zones to server prepared: {new_zones_to_servers}")
@@ -242,7 +242,7 @@ class SharedContainer:
                     routing_right = best_route[0] == int_index
 
                 if (routing_right
-                        and best_route[1]["dest"] not in self.routes.keys()):
+                        and best_route[1]["dest"] not in self.routes):
                     self.lgr.debug("Routing is right, no additional action "
                                    "required continuing")
                     # this means that there is no additional action required
@@ -260,7 +260,7 @@ class SharedContainer:
                     for (route_int_index, route) in interface_and_routes:
                         if (route_int_index == int_index
                                 and route["prefix"] == 0
-                                and "next-hop" in route.keys()):
+                                and "next-hop" in route):
                             def_route = (route_int_index, route)
                             break
 
@@ -329,7 +329,7 @@ class SharedContainer:
                     for (route_int_index, route) in interface_and_routes:
                         if (route_int_index == int_index
                                 and route["prefix"] == 0
-                                and "next-hop" in route.keys()):
+                                and "next-hop" in route):
                             def_route = (route_int_index, route)
                             break
 
@@ -494,8 +494,8 @@ class SharedContainer:
                         or best_route[1]["prefix"] < route["prefix"]):
                     best_route = (route_int_index, route)
                 elif (best_route[1]["prefix"] == route["prefix"]
-                      and "metric" in best_route[1].keys()
-                      and "metric" in route.keys()
+                      and "metric" in best_route[1]
+                      and "metric" in route
                       and best_route[1]["metric"] > route["metric"]):
                     best_route = (route_int_index, route)
         self.lgr.debug(f"best route is {best_route}")
