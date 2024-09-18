@@ -160,23 +160,6 @@ class Starting(TransitionImplementations):
                            "proceeding to setup of resolv.conf")
             return ContextEvent("SERVICE_UP")
 
-    def _running_stop_transition(self, event: ContextEvent) \
-            -> ContextEvent | None:
-        """ Transition to REVERTING_RESOLV_CONF
-
-        Attempt to revert resolv.conf content
-
-        :param event: Not used
-        :type event: ContextEvent
-        :return: SUCCESS or FAIL with exit code
-        :rtype: ContextEvent | None
-        """
-        self.lgr.info("Stopping dnsconfd")
-        if not self.container.sys_mgr.revert_resolvconf():
-            self.container.set_exit_code(ExitCode.RESOLV_CONF_FAILURE)
-            return ContextEvent("FAIL")
-        return ContextEvent("SUCCESS")
-
     def _update_transition(self, event: ContextEvent):
         """ Transition to the same state
 
