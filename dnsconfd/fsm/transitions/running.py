@@ -90,10 +90,6 @@ class Running(TransitionImplementations):
                 "INTERFACE_DOWN": (ContextState.UNSUBSCRIBE_IMMEDIATE,
                                    self.unsubscribe_now)
             },
-
-
-
-
             ContextState.UNSUBSCRIBE_IMMEDIATE: {
                 "SUCCESS": (ContextState.UPDATING_RESOLV_CONF,
                             self._polling_service_up_transition)
@@ -136,6 +132,12 @@ class Running(TransitionImplementations):
                            self._running_update_transition),
                 "RELOAD": (ContextState.SUBMITTING_RESTART_JOB,
                            self._running_reload_transition),
+                "DHCP_CHANGE": (ContextState.SUBSCRIBING_ALL_NM_CONNECTIONS,
+                                self._subscribe_to_devices_connections),
+                "INTERFACE_UP": (ContextState.SUBSCRIBING_ALL_NM_CONNECTIONS,
+                                 self._subscribe_to_devices_connections),
+                "INTERFACE_DOWN": (ContextState.SUBSCRIBING_ALL_NM_CONNECTIONS,
+                                   self._subscribe_to_devices_connections),
             },
             ContextState.SUBMITTING_RESTART_JOB: {
                 "SUCCESS": (ContextState.WAITING_RESTART_JOB,
@@ -173,14 +175,15 @@ class Running(TransitionImplementations):
 
     def unsub_only_ip(self, event: ContextEvent) -> ContextEvent | None:
         self.route_mgr.clear_ip_subscriptions()
+        self.lgr.info("Cleared ip subscriptions")
         return ContextEvent("SUCCESS")
 
     def check_ip_objs(self, event: ContextEvent) -> ContextEvent | None:
         if self.route_mgr.are_all_ip_set():
-            self.lgr.info("All required routes are set, proceeding")
+            self.lgr.info("All required routes are in place, proceeding")
             return ContextEvent("SUCCESS")
         else:
-            self.lgr.info("Not all required routes are set, waiting")
+            self.lgr.info("Not all required routes are in place, waiting")
             return ContextEvent("FAIL")
 
     def subscribe_ip_changes(self, event: ContextEvent) -> ContextEvent | None:
@@ -193,12 +196,14 @@ class Running(TransitionImplementations):
 
     def unsubscribe_now(self, event: ContextEvent) -> ContextEvent | None:
         self.route_mgr.clear_subscriptions()
+        self.lgr.info("Successfully unsubscribed from NM events")
         return ContextEvent("SUCCESS")
 
     def save_update_and_unsubscribe(self, event: ContextEvent) -> ContextEvent | None:
         self.server_manager.set_dynamic_servers(event.data)
         self.zones_to_servers, self.search_domains = self.server_manager.get_zones_to_servers()
         self.route_mgr.clear_subscriptions()
+        self.lgr.info("Successfully saved update and unsubscribed NM events")
         return ContextEvent("SUCCESS")
 
     def modify_connections(self, event: ContextEvent) -> ContextEvent | None:
@@ -206,12 +211,13 @@ class Running(TransitionImplementations):
             self.lgr.info("Connections successfully processed")
             return ContextEvent("SUCCESS")
         else:
-            self.lgr.info("Unable to set connections into required state")
+            self.lgr.info("Was unable to set connections into required state, will wait")
             return ContextEvent("FAIL")
 
     def save_update_noop(self, event: ContextEvent) -> ContextEvent | None:
         self.server_manager.set_dynamic_servers(event.data)
         self.zones_to_servers, self.search_domains = self.server_manager.get_zones_to_servers()
+        self.lgr.info("Successfully saved update")
         return None
 
     def unsub_and_wait(self, event: ContextEvent) -> ContextEvent | None:
@@ -219,6 +225,8 @@ class Running(TransitionImplementations):
         timer_event = ContextEvent("TIMER_UP", 0)
         GLib.timeout_add_seconds(1,
                                  lambda: self.transition_function(timer_event))
+        self.lgr.info("Successfully unsubscribed from "
+                      "NM events and set the timer to 1 second")
         return ContextEvent("SUCCESS")
 
     def _check_all_connections_up(self, event: ContextEvent) -> ContextEvent | None:
@@ -250,6 +258,7 @@ class Running(TransitionImplementations):
         :rtype: ContextEvent | None
         """
         if not self.dns_mgr.update(self.zones_to_servers):
+            self.lgr.error("Failed to send update into DNS cache service")
             self.exit_code_handler.set_exit_code(ExitCode.SERVICE_FAILURE)
             return ContextEvent("FAIL")
         return ContextEvent("SUCCESS")
@@ -265,14 +274,14 @@ class Running(TransitionImplementations):
         :return: SUCCESS if update was successful otherwise FAIL
         :rtype: ContextEvent | None
         """
-        if event.data is not None:
-            self.server_manager.set_dynamic_servers(event.data)
+        self.server_manager.set_dynamic_servers(event.data)
 
         self.zones_to_servers, self.search_domains = self.server_manager.get_zones_to_servers()
         if not self.sys_mgr.update_resolvconf(self.search_domains):
-            self.lgr.critical("Failed to update resolv.conf")
+            self.lgr.error("Failed to update resolv.conf")
             self.exit_code_handler.set_exit_code(ExitCode.SERVICE_FAILURE)
             return ContextEvent("FAIL")
+        self.lgr.info("Successfully updated resolv.conf")
         return ContextEvent("SUCCESS")
 
     def _running_reload_transition(self, event: ContextEvent) \
@@ -289,12 +298,14 @@ class Running(TransitionImplementations):
         self.lgr.info("Reloading DNS cache service")
         self.dns_mgr.clear_state()
         if not self.systemd_mgr.subscribe_systemd_signals():
+            self.lgr.error("Failed to subscribe to systemd signals")
             self.exit_code_handler.set_exit_code(ExitCode.DBUS_FAILURE)
             return ContextEvent("FAIL")
         jobid = self.systemd_mgr.restart_unit(self.dns_mgr.service_name,
                                               ContextEvent("RESTART_SUCCESS"),
                                               ContextEvent("RESTART_FAIL"))
         if jobid is None:
+            self.lgr.error("Failed to submit service restart job")
             self.exit_code_handler.set_exit_code(ExitCode.DBUS_FAILURE)
             return ContextEvent("FAIL")
         return ContextEvent("SUCCESS")
@@ -312,7 +323,7 @@ class Running(TransitionImplementations):
         """
         self.zones_to_servers, self.search_domains = self.server_manager.get_zones_to_servers()
         if not self.sys_mgr.set_resolvconf(self.search_domains):
-            self.lgr.critical("Failed to set up resolv.conf")
+            self.lgr.error("Failed to set up resolv.conf")
             self.exit_code_handler.set_exit_code(ExitCode.RESOLV_CONF_FAILURE)
             return ContextEvent("FAIL")
 
