@@ -1,10 +1,17 @@
+from dnsconfd import SystemManager
+from dnsconfd.dns_managers import UnboundManager
+from dnsconfd.fsm.exit_code_handler import ExitCodeHandler
 from dnsconfd.network_objects import InterfaceConfiguration
-from dnsconfd.fsm import ContextEvent, SharedContainer
+from dnsconfd.fsm import ContextEvent
 from dnsconfd.fsm import ContextState
 from dnsconfd.fsm.transitions import Starting, Running, Stopping
 
 import logging
 import json
+
+from dnsconfd.routing_manager import RoutingManager
+from dnsconfd.server_manager import ServerManager
+from dnsconfd.systemd_manager import SystemdManager
 
 
 class DnsconfdContext:
@@ -18,19 +25,39 @@ class DnsconfdContext:
         :type main_loop: object
         """
         self.lgr = logging.getLogger(self.__class__.__name__)
-
+        self.dns_mgr = UnboundManager()
         self._main_loop = main_loop
-
+        sys_mgr = SystemManager(config)
         self.transitions = {}
-        self.container = SharedContainer(config,
-                                         main_loop,
-                                         self.transition_function)
         self.state = ContextState.STARTING
+        systemd_manager = SystemdManager(self.transition_function)
+        self.exit_code_handler = ExitCodeHandler()
+        self.server_manager = ServerManager(config)
+        self.routing_manager = RoutingManager(config["prioritize_wire"], self.transition_function)
 
         transitions_implementations = [
-            Starting(self.container, self.transition_function),
-            Running(self.container, self.transition_function),
-            Stopping(self.container, self.transition_function)
+            Starting(config,
+                     self.dns_mgr,
+                     self.exit_code_handler,
+                     self.transition_function,
+                     systemd_manager,
+                     self.server_manager),
+            Running(config,
+                    self.dns_mgr,
+                    self.exit_code_handler,
+                    sys_mgr,
+                    systemd_manager,
+                    self.server_manager,
+                    self.routing_manager,
+                    self.transition_function),
+            Stopping(config,
+                     self.dns_mgr,
+                     self.exit_code_handler,
+                     sys_mgr,
+                     main_loop,
+                     systemd_manager,
+                     self.routing_manager,
+                     self.server_manager)
         ]
         for instance in transitions_implementations:
             for key in instance.transitions:
@@ -69,7 +96,7 @@ class DnsconfdContext:
         :rtype: str
         """
         self.lgr.debug("Handling request for status")
-        servers = [a.to_dict() for a in self.container.servers]
+        servers = [a.to_dict() for a in self.server_manager.dynamic_servers + self.server_manager.static_servers]
         found_interfaces = {}
         for srv in servers:
             if srv["interface"] is not None:
@@ -79,17 +106,16 @@ class DnsconfdContext:
         for srv in servers:
             if srv["interface"] is not None:
                 srv["interface"] = found_interfaces[srv["interface"]]
-        servers += [a.to_dict() for a in self.container.static_servers]
 
         if json_format:
-            status = {"service": self.container.dns_mgr.service_name,
-                      "cache_config": self.container.dns_mgr.get_status(),
+            status = {"service": self.dns_mgr.service_name,
+                      "cache_config": self.dns_mgr.get_status(),
                       "state": self.state.name,
                       "servers": servers}
             return json.dumps(status)
-        return (f"Running cache service:\n{self.container.dns_mgr.service_name}\n"
+        return (f"Running cache service:\n{self.dns_mgr.service_name}\n"
                 "Config present in service:\n"
-                f"{json.dumps(self.container.dns_mgr.get_status(), indent=4)}\n"
+                f"{json.dumps(self.dns_mgr.get_status(), indent=4)}\n"
                 f"State of Dnsconfd:\n{self.state.name}\n"
                 "Info about servers: "
                 f"{json.dumps(servers, indent=4)}")
@@ -113,4 +139,4 @@ class DnsconfdContext:
         :return: exit code
         :rtype: int
         """
-        return self.container.exit_code
+        return self.exit_code_handler.get_exit_code()
