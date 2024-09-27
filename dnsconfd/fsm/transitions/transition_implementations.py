@@ -1,16 +1,22 @@
-from dnsconfd.fsm import ContextEvent, SharedContainer, ContextState
+from dnsconfd.dns_managers import DnsManager
+from dnsconfd.fsm import ContextEvent, ContextState
 
 from typing import Callable, Type
 import logging
+
+from dnsconfd.fsm.exit_code_handler import ExitCodeHandler
 
 
 class TransitionImplementations:
 
     def __init__(self,
-                 container: SharedContainer,
-                 transition_function: Callable):
-        self.container = container
+                 config: dict,
+                 dns_mgr: DnsManager,
+                 exit_code_handler: ExitCodeHandler):
         self.lgr = logging.getLogger(self.__class__.__name__)
+        self.config = config
+        self.dns_mgr = dns_mgr
+        self.exit_code_handler = exit_code_handler
         self.transitions: dict[
             ContextState,
             dict[str,
@@ -18,4 +24,3 @@ class TransitionImplementations:
                        Callable[[Type["TransitionImplementations"],
                                  ContextEvent],
                                 ContextEvent]]]] = {}
-        self.transition_function = transition_function

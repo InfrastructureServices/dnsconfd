@@ -1,14 +1,29 @@
-from dnsconfd.dns_managers import UnboundManager
+from typing import Callable
+
+from dnsconfd.dns_managers import UnboundManager, DnsManager
 from dnsconfd.fsm import ContextEvent, ExitCode, ContextState
+from dnsconfd.fsm.exit_code_handler import ExitCodeHandler
 from dnsconfd.fsm.transitions import TransitionImplementations
 
 from gi.repository import GLib
 
+from dnsconfd.server_manager import ServerManager
+from dnsconfd.systemd_manager import SystemdManager
+
 
 class Starting(TransitionImplementations):
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    def __init__(self,
+                 config: dict,
+                 dns_mgr: DnsManager,
+                 exit_code_handler: ExitCodeHandler,
+                 transition_function: Callable,
+                 systemd_manager: SystemdManager,
+                 server_mgr: ServerManager):
+        super().__init__(config, dns_mgr, exit_code_handler)
+        self.systemd_manager = systemd_manager
+        self.server_manager = server_mgr
+        self.transition_function = transition_function
         self.transitions = {
             ContextState.STARTING: {
                 "KICKOFF": (ContextState.CONFIGURING_DNS_MANAGER,
@@ -59,15 +74,15 @@ class Starting(TransitionImplementations):
         :rtype: ContextEvent | None
         """
 
-        self.container.dns_mgr = UnboundManager()
-        address = self.container.config["listen_address"]
-        dnssec = self.container.config["dnssec_enabled"]
-        if self.container.dns_mgr.configure(address, dnssec):
+        self.dns_mgr = UnboundManager()
+        address = self.config["listen_address"]
+        dnssec = self.config["dnssec_enabled"]
+        if self.dns_mgr.configure(address, dnssec):
             self.lgr.info("Successfully configured DNS manager")
             return ContextEvent("SUCCESS")
 
         self.lgr.error("Unable to configure DNS manager")
-        self.container.set_exit_code(ExitCode.CONFIG_FAILURE)
+        self.exit_code_handler.set_exit_code(ExitCode.CONFIG_FAILURE)
         return ContextEvent("FAIL")
 
     def _conf_dns_mgr_success_transition(self, event: ContextEvent) \
@@ -82,10 +97,10 @@ class Starting(TransitionImplementations):
         :rtype: ContextEvent | None
         """
 
-        if (not self.container.connect_systemd()
-                or not self.container.subscribe_systemd_signals()):
+        if (not self.systemd_manager.connect_systemd()
+                or not self.systemd_manager.subscribe_systemd_signals()):
             self.lgr.error("Failed to connect to systemd through DBUS")
-            self.container.set_exit_code(ExitCode.DBUS_FAILURE)
+            self.exit_code_handler.set_exit_code(ExitCode.DBUS_FAILURE)
             return ContextEvent("FAIL")
         else:
             self.lgr.info("Successfully connected to systemd through DBUS")
@@ -103,13 +118,13 @@ class Starting(TransitionImplementations):
         :rtype: ContextEvent | None
         """
         # TODO we will configure this in network_objects
-        service_start_job = self.container.start_unit()
+        service_start_job = self.systemd_manager.start_unit(self.dns_mgr.service_name,
+                                                            ContextEvent("START_OK"),
+                                                            ContextEvent("START_FAIL"))
         if service_start_job is None:
             self.lgr.error("Failed to submit dns cache service start job")
-            self.container.set_exit_code(ExitCode.DBUS_FAILURE)
+            self.exit_code_handler.set_exit_code(ExitCode.DBUS_FAILURE)
             return ContextEvent("FAIL")
-        self.container.systemd_jobs[service_start_job] = (
-            ContextEvent("START_OK"), ContextEvent("START_FAIL"))
         # end of part that will be configured
         self.lgr.info("Successfully submitted dns cache service start job")
         return ContextEvent("SUCCESS")
@@ -143,13 +158,13 @@ class Starting(TransitionImplementations):
         :return: None or SERVICE_UP if service is up
         :rtype: ContextEvent | None
         """
-        if not self.container.dns_mgr.is_ready():
+        if not self.dns_mgr.is_ready():
             if event.data == 3:
-                self.lgr.critical(f"{self.container.dns_mgr.service_name} did not"
+                self.lgr.critical(f"{self.dns_mgr.service_name} did not"
                                   " respond in time, stopping dnsconfd")
-                self.container.set_exit_code(ExitCode.SERVICE_FAILURE)
+                self.exit_code_handler.set_exit_code(ExitCode.SERVICE_FAILURE)
                 return ContextEvent("TIMEOUT")
-            self.lgr.debug(f"{self.container.dns_mgr.service_name} still not ready, "
+            self.lgr.debug(f"{self.dns_mgr.service_name} still not ready, "
                            "scheduling additional poll")
             timer = ContextEvent("TIMER_UP", event.data + 1)
             GLib.timeout_add_seconds(1,
@@ -172,5 +187,5 @@ class Starting(TransitionImplementations):
         """
         if event.data is None:
             return None
-        self.container.servers = event.data
+        self.server_manager.set_dynamic_servers(event.data)
         return None
