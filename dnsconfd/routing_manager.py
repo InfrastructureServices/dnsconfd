@@ -11,7 +11,6 @@ from dnsconfd.network_objects import ServerDescription, InterfaceConfiguration
 
 class RoutingManager:
     def __init__(self, wire_priority: bool, transition_function: Callable):
-
         self._nm_interface = None
         self.lgr = logging.getLogger(self.__class__.__name__)
 
@@ -61,79 +60,139 @@ class RoutingManager:
         # that belonged to previous update, and we need to ensure
         # this will be ignored, since we can not remove them
         if self.state_serial != serial:
+            self.lgr.debug("Ignored on_device_state_changed call, "
+                           "because it had wrong serial")
             return
         if new_state == 100:
             self.interfaces_up[interface] = True
-            self.lgr.info("Interface up event on interface %s", interface)
-            self.lgr.debug("State was %s reason %s", new_state, reason)
-            self.transition_function(ContextEvent("INTERFACE_UP",
-                                                  interface))
+            self.lgr.info("Interface up event on interface %s",
+                          interface)
+            self.lgr.debug("State was %s reason %s",
+                           new_state, reason)
+            self.transition_function(ContextEvent("INTERFACE_UP"))
         elif old_state == 100 and new_state != 100:
             self.interfaces_up[interface] = False
-            self.lgr.info("Interface down event on interface %s", interface)
-            self.lgr.debug("State was %s reason %s", new_state, reason)
-            self.transition_function(ContextEvent("INTERFACE_DOWN",
-                                                  interface))
+            self.lgr.info("Interface down event on interface %s",
+                          interface)
+            self.lgr.debug("State was %s reason %s",
+                           new_state, reason)
+            self.transition_function(ContextEvent("INTERFACE_DOWN"))
 
     def check_ip_object_ready(self, ip_object, interface, family):
+        self.lgr.debug("Checking whether ip object %s of interface "
+                       "%s is ready, object %s",
+                       family, interface, ip_object)
         for route, route_interface in self.routes.values():
+            self.lgr.debug("Checking route %s of interface %s",
+                           route, route_interface)
             if route_interface != interface:
+                self.lgr.debug("This route is not for this interface, "
+                               "skipping")
                 continue
             parsed_dest = ipaddress.ip_address((route["dest"]))
+
             if parsed_dest.version != family:
+                self.lgr.debug("Wrong family, skipping")
                 continue
             route_found = False
             if "RouteData" not in ip_object:
+                self.lgr.debug("Object does not contain routes, "
+                               "thus not ready")
                 return False
+            parsed_hop = ipaddress.ip_address(route["next-hop"])
             for obj_route in ip_object["RouteData"]:
-                if ("next-hop" in obj_route
-                        and parsed_dest == ipaddress.ip_address(obj_route["dest"])
-                        and ipaddress.ip_address(obj_route["next-hop"]) == ipaddress.ip_address(route["next-hop"])):
+                if "next-hop" not in obj_route:
+                    continue
+                parsed_route_dest = ipaddress.ip_address(obj_route["dest"])
+                parsed_route_hop = ipaddress.ip_address(obj_route["next-hop"])
+                if (parsed_dest == parsed_route_dest
+                        and parsed_route_hop == parsed_hop):
                     route_found = True
                     break
             if not route_found:
-                self.lgr.debug(f"interface {interface} family {family} ip object is not ready because it has not route")
-                self.lgr.debug(f"{route["dest"]}")
-                self.lgr.debug(f"ip object {ip_object}")
-                self.lgr.debug(f"routes: {self.routes}")
+                self.lgr.debug("interface %s family %s ip object "
+                               "is not ready because it has not route",
+                               interface,
+                               family)
+                self.lgr.debug("%s", route["dest"])
+                self.lgr.debug("ip object %s", ip_object)
+                self.lgr.debug("routes: %s", self.routes)
                 return False
         return True
 
     def on_ip_obj_change(self, cur_serial: int, interface: int, properties: dict, family: int):
-        self.lgr.debug(f"ON IP UPDATE {properties}")
+        self.lgr.debug("on_ip_obj_change called %s %s %s",
+                       interface, properties, family)
         if self.ip_serial != cur_serial or "RouteData" not in properties:
-            self.lgr.debug("DENIED")
+            self.lgr.debug("Rejected because of bad serial or RouteData")
             return
-        if self.check_ip_object_ready(properties, interface, family):
-            if family == 4:
-                self.interface_ip_ready[interface] = True, self.interface_ip_ready[interface][1]
-            else:
-                self.interface_ip_ready[interface] = self.interface_ip_ready[interface][0], True
-            self.transition_function(ContextEvent("IP_SET"))
+        ready = self.check_ip_object_ready(properties, interface, family)
+        if family == 4:
+            old = self.interface_ip_ready[interface][1]
+            self.interface_ip_ready[interface] = ready, old
         else:
-            if family == 4:
-                self.interface_ip_ready[interface] = False, self.interface_ip_ready[interface][1]
-            else:
-                self.interface_ip_ready[interface] = self.interface_ip_ready[interface][0], True
-            self.transition_function(ContextEvent("IP_UNSET"))
+            old = self.interface_ip_ready[interface][0]
+            self.interface_ip_ready[interface] = old, ready
+        self.lgr.debug("ready is %s", ready)
+        event = ContextEvent("IP_SET") if ready else ContextEvent("IP_UNSET")
+        self.transition_function(event)
 
     def are_all_ip_set(self):
-        self.lgr.debug(f"{self.interface_ip_ready} interface HERE")
+        self.lgr.debug("are_all_ip_set called %s", self.interface_ip_ready)
         for interface, booleans in self.interface_ip_ready.items():
             if not (booleans[0] and booleans[1]):
                 return False
         return True
 
+    def _subscribe_ip_family_obj(self, device_properties, family, interface):
+        self.lgr.debug("_subscribe_ip_family_obj of %s %s",
+                       family, interface)
+        nm_dbus_name = "org.freedesktop.NetworkManager"
+        conf_key = "Ip4Config" if family == 4 else "Ip6Config"
+        config_path = device_properties[conf_key]
+        conf_obj = dbus.SystemBus().get_object(nm_dbus_name, config_path)
+        serial = self.ip_serial
+        intfc = dbus.Interface(conf_obj,
+                               "org.freedesktop.DBus.Properties")
+        cb = lambda dbus_int, props, invalid: self.on_ip_obj_change(serial,
+                                                                    interface,
+                                                                    props,
+                                                                    family)
+        connection = intfc.connect_to_signal("PropertiesChanged",
+                                             cb)
+        self.lgr.debug("Successfully connected to ip %s of %s",
+                       family, interface)
+        if family == 4:
+            shuffle = (connection, None)
+        else:
+            shuffle = (self.interface_to_ip_signal_connections[interface][0],
+                       connection)
+        self.interface_to_ip_signal_connections[interface] = shuffle
+        prop_int = dbus.Interface(conf_obj, "org.freedesktop.DBus.Properties")
+        if family == 4:
+            int_str = "org.freedesktop.NetworkManager.IP4Config"
+        else:
+            int_str = "org.freedesktop.NetworkManager.IP6Config"
+        all_props = prop_int.GetAll(int_str)
+        ready = self.check_ip_object_ready(all_props, interface, family)
+        self.lgr.debug("ip object ready result %s", ready)
+        if family == 4:
+            self.interface_ip_ready[interface] = (ready, False)
+        else:
+            old = self.interface_ip_ready[interface][0]
+            self.interface_ip_ready[interface] = (old, ready)
+
     def subscribe_to_ip_objs_change(self, interfaces: list[int]):
-        try:
-            self._get_nm_interface()
-        except dbus.DBusException as e:
-            self.lgr.debug("Could not connect to nm in subscribe_to_ip_objs_change")
+        if not self._get_nm_interface():
+            self.lgr.debug("subscribe_to_ip_objs_change failed nm connection")
             return False
+
         for interface in interfaces:
-            int_name = InterfaceConfiguration.get_if_name(interface, strict=True)
+            int_name = InterfaceConfiguration.get_if_name(interface,
+                                                          strict=True)
             if int_name is None:
-                self.lgr.debug("Could not get interface name in subscribe_to_device_state_change")
+                self.lgr.debug("Could not get interface name in "
+                               "subscribe_to_device_state_change")
                 return False
             try:
                 device_path = self._nm_interface.GetDeviceByIpIface(int_name)
@@ -145,48 +204,13 @@ class RoutingManager:
                                                    "org.freedesktop"
                                                    ".DBus.Properties").GetAll(
                     "org.freedesktop.NetworkManager.Device")
-
-                ip4_config_path = device_properties["Ip4Config"]
-                ip6_config_path = device_properties["Ip6Config"]
-                ip4_config_object = dbus.SystemBus().get_object("org.freedesktop.NetworkManager", ip4_config_path)
-                ip6_config_object = dbus.SystemBus().get_object("org.freedesktop.NetworkManager", ip6_config_path)
-
-                cur_serial = self.ip_serial
-
-                ip4_interface = dbus.Interface(ip4_config_object, "org.freedesktop.DBus.Properties")
-                ip6_interface = dbus.Interface(ip6_config_object, "org.freedesktop.DBus.Properties")
-
-                ip4_connection = ip4_interface.connect_to_signal("PropertiesChanged",
-                                                                 lambda interface_str, properties, invalidated: self.on_ip_obj_change(cur_serial,
-                                                                                                          interface,
-                                                                                                          properties,
-                                                                                                          4))
-                self.interface_to_ip_signal_connections[interface] = (ip4_connection, None)
-                ip6_connection = ip6_interface.connect_to_signal("PropertiesChanged",
-                                                                 lambda interface_str, properties, invalidated: self.on_ip_obj_change(cur_serial,
-                                                                                                          interface,
-                                                                                                          properties,
-                                                                                                          6))
-                self.interface_to_ip_signal_connections[interface] = (ip4_connection, ip6_connection)
-
-                ip4_properties = dbus.Interface(ip4_config_object,
-                                                "org.freedesktop"
-                                                ".DBus.Properties").GetAll(
-                    "org.freedesktop.NetworkManager.IP4Config")
-
-                ip6_properties = dbus.Interface(ip6_config_object,
-                                                "org.freedesktop"
-                                                ".DBus.Properties").GetAll(
-                    "org.freedesktop.NetworkManager.IP6Config")
-
-                self.lgr.debug(f"IP PROPERTIES IS {ip4_properties} {ip6_properties}")
-
-                ip4_ready = self.check_ip_object_ready(ip4_properties, interface, 4)
-                ip6_ready = self.check_ip_object_ready(ip6_properties, interface, 6)
-
-                self.interface_ip_ready[interface] = (ip4_ready, ip6_ready)
-
-            except dbus.DBusException:
+                self._subscribe_ip_family_obj(device_properties,
+                                              4, interface)
+                self._subscribe_ip_family_obj(device_properties,
+                                              6, interface)
+            except dbus.DBusException as e:
+                self.lgr.debug("exception encountered during "
+                               "subscribe_to_ip_objs_change %s", e)
                 return False
         return True
 
@@ -302,7 +326,10 @@ class RoutingManager:
                 dhcp4_interface = dbus.Interface(dhcp4_config_object, "org.freedesktop.DBus.Properties")
 
                 dhcp4_connection = dhcp4_interface.connect_to_signal("PropertiesChanged",
-                                                                     lambda interface_str, properties, invalidated: self._on_dhcp_change(cur_serial, properties["Options"], interface, 4))
+                                                                     lambda interface_str, properties,
+                                                                            invalidated: self._on_dhcp_change(
+                                                                         cur_serial, properties["Options"], interface,
+                                                                         4))
                 self.dhcp_objs_signal_connections.append(dhcp4_connection)
                 dhcp4_properties = dbus.Interface(dhcp4_config_object,
                                                   "org.freedesktop"
@@ -338,7 +365,10 @@ class RoutingManager:
                 dhcp6_interface = dbus.Interface(dhcp6_config_object, "org.freedesktop.DBus.Properties")
 
                 dhcp6_connection = dhcp6_interface.connect_to_signal("PropertiesChanged",
-                                                                     lambda interface_str, properties, invalidated: self._on_dhcp_change(cur_serial, properties["Options"], interface, 6))
+                                                                     lambda interface_str, properties,
+                                                                            invalidated: self._on_dhcp_change(
+                                                                         cur_serial, properties["Options"], interface,
+                                                                         6))
                 self.dhcp_objs_signal_connections.append(dhcp6_connection)
                 dhcp6_properties = dbus.Interface(dhcp6_config_object,
                                                   "org.freedesktop"
@@ -451,11 +481,14 @@ class RoutingManager:
                     continue
 
                 for route in ip_dict["route-data"]:
-                    if "dest" in route and ipaddress.ip_address(route["dest"]) == parsed_server_str and "prefix" in route and route["prefix"] == parsed_server_str.max_prefixlen:
+                    if "dest" in route and ipaddress.ip_address(
+                            route["dest"]) == parsed_server_str and "prefix" in route and route[
+                        "prefix"] == parsed_server_str.max_prefixlen:
                         connection_existing_route = route
                         break
                 for route in ip_dict["route-data"]:
-                    if "dest" in route and "prefix" in route and "next-hop" in route and parsed_server_str in ipaddress.ip_network(f"{route["dest"]}/{route["prefix"]}"):
+                    if "dest" in route and "prefix" in route and "next-hop" in route and parsed_server_str in ipaddress.ip_network(
+                            f"{route["dest"]}/{route["prefix"]}"):
                         connection_existing_backup_route = route
                         break
                 if dhcp_routes and not connection_existing_route:
@@ -490,22 +523,28 @@ class RoutingManager:
                 elif connection_existing_route:
                     if server_str in self.routes:
                         if not (gateway_in_connection or dhcp_gateway_str) and connection_existing_backup_route:
-                            if ipaddress.ip_address(connection_existing_route["next-hop"]) != ipaddress.ip_address(connection_existing_backup_route["next-hop"]):
-                                self.lgr.info("Route exists but the nexthop is not right, to the original broader route from connection, will change it")
+                            if ipaddress.ip_address(connection_existing_route["next-hop"]) != ipaddress.ip_address(
+                                    connection_existing_backup_route["next-hop"]):
+                                self.lgr.info(
+                                    "Route exists but the nexthop is not right, to the original broader route from connection, will change it")
                                 connection_existing_route["next-hop"] = connection_existing_backup_route["next-hop"]
                             else:
-                                self.lgr.info("Route exists and it is correct according to broader route from connection")
+                                self.lgr.info(
+                                    "Route exists and it is correct according to broader route from connection")
                                 continue
                         elif not (gateway_in_connection or dhcp_gateway_str) and dhcp_existing_backup_route:
-                            if ipaddress.ip_address(connection_existing_route["next-hop"]) != dhcp_existing_backup_route[1]:
-                                self.lgr.info("Route exists but the nexthop is not right, to the original broader route from DHCP, will change it")
+                            if ipaddress.ip_address(connection_existing_route["next-hop"]) != \
+                                    dhcp_existing_backup_route[1]:
+                                self.lgr.info(
+                                    "Route exists but the nexthop is not right, to the original broader route from DHCP, will change it")
                                 connection_existing_route["next-hop"] = dbus.String(str(dhcp_existing_backup_route[1]))
                             else:
                                 self.lgr.info("Route exists and it is correct according to broader route from DHCP")
                                 continue
                         elif gateway_in_connection or dhcp_gateway_str:
                             self.lgr.info("Route exists but the nexthop is not right, will change it")
-                            connection_existing_route["next-hop"] = ip_dict["gateway"] if gateway_in_connection else dbus.String(dhcp_gateway_str)
+                            connection_existing_route["next-hop"] = ip_dict[
+                                "gateway"] if gateway_in_connection else dbus.String(dhcp_gateway_str)
                         else:
                             self.lgr.error(
                                 "Route exists but the nexthop is not right and default gateway is not set, waiting for it to be set")
@@ -518,7 +557,8 @@ class RoutingManager:
                     valid_routes[server_str] = (connection_existing_route, int_index)
                     reapply_needed = True
                 elif dhcp_existing_route:
-                    self.lgr.warning("Route exists, but it was received through DHCP, relying on your network configuration")
+                    self.lgr.warning(
+                        "Route exists, but it was received through DHCP, relying on your network configuration")
                     continue
                 else:
                     if gateway_in_connection or dhcp_gateway_str:
@@ -526,7 +566,8 @@ class RoutingManager:
                         gateway_dbus_string = ip_dict["gateway"] if gateway_in_connection else dbus.String(
                             dhcp_gateway_str)
                     elif connection_existing_backup_route:
-                        self.lgr.debug("Route does not exist, however there is route in connection that would contain this server, will create its specified version")
+                        self.lgr.debug(
+                            "Route does not exist, however there is route in connection that would contain this server, will create its specified version")
                         gateway_dbus_string = connection_existing_backup_route["next-hop"]
                     elif dhcp_existing_backup_route:
                         self.lgr.debug(
@@ -634,11 +675,15 @@ class RoutingManager:
         return dev_int
 
     def _get_nm_interface(self):
-        nm_dbus_name = "org.freedesktop.NetworkManager"
-        nm_object = dbus.SystemBus().get_object(nm_dbus_name,
-                                                '/org/freedesktop/NetworkManager')
-        self._nm_interface = dbus.Interface(nm_object,
-                                            nm_dbus_name)
+        try:
+            nm_dbus_name = "org.freedesktop.NetworkManager"
+            nm_object = dbus.SystemBus().get_object(nm_dbus_name,
+                                                    '/org/freedesktop/NetworkManager')
+            self._nm_interface = dbus.Interface(nm_object,
+                                                nm_dbus_name)
+        except dbus.DBusException as e:
+            self.lgr.debug("Could not connect to NM", {e})
+            return None
         return self._nm_interface
 
     def _reapply_routes(self, ifname, connection, cver):
