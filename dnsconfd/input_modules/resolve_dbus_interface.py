@@ -172,6 +172,7 @@ class ResolveDbusInterface(dbus.service.Object):
         return 100
 
     def _update_if_ready(self, interface: InterfaceConfiguration):
+        ips_to_interface = {}
         if interface.is_ready():
             self.lgr.info(f"API pushing update {interface}")
             servers: list[ServerDescription] = []
@@ -185,6 +186,18 @@ class ResolveDbusInterface(dbus.service.Object):
                         protocol = DnsProtocol.DNS_OVER_TLS
                     else:
                         protocol = DnsProtocol.PLAIN
+
+                    if server.address in ips_to_interface:
+                        if ips_to_interface[server.address] != int(interface):
+                            self.lgr.warning("2 servers with the same "
+                                             "ip can not be bound to 2 "
+                                             "interfaces, ignoring the "
+                                             "one for interface %s",
+                                             int(interface))
+                            continue
+                        else:
+                            ips_to_interface[server.address] = int(interface)
+
                     new_srv = ServerDescription(server.address_family,
                                                 server.address,
                                                 server.port,

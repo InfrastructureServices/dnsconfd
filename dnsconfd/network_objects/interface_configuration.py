@@ -66,6 +66,9 @@ class InterfaceConfiguration:
                 + f"servers: {servers_str}, "
                 + f"is_default: {self.is_default}")
 
+    def __int__(self):
+        return self.index
+
     @staticmethod
     def is_interface_wireless(index: int) -> bool:
         """ Get whether this interface is wireless or not

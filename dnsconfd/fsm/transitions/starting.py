@@ -15,7 +15,7 @@ class Starting(TransitionImplementations):
 
     def __init__(self,
                  config: dict,
-                 dns_mgr: DnsManager,
+                 dns_mgr: UnboundManager,
                  exit_code_handler: ExitCodeHandler,
                  transition_function: Callable,
                  systemd_manager: SystemdManager,
@@ -74,10 +74,8 @@ class Starting(TransitionImplementations):
         :rtype: ContextEvent | None
         """
 
-        self.dns_mgr = UnboundManager()
         address = self.config["listen_address"]
-        dnssec = self.config["dnssec_enabled"]
-        if self.dns_mgr.configure(address, dnssec):
+        if self.dns_mgr.configure(address):
             self.lgr.info("Successfully configured DNS manager")
             return ContextEvent("SUCCESS")
 
