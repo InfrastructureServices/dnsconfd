@@ -1,7 +1,7 @@
 from typing import Callable
 
 from dnsconfd import SystemManager
-from dnsconfd.dns_managers import DnsManager
+from dnsconfd.dns_managers import UnboundManager
 from dnsconfd.fsm import ContextEvent, ExitCode, ContextState
 from dnsconfd.fsm.exit_code_handler import ExitCodeHandler
 from dnsconfd.fsm.transitions import TransitionImplementations
@@ -16,7 +16,7 @@ class Running(TransitionImplementations):
 
     def __init__(self,
                  config: dict,
-                 dns_mgr: DnsManager,
+                 dns_mgr: UnboundManager,
                  exit_code_handler: ExitCodeHandler,
                  system_mgr: SystemManager,
                  systemd_manager: SystemdManager,
@@ -29,8 +29,8 @@ class Running(TransitionImplementations):
         self.systemd_mgr = systemd_manager
         self.route_mgr = route_mgr
         self.transition_function = transition_function
-        self.zones_to_servers = None
-        self.search_domains = None
+        self.zones_to_servers = {}
+        self.search_domains = []
         self.transitions = {
             ContextState.UPDATING_RESOLV_CONF: {
                 "SUCCESS": (ContextState.SUBSCRIBING_ALL_NM_CONNECTIONS,
@@ -40,7 +40,9 @@ class Running(TransitionImplementations):
                 "SUCCESS": (ContextState.CHECK_ALL_CONNECTIONS_UP,
                             self._check_all_connections_up),
                 "FAIL": (ContextState.UNSUBSCRIBE_NM_AND_WAIT,
-                         self.unsub_and_wait)
+                         self.unsub_and_wait),
+                "SKIP_ROUTING": (ContextState.UPDATING_DNS_MANAGER,
+                                 self._updating_routes_success_transition)
             },
             ContextState.UNSUBSCRIBE_NM_AND_WAIT: {
                 "SUCCESS": (ContextState.UNSUBSCRIBE_NM_AND_WAIT,
@@ -166,7 +168,7 @@ class Running(TransitionImplementations):
             return ContextEvent("FAIL")
 
     def gather_conn_config(self, event: ContextEvent) -> ContextEvent | None:
-        if self.route_mgr.gather_connections(self.server_manager.get_all_interfaces()):
+        if self.route_mgr.gather_connections(self.server_manager.get_all_servers()):
             self.lgr.info("Successfully gathered connections")
             return ContextEvent("SUCCESS")
         else:
@@ -238,6 +240,10 @@ class Running(TransitionImplementations):
             return ContextEvent("FAIL")
 
     def _subscribe_to_devices_connections(self, event: ContextEvent) -> ContextEvent | None:
+        if not self.config["handle_routing"]:
+            self.lgr.info("Configuration says we should not handle routing,"
+                          "thus skipping it")
+            return ContextEvent("SKIP_ROUTING")
         self.route_mgr.clear_subscriptions()
         if self.route_mgr.subscribe_to_device_state_change(self.server_manager.get_all_interfaces()):
             self.lgr.debug("Subscribing to device state change successful")
