@@ -191,8 +191,8 @@ class RoutingManager:
                 .GetAll("org.freedesktop.NetworkManager.Device"))
 
     def subscribe_to_ip_objs_change(self, interfaces: list[int]):
-        if not self._get_nm_interface():
-            self.lgr.debug("subscribe_to_ip_objs_change failed nm connection")
+        if not self._get_nm_interface("subscribe_to_ip_objs_change "
+                                      "failed nm connection"):
             return False
 
         for interface in interfaces:
@@ -215,11 +215,8 @@ class RoutingManager:
         return True
 
     def subscribe_to_device_state_change(self, interfaces: list[int]):
-        try:
-            self._get_nm_interface()
-        except dbus.DBusException as e:
-            self.lgr.debug("Could not connect to nm "
-                           "in subscribe_to_device_state_change")
+        if not self._get_nm_interface("Could not connect to nm "
+                                      "in subscribe_to_device_state_change"):
             return False
         for interface in interfaces:
             int_name = InterfaceConfiguration.get_if_name(interface, strict=True)
@@ -324,11 +321,8 @@ class RoutingManager:
             self.required_dhcp6[interface] = dhcp_props["Options"]
 
     def subscribe_required_dhcp(self):
-        try:
-            self._get_nm_interface()
-        except dbus.DBusException as e:
-            self.lgr.debug("Could not connect to nm "
-                           "in subscribe_required_dhcp %s", e)
+        if not self._get_nm_interface("Could not connect to nm "
+                                      "in subscribe_required_dhcp"):
             return False
 
         found_interfaces = []
@@ -359,11 +353,8 @@ class RoutingManager:
         return True
 
     def gather_connections(self, interfaces):
-        try:
-            self._get_nm_interface()
-        except dbus.DBusException as e:
-            self.lgr.warning("Failed to connect to NetworkManager through DBUS, routing will result when all "
-                             f"interfaces are ready {e}")
+        if not self._get_nm_interface("routing will result when all "
+                                      "interfaces are ready"):
             return False
 
         for if_index in interfaces:
@@ -382,11 +373,8 @@ class RoutingManager:
     def handle_routes_process(self, servers: list[ServerDescription]):
         # we need to refresh the dbus connection, because NetworkManager
         # restart would invalidate it
-        try:
-            self._get_nm_interface()
-        except dbus.DBusException as e:
-            self.lgr.warning("Failed to connect to NetworkManager through DBUS, routing will result when all "
-                             f"interfaces are ready {e}")
+        if not self._get_nm_interface("routing will result when all "
+                                      "interfaces are ready"):
             return False
 
         interface_to_connection = self.interface_to_connection
@@ -652,7 +640,7 @@ class RoutingManager:
                                  dev_int_str)
         return dev_int
 
-    def _get_nm_interface(self):
+    def _get_nm_interface(self, fail_message):
         try:
             nm_dbus_name = "org.freedesktop.NetworkManager"
             nm_object = dbus.SystemBus().get_object(nm_dbus_name,
@@ -661,6 +649,7 @@ class RoutingManager:
                                                 nm_dbus_name)
         except dbus.DBusException as e:
             self.lgr.debug("Could not connect to NM", {e})
+            self.lgr.info(fail_message)
             return None
         return self._nm_interface
 
@@ -718,13 +707,8 @@ class RoutingManager:
     def remove_routes(self):
         routes_str = " ".join([str(x) for x in self.routes])
         self.lgr.debug(f"routes: {routes_str}")
-        try:
-            # we need to refresh the dbus connection, because NetworkManager
-            # restart would invalidate it
-            self._get_nm_interface()
-        except dbus.DBusException:
-            self.lgr.info("Failed to contact NetworkManager through dbus, "
-                          "will not remove routes")
+        if not self._get_nm_interface("Failed to contact NetworkManager "
+                                      "through dbus, will not remove routes"):
             return ContextEvent("SUCCESS")
 
         found_interfaces = {}
