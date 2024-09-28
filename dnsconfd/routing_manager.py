@@ -182,6 +182,14 @@ class RoutingManager:
             old = self.interface_ip_ready[interface][0]
             self.interface_ip_ready[interface] = (old, ready)
 
+    def _get_device_object_props(self, int_name):
+        device_path = self._nm_interface.GetDeviceByIpIface(int_name)
+        self.lgr.debug(f"Device path is {device_path}")
+        obj = dbus.SystemBus().get_object("org.freedesktop.NetworkManager",
+                                          device_path)
+        return (obj, dbus.Interface(obj, "org.freedesktop.DBus.Properties")
+                .GetAll("org.freedesktop.NetworkManager.Device"))
+
     def subscribe_to_ip_objs_change(self, interfaces: list[int]):
         if not self._get_nm_interface():
             self.lgr.debug("subscribe_to_ip_objs_change failed nm connection")
@@ -195,18 +203,10 @@ class RoutingManager:
                                "subscribe_to_device_state_change")
                 return False
             try:
-                device_path = self._nm_interface.GetDeviceByIpIface(int_name)
-                self.lgr.debug(f"Device path is {device_path}")
-                device_object = dbus.SystemBus().get_object("org.freedesktop"
-                                                            ".NetworkManager",
-                                                            device_path)
-                device_properties = dbus.Interface(device_object,
-                                                   "org.freedesktop"
-                                                   ".DBus.Properties").GetAll(
-                    "org.freedesktop.NetworkManager.Device")
-                self._subscribe_ip_family_obj(device_properties,
+                dev_obj, dev_props = self._get_device_object_props(int_name)
+                self._subscribe_ip_family_obj(dev_props,
                                               4, interface)
-                self._subscribe_ip_family_obj(device_properties,
+                self._subscribe_ip_family_obj(dev_props,
                                               6, interface)
             except dbus.DBusException as e:
                 self.lgr.debug("exception encountered during "
@@ -218,51 +218,53 @@ class RoutingManager:
         try:
             self._get_nm_interface()
         except dbus.DBusException as e:
-            self.lgr.debug("Could not connect to nm in subscribe_to_device_state_change")
+            self.lgr.debug("Could not connect to nm "
+                           "in subscribe_to_device_state_change")
             return False
         for interface in interfaces:
             int_name = InterfaceConfiguration.get_if_name(interface, strict=True)
             if int_name is None:
-                self.lgr.debug("Could not get interface name in subscribe_to_device_state_change")
+                self.lgr.debug("Could not get interface "
+                               "name in subscribe_to_device_state_change")
                 return False
             try:
-                device_path = self._nm_interface.GetDeviceByIpIface(int_name)
-                self.lgr.debug(f"Device path is {device_path}")
-                device_object = dbus.SystemBus().get_object("org.freedesktop"
-                                                            ".NetworkManager",
-                                                            device_path)
-                device_interface = dbus.Interface(device_object, "org.freedesktop.NetworkManager.Device")
+                dev_obj, dev_props = self._get_device_object_props(int_name)
+                self.interfaces_up[interface] = dev_props["State"] == 100
+                device_interface = (
+                    dbus.Interface(dev_obj,
+                                   "org.freedesktop.NetworkManager.Device"))
                 cur_serial = self.state_serial
-                self.interface_to_state_signal_connection[interface] = device_interface.connect_to_signal(
-                    "StateChanged",
-                    lambda new_state,
-                           old_state,
-                           reason: self.on_device_state_changed(
-                        cur_serial,
-                        interface,
-                        new_state,
-                        old_state,
-                        reason))
-                device_properties = dbus.Interface(device_object,
-                                                   "org.freedesktop"
-                                                   ".DBus.Properties").GetAll(
-                    "org.freedesktop.NetworkManager.Device")
-                self.interfaces_up[interface] = device_properties["State"] == 100
-                self.lgr.debug("Interface %s state %s during subscription", interface, device_properties["State"])
-            except dbus.DBusException:
+                cb = lambda new, old, reason: self.on_device_state_changed(
+                    cur_serial,
+                    interface,
+                    new,
+                    old,
+                    reason)
+                self.interface_to_state_signal_connection[interface] = (
+                    device_interface.connect_to_signal("StateChanged", cb))
+
+                self.lgr.debug("Interface %s state %s during subscription",
+                               interface,
+                               dev_props["State"])
+            except dbus.DBusException as e:
+                self.lgr.debug("failed subscribe_to_device_state_change %s",
+                               e)
                 return False
         return True
+
+    def _clear_ip_records(self):
+        self.interface_ip_ready = {}
+        for interface in self.interface_to_ip_signal_connections:
+            self.interface_to_ip_signal_connections[interface][0].remove()
+            if self.interface_to_ip_signal_connections[interface][1]:
+                self.interface_to_ip_signal_connections[interface][1].remove()
 
     def clear_subscriptions(self):
         self.change_serials(True, True, True)
         self.interfaces_up = {}
         for interface in self.interface_to_state_signal_connection:
             self.interface_to_state_signal_connection[interface].remove()
-        self.interface_ip_ready = {}
-        for interface in self.interface_to_ip_signal_connections:
-            self.interface_to_ip_signal_connections[interface][0].remove()
-            if self.interface_to_ip_signal_connections[interface][1]:
-                self.interface_to_ip_signal_connections[interface][1].remove()
+        self._clear_ip_records()
         self.interface_to_connection = {}
 
         for conn in self.dhcp_objs_signal_connections:
@@ -272,23 +274,22 @@ class RoutingManager:
 
     def clear_ip_subscriptions(self):
         self.change_serials(False, True, False)
-        self.interface_ip_ready = {}
-        for interface in self.interface_to_ip_signal_connections:
-            self.interface_to_ip_signal_connections[interface][0].remove()
-            if self.interface_to_ip_signal_connections[interface][1]:
-                self.interface_to_ip_signal_connections[interface][1].remove()
+        self._clear_ip_records()
 
     def check_all_dhcp_ready(self):
-        for dhcp_dict in self.required_dhcp4.values():
-            if "ip_address" not in dhcp_dict:
-                return False
-        for dhcp_dict in self.required_dhcp6.values():
-            if "ip_address" not in dhcp_dict:
-                return False
+        for req_dhcp in [self.required_dhcp4.values(),
+                         self.required_dhcp6.values()]:
+            for dhcp_dict in req_dhcp:
+                if "ip_address" not in dhcp_dict:
+                    return False
         return True
 
     def _on_dhcp_change(self, serial, option_dict, interface, family):
+        self.lgr.debug("_on_dhcp_change called, serial %s "
+                       "options %s interface %s family %s",
+                       serial, option_dict, interface, family)
         if serial != self.dhcp_serial:
+            self.lgr.debug("Serial refused")
             return
         if family == 4:
             self.required_dhcp4[interface] = option_dict
@@ -300,25 +301,19 @@ class RoutingManager:
         try:
             self._get_nm_interface()
         except dbus.DBusException as e:
-            self.lgr.debug("Could not connect to nm in subscribe_to_ip_objs_change")
+            self.lgr.debug("Could not connect to nm "
+                           "in subscribe_required_dhcp %s", e)
             return False
+
         for interface in self.required_dhcp4:
             int_name = InterfaceConfiguration.get_if_name(interface, strict=True)
             if int_name is None:
                 self.lgr.debug("Could not get interface name in subscribe_required_dhcp")
                 return False
             try:
-                device_path = self._nm_interface.GetDeviceByIpIface(int_name)
-                self.lgr.debug(f"Device path is {device_path}")
-                device_object = dbus.SystemBus().get_object("org.freedesktop"
-                                                            ".NetworkManager",
-                                                            device_path)
-                device_properties = dbus.Interface(device_object,
-                                                   "org.freedesktop"
-                                                   ".DBus.Properties").GetAll(
-                    "org.freedesktop.NetworkManager.Device")
+                dev_obj, dev_props = self._get_device_object_props(int_name)
 
-                dhcp4_config_path = device_properties["Dhcp4Config"]
+                dhcp4_config_path = dev_props["Dhcp4Config"]
                 dhcp4_config_object = dbus.SystemBus().get_object("org.freedesktop.NetworkManager", dhcp4_config_path)
 
                 cur_serial = self.dhcp_serial
@@ -346,17 +341,9 @@ class RoutingManager:
                 self.lgr.debug("Could not get interface name in subscribe_required_dhcp")
                 return False
             try:
-                device_path = self._nm_interface.GetDeviceByIpIface(int_name)
-                self.lgr.debug(f"Device path is {device_path}")
-                device_object = dbus.SystemBus().get_object("org.freedesktop"
-                                                            ".NetworkManager",
-                                                            device_path)
-                device_properties = dbus.Interface(device_object,
-                                                   "org.freedesktop"
-                                                   ".DBus.Properties").GetAll(
-                    "org.freedesktop.NetworkManager.Device")
+                dev_obj, dev_props = self._get_device_object_props(int_name)
 
-                dhcp6_config_path = device_properties["Dhcp6Config"]
+                dhcp6_config_path = dev_props["Dhcp6Config"]
                 dhcp6_config_object = dbus.SystemBus().get_object("org.freedesktop.NetworkManager",
                                                                   dhcp6_config_path)
 
