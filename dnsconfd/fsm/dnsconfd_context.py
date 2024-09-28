@@ -25,7 +25,7 @@ class DnsconfdContext:
         :type main_loop: object
         """
         self.lgr = logging.getLogger(self.__class__.__name__)
-        self.dns_mgr = UnboundManager()
+        self.dns_mgr = UnboundManager(config["dnssec_enabled"])
         self._main_loop = main_loop
         sys_mgr = SystemManager(config)
         self.transitions = {}

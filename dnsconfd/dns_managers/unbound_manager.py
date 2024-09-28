@@ -9,23 +9,24 @@ from copy import deepcopy
 class UnboundManager(DnsManager):
     service_name = "unbound"
 
-    def __init__(self):
+    def __init__(self, dnssec: bool):
         """ Object responsible for executing unbound configuration changes """
         super().__init__()
         self.zones_to_servers = {}
         self.lgr = logging.getLogger(self.__class__.__name__)
+        self.dnssec = dnssec
 
-    def configure(self, my_address: str, validation=False) -> bool:
+    def configure(self, my_address: str) -> bool:
         """ Configure this instance (Write to unbound config file)
 
         :param my_address: address where unbound should listen
         :type my_address: str
-        :param validation: enable DNSSEC validation, defaults to False
-        :type validation: bool, optional
+        :param dnssec: enable DNSSEC validation, defaults to False
+        :type dnssec: bool, optional
         :return: True on success, otherwise False
         :rtype: bool
         """
-        if validation:
+        if self.dnssec:
             modules = "ipsecmod validator iterator"
         else:
             modules = "ipsecmod iterator"
@@ -35,10 +36,11 @@ class UnboundManager(DnsManager):
                                       f"\tmodule-config: \"{modules}\"\n",
                                       f"\tinterface: {my_address}\n"])
         except OSError as e:
-            self.lgr.critical(f"Could not write Unbound configuration, {e}")
+            self.lgr.critical("Could not write Unbound configuration, %s",
+                              e)
             return False
 
-        self.lgr.debug(f"DNS cache should be listening on {my_address}")
+        self.lgr.debug("DNS cache should be listening on %s", my_address)
         return True
 
     def clear_state(self):
@@ -67,13 +69,14 @@ class UnboundManager(DnsManager):
         """
         control_args = ["unbound-control", f'{command}']
         self.lgr.info("Executing unbound-control as "
-                      f"{' '.join(control_args)}")
+                      "%s", ' '.join(control_args))
         proc = subprocess.run(control_args,
                               stdout=subprocess.PIPE,
                               stderr=subprocess.PIPE)
-        self.lgr.debug(f"Returned code {proc.returncode}, "
-                       f"stdout:\"{proc.stdout}\", "
-                       f"stderr:\"{proc.stderr}\"")
+        self.lgr.debug("Returned code %s, "
+                       "stdout: \"%s\", "
+                       "stderr:\"%s\"",
+                       proc.returncode, proc.stdout, proc.stderr)
         return proc.returncode == 0
 
     def update(self,
@@ -101,10 +104,10 @@ class UnboundManager(DnsManager):
             if zone not in zones_to_servers:
                 removed_zones.append(zone)
 
-        self.lgr.debug(f"Update added zones {added_zones}")
-        self.lgr.debug(f"Update removed zones {removed_zones}")
-        self.lgr.debug("Zones that were in both configurations"
-                       f" {stable_zones}")
+        self.lgr.debug("Update added zones %s", added_zones)
+        self.lgr.debug("Update removed zones %s", removed_zones)
+        self.lgr.debug("Zones that were in both configurations %s",
+                       stable_zones)
 
         # NOTE: unbound does not support forwarding server priority, so we
         # need to strip any server that has lower priority than the
@@ -139,27 +142,33 @@ class UnboundManager(DnsManager):
         # since we need to break references to ServerDescription objects
         # held before, but keep all the metadata, deepcopy is required
         self.zones_to_servers = deepcopy(zones_to_servers)
-        self.lgr.info(f"Unbound updated to configuration: {self.get_status()}")
+        self.lgr.info("Unbound updated to configuration: %s",
+                      self.get_status())
         return True
 
-    @staticmethod
-    def _get_forward_add_command(zone: str,
+    def _get_forward_add_command(self,
+                                 zone: str,
                                  servers: list[ServerDescription]):
         max_prio = servers[0].priority
         used_protocol = servers[0].protocol
         servers_str = []
         # this will remove duplicate servers
         unique_servers = {}
+        insecure = False
         for srv in servers:
             if srv.protocol == used_protocol and srv.priority == max_prio:
                 srv_string = srv.to_unbound_string()
                 if srv_string not in unique_servers:
                     servers_str.append(srv_string)
                     unique_servers[srv.to_unbound_string()] = True
+                if self.dnssec and not insecure and not srv.dnssec:
+                    insecure = True
             else:
                 break
         tls = used_protocol == DnsProtocol.DNS_OVER_TLS
+
         return (f"forward_add{' +t ' if tls else ' '}"
+                f"{' +i ' if insecure else ' '}"
                 f"{zone} {' '.join(servers_str)}")
 
     def get_status(self) -> dict[str, list[str]]:

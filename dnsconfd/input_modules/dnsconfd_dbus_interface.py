@@ -20,6 +20,7 @@ class DnsconfdDbusInterface(dbus.service.Object):
         self.runtime_context = runtime_context
         self.prio_wire = config["prioritize_wire"]
         self.ignore_api = config["ignore_api"]
+        self.dnssec_enabled = config["dnssec_enabled"]
         self.lgr = logging.getLogger(self.__class__.__name__)
         domain_re = r"((?!-)([A-Za-z0-9-]){1,63}(?<!-)\.?)+|\."
         sni_re = r"((?!-)([A-Za-z0-9-]){1,63}(?<!-)\.?)+"
@@ -33,6 +34,7 @@ class DnsconfdDbusInterface(dbus.service.Object):
         self.lgr.info(f"update dbus method called with args: {servers}")
         if self.ignore_api:
             return True, "Configured to ignore"
+        ips_to_interface = {}
 
         for index, server in enumerate(servers):
             self.lgr.debug(f"processing server: {server}")
@@ -113,7 +115,7 @@ class DnsconfdDbusInterface(dbus.service.Object):
                         return False, msg
                     elif domain == "." and search:
                         msg = (f"{index + 1}."
-                               f"domain is '.' and cannot be used for search")
+                               f"domain is '.' cannot be used for search")
                         self.lgr.error(msg)
                         return False, msg
                 domains = [(str(domain), bool(search))
@@ -132,6 +134,19 @@ class DnsconfdDbusInterface(dbus.service.Object):
                     is_wireless = (self.prio_wire
                                    and (InterfaceConfiguration.
                                         is_interface_wireless(interface)))
+
+            if interface:
+                parsed_addr_str = str(parsed_address)
+                if (parsed_addr_str in ips_to_interface
+                        and ips_to_interface[parsed_addr_str] != interface):
+                    self.lgr.warning("2 servers with the same IP can not "
+                                     "be bound to 2 different interfaces, "
+                                     "ignoring server with interface %s",
+                                     interface)
+                    continue
+                else:
+                    ips_to_interface[parsed_addr_str] = interface
+
             dnssec = False
 
             if server.get("dnssec", None) is not None:
@@ -141,6 +156,13 @@ class DnsconfdDbusInterface(dbus.service.Object):
                     return False, msg
                 else:
                     dnssec = bool(server["dnssec"])
+
+            if (self.dnssec_enabled and not dnssec
+                    and (not domains or [x for x in domains if x[0] == '.'])):
+                msg = (f"Server used for . domain can not have disabled "
+                       f"dnssec when it is enabled by configuration")
+                self.lgr.error(msg)
+                return False, msg
 
             # you may notice the type conversions throughout this method,
             # these are present to get rid of dbus types and prevent

@@ -1,4 +1,4 @@
-from dnsconfd.dns_managers import DnsManager
+from dnsconfd.dns_managers import UnboundManager
 from dnsconfd.fsm import ContextEvent, ContextState
 
 from typing import Callable, Type
@@ -11,7 +11,7 @@ class TransitionImplementations:
 
     def __init__(self,
                  config: dict,
-                 dns_mgr: DnsManager,
+                 dns_mgr: UnboundManager,
                  exit_code_handler: ExitCodeHandler):
         self.lgr = logging.getLogger(self.__class__.__name__)
         self.config = config
