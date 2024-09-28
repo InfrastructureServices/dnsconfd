@@ -34,7 +34,9 @@ class UnboundManager(DnsManager):
             with open("/run/dnsconfd/unbound.conf", "w") as conf_file:
                 conf_file.writelines(["server:\n",
                                       f"\tmodule-config: \"{modules}\"\n",
-                                      f"\tinterface: {my_address}\n"])
+                                      f"\tinterface: {my_address}\n"
+                                      "forward-zone:\n"
+                                      "\tname: \".\"\n"])
         except OSError as e:
             self.lgr.critical("Could not write Unbound configuration, %s",
                               e)
