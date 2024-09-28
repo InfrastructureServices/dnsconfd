@@ -17,6 +17,7 @@ class ResolveDbusInterface(dbus.service.Object):
         self.interfaces: dict[int, InterfaceConfiguration] = {}
         self.runtime_context = runtime_context
         self.prio_wire = config["prioritize_wire"]
+        self.dnssec_enabled = config["dnssec_enabled"]
         self.ignore_api = config["ignore_api"]
         self.lgr = logging.getLogger(self.__class__.__name__)
 
@@ -198,6 +199,10 @@ class ResolveDbusInterface(dbus.service.Object):
                         else:
                             ips_to_interface[server.address] = int(interface)
 
+                    # since NetworkManager does not support dnssec config
+                    # value, in this API we will set dnssec according
+                    # to value from configuration
+
                     new_srv = ServerDescription(server.address_family,
                                                 server.address,
                                                 server.port,
@@ -206,7 +211,7 @@ class ResolveDbusInterface(dbus.service.Object):
                                                 domains,
                                                 cur_interface.index,
                                                 protocol,
-                                                cur_interface.dnssec)
+                                                self.dnssec_enabled)
 
                     servers.append(new_srv)
 

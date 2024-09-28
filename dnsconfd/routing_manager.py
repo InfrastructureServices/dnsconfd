@@ -1,6 +1,6 @@
 import ipaddress
 import logging
-import traceback
+import socket
 from typing import Any, Callable
 
 import dbus
@@ -352,21 +352,29 @@ class RoutingManager:
                 return False
         return True
 
-    def gather_connections(self, interfaces):
+    def gather_connections(self, servers: list[ServerDescription]):
         if not self._get_nm_interface("routing will result when all "
                                       "interfaces are ready"):
             return False
+        interfaces = {}
+        for server in servers:
+            if server.interface is None:
+                continue
+            af = 4 if server.address_family == socket.AF_INET else 6
+            interfaces.setdefault(server.interface, {})[af] = True
 
         for if_index in interfaces:
             applied = self._get_nm_device_config(if_index)
             if applied is None:
-                # All interfaces must be ready, otherwise routing can not be complete
-                self.lgr.debug("All interfaces were not ready to gather connections")
+                self.lgr.debug("All interfaces were not "
+                               "ready to gather connections")
                 return False
             self.interface_to_connection[if_index] = applied
-            if str(applied[0]["ipv4"]["method"]) == "auto":
+            if (interfaces[if_index].get(4, False)
+                    and applied[0]["ipv4"]["method"] == "auto"):
                 self.required_dhcp4[if_index] = {}
-            if str(applied[0]["ipv6"]["method"]) == "auto":
+            if (interfaces[if_index].get(6, False)
+                    and applied[0]["ipv6"]["method"] == "auto"):
                 self.required_dhcp6[if_index] = {}
         return True
 
@@ -648,8 +656,7 @@ class RoutingManager:
                         dev_obj, dev_props = self._get_device_object_props(
                             int_name)
                         if dev_props["State"] == 100:
-                            ip4_rte, ip6_rte, applied = (
-                                self._get_nm_device_config(interface))
+                            applied = self._get_nm_device_config(interface)
                             if self._remove_checked_routes(applied[0], None):
                                 self._reapply_routes(int_name,
                                                      applied[0],

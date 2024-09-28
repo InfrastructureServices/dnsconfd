@@ -75,16 +75,18 @@ class DnsconfdContext:
         """
         self.lgr.debug("FSM transition function called, "
                        f"state: {self.state}, event: {event.name}")
-        try:
-            while event is not None:
-                self.state, callback \
-                    = self.transitions[self.state][event.name]
-                event = callback(event)
-                self.lgr.info(f"New state: {self.state}, new event: "
-                              f"{'None' if event is None else event.name}")
-        except KeyError:
-            self.lgr.error("There is no transition defined from "
-                           f"{self.state} on {event.name} event, ignoring")
+        while event is not None:
+            if (self.state not in self.transitions
+                    or event.name not in self.transitions[self.state]):
+                self.lgr.info("Transition not found from %s on %s"
+                              ", ignoring", self.state, event.name)
+                break
+
+            self.state, callback \
+                = self.transitions[self.state][event.name]
+            event = callback(event)
+            self.lgr.info(f"New state: {self.state}, new event: "
+                          f"{'None' if event is None else event.name}")
         # a bit of a hack, so loop add functions remove this immediately
         return False
 
