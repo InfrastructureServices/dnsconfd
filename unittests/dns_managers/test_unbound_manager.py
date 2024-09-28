@@ -6,7 +6,7 @@ import socket
 
 
 def create_instance():
-    ins = UnboundManager()
+    ins = UnboundManager(False)
     ins.lgr.disabled = True
     setattr(ins, "_executed_commands", [])
 

@@ -168,9 +168,11 @@ class UnboundManager(DnsManager):
             else:
                 break
         tls = used_protocol == DnsProtocol.DNS_OVER_TLS
+        flags = None
+        if tls or insecure:
+            flags = f"+{'i' if insecure else ''}{'t' if tls else ''} "
 
-        return (f"forward_add{' +t ' if tls else ' '}"
-                f"{' +i ' if insecure else ' '}"
+        return (f"forward_add {flags if flags else ''}"
                 f"{zone} {' '.join(servers_str)}")
 
     def get_status(self) -> dict[str, list[str]]:
