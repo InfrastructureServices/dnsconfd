@@ -22,7 +22,7 @@ copyright = '2023, Tomas Korbar, Petr Mensik'
 author = 'Tomas Korbar, Petr Mensik'
 
 # The full version, including alpha/beta/rc tags
-release = '1.3.1'
+release = '1.4.0'
 
 
 # -- General network_objects ---------------------------------------------------
