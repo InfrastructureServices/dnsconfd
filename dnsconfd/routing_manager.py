@@ -297,6 +297,32 @@ class RoutingManager:
             self.required_dhcp6[interface] = option_dict
         self.transition_function(ContextEvent("DHCP_CHANGE"))
 
+    def _sub_dhcp_obj(self, dev_props, cur_serial, interface, family):
+        conf_path = dev_props["Dhcp4Config" if family == 4 else "Dhcp6Config"]
+        obj = dbus.SystemBus().get_object("org.freedesktop.NetworkManager",
+                                          conf_path)
+        dbus_int = dbus.Interface(obj, "org.freedesktop.DBus.Properties")
+
+        cb = lambda interface_str, properties, invalid: self._on_dhcp_change(
+            cur_serial,
+            properties["Options"],
+            interface,
+            family)
+        connection = dbus_int.connect_to_signal("PropertiesChanged", cb)
+        self.dhcp_objs_signal_connections.append(connection)
+        self.lgr.debug("Successfully subscribed to interface %s %s object",
+                       interface, family)
+        dhcp_props = dbus.Interface(obj,
+                                    "org.freedesktop"
+                                    ".DBus.Properties").GetAll(
+            "org.freedesktop.NetworkManager.DHCP4Config")
+        self.lgr.debug("Successfully retrieved dhcp properties %s",
+                       dhcp_props)
+        if family == 4:
+            self.required_dhcp4[interface] = dhcp_props["Options"]
+        else:
+            self.required_dhcp6[interface] = dhcp_props["Options"]
+
     def subscribe_required_dhcp(self):
         try:
             self._get_nm_interface()
@@ -305,65 +331,30 @@ class RoutingManager:
                            "in subscribe_required_dhcp %s", e)
             return False
 
-        for interface in self.required_dhcp4:
-            int_name = InterfaceConfiguration.get_if_name(interface, strict=True)
+        found_interfaces = []
+        for req_array in [self.required_dhcp4, self.required_dhcp6]:
+            for i in req_array:
+                if i not in found_interfaces:
+                    found_interfaces.append(i)
+
+        for if_index in found_interfaces:
+            int_name = InterfaceConfiguration.get_if_name(if_index, strict=True)
             if int_name is None:
-                self.lgr.debug("Could not get interface name in subscribe_required_dhcp")
+                self.lgr.debug("Could not get interface name "
+                               "in subscribe_required_dhcp")
                 return False
             try:
-                dev_obj, dev_props = self._get_device_object_props(int_name)
-
-                dhcp4_config_path = dev_props["Dhcp4Config"]
-                dhcp4_config_object = dbus.SystemBus().get_object("org.freedesktop.NetworkManager", dhcp4_config_path)
-
-                cur_serial = self.dhcp_serial
-
-                dhcp4_interface = dbus.Interface(dhcp4_config_object, "org.freedesktop.DBus.Properties")
-
-                dhcp4_connection = dhcp4_interface.connect_to_signal("PropertiesChanged",
-                                                                     lambda interface_str, properties,
-                                                                            invalidated: self._on_dhcp_change(
-                                                                         cur_serial, properties["Options"], interface,
-                                                                         4))
-                self.dhcp_objs_signal_connections.append(dhcp4_connection)
-                dhcp4_properties = dbus.Interface(dhcp4_config_object,
-                                                  "org.freedesktop"
-                                                  ".DBus.Properties").GetAll(
-                    "org.freedesktop.NetworkManager.DHCP4Config")
-
-                self.required_dhcp4[interface] = dhcp4_properties["Options"]
-            except dbus.DBusException:
-                return False
-
-        for interface in self.required_dhcp6:
-            int_name = InterfaceConfiguration.get_if_name(interface, strict=True)
-            if int_name is None:
-                self.lgr.debug("Could not get interface name in subscribe_required_dhcp")
-                return False
-            try:
-                dev_obj, dev_props = self._get_device_object_props(int_name)
-
-                dhcp6_config_path = dev_props["Dhcp6Config"]
-                dhcp6_config_object = dbus.SystemBus().get_object("org.freedesktop.NetworkManager",
-                                                                  dhcp6_config_path)
-
-                cur_serial = self.dhcp_serial
-
-                dhcp6_interface = dbus.Interface(dhcp6_config_object, "org.freedesktop.DBus.Properties")
-
-                dhcp6_connection = dhcp6_interface.connect_to_signal("PropertiesChanged",
-                                                                     lambda interface_str, properties,
-                                                                            invalidated: self._on_dhcp_change(
-                                                                         cur_serial, properties["Options"], interface,
-                                                                         6))
-                self.dhcp_objs_signal_connections.append(dhcp6_connection)
-                dhcp6_properties = dbus.Interface(dhcp6_config_object,
-                                                  "org.freedesktop"
-                                                  ".DBus.Properties").GetAll(
-                    "org.freedesktop.NetworkManager.DHCP6Config")
-
-                self.required_dhcp6[interface] = dhcp6_properties["Options"]
-            except dbus.DBusException:
+                dev_obj, props = self._get_device_object_props(int_name)
+                if if_index in self.required_dhcp4:
+                    self.lgr.debug("subscribing to interface %s dhcp4 object"
+                                   , if_index)
+                    self._sub_dhcp_obj(props, self.dhcp_serial, if_index, 4)
+                if if_index in self.required_dhcp6:
+                    self.lgr.debug("subscribing to interface %s dhcp6 object"
+                                   , if_index)
+                    self._sub_dhcp_obj(props, self.dhcp_serial, if_index, 6)
+            except dbus.DBusException as e:
+                self.lgr.debug("Subscription to dhcp object failed %s", e)
                 return False
         return True
 
