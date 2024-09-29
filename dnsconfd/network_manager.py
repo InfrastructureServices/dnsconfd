@@ -1,7 +1,7 @@
 import subprocess
 
 
-class NetworkManager(object):
+class NetworkManager:
     NM_CONF_D = "/etc/NetworkManager/conf.d"
     NM_CONF = NM_CONF_D + "/dnsconfd.conf"
     HEADER = "## This file is maintained by " \
