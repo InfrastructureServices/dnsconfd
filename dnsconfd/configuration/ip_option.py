@@ -1,5 +1,6 @@
-from dnsconfd.configuration import Option
 import ipaddress
+
+from dnsconfd.configuration import Option
 
 
 class IpOption(Option):
@@ -17,6 +18,6 @@ class IpOption(Option):
             ipaddress.ip_address(value)
             return True
         except ValueError:
-            self.lgr.error(f"Value of {self.name} must be an ip address"
-                           f" {value} was given")
+            self.lgr.error("Value of %s must be an ip address "
+                           "%s was given", self.name, value)
             return False

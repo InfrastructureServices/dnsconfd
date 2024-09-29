@@ -1,5 +1,6 @@
-from dnsconfd.configuration import Option
 import re
+
+from dnsconfd.configuration import Option
 
 
 class StringOption(Option):
@@ -16,8 +17,8 @@ class StringOption(Option):
         pattern = re.compile(self.validation)
 
         if pattern.fullmatch(value) is None:
-            self.lgr.error(f"Value of {self.name} must conform to regular"
-                           f" expression {pattern.pattern},"
-                           f" {value} was given")
+            self.lgr.error("Value of %s must conform to regular expression "
+                           " %s, but %s was given",
+                           self.name, pattern.pattern, value)
             return False
         return True

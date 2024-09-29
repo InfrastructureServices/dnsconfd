@@ -1,8 +1,8 @@
-from dnsconfd.network_objects import DnsProtocol
-
 import socket
 import ipaddress
 from typing import Optional
+
+from dnsconfd.network_objects import DnsProtocol
 
 
 class ServerDescription:

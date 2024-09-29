@@ -1,9 +1,8 @@
-from dnsconfd.dns_managers import UnboundManager
-from dnsconfd.fsm import ContextEvent, ContextState
-
 from typing import Callable, Type
 import logging
 
+from dnsconfd.dns_managers import UnboundManager
+from dnsconfd.fsm import ContextEvent, ContextState
 from dnsconfd.fsm.exit_code_handler import ExitCodeHandler
 
 

@@ -1,6 +1,5 @@
 import logging
 from typing import Callable
-
 import dbus
 
 from dnsconfd.fsm import ContextEvent
@@ -23,8 +22,8 @@ class SystemdManager:
             self._signal_connection = connection
             return True
         except dbus.DBusException as e:
-            self.lgr.error("Systemd is not listening on " +
-                           f"name org.freedesktop.systemd1 {e}")
+            self.lgr.error("Systemd is not listening on "
+                           "name org.freedesktop.systemd1", e)
         return False
 
     def on_systemd_job_finished(self, *args):
@@ -32,26 +31,26 @@ class SystemdManager:
         success_event, failure_event = self.systemd_jobs.pop(jobid,
                                                              (None, None))
         if success_event is not None:
-            self.lgr.debug(f"{args[2]} start job finished")
+            self.lgr.debug("%s start job finished", args[2])
             if not self.systemd_jobs:
-                self.lgr.debug("Not waiting for more jobs, thus unsubscribing")
+                self.lgr.debug("Not waiting for more jobs, unsubscribing")
                 # we do not want to receive info about jobs anymore
                 self.systemd_interface.Unsubscribe()
                 self._signal_connection.remove()
             if args[3] != "done" and args[3] != "skipped":
-                self.lgr.error(f"{args[2]} unit failed to start, "
-                               f"result: {args[3]}")
+                self.lgr.error("%s unit failed to start, "
+                               "result: %s", args[2], args[3])
                 self.transition_function(failure_event)
             self.transition_function(success_event)
         else:
-            self.lgr.debug("Dnsconfd was informed about finish of"
-                           f" job {jobid} but it was not submitted by us")
+            self.lgr.debug("Dnsconfd was informed about finish of "
+                           "job %s but it was not submitted by us", jobid)
 
     def restart_unit(self,
                      unit: str,
                      success_event: ContextEvent,
                      failure_event: ContextEvent):
-        self.lgr.info(f"Restarting {unit}")
+        self.lgr.info("Restarting %s", unit)
         try:
             name = f"{unit}.service"
             jobid = int(self.systemd_interface
@@ -59,29 +58,30 @@ class SystemdManager:
         except dbus.DBusException as e:
             self.lgr.error("Was not able to call "
                            "org.freedesktop.systemd1.Manager.RestartUnit"
-                           f", check your policy: {e}")
+                           ", check your policy: %s", e)
             return None
         self.systemd_jobs[jobid] = (success_event, failure_event)
         return jobid
 
     def connect_systemd(self):
         try:
-            systemd_object = dbus.SystemBus().get_object('org.freedesktop.systemd1',
-                                                         '/org/freedesktop/systemd1')
+            systemd_object = dbus.SystemBus().get_object(
+                'org.freedesktop.systemd1',
+                '/org/freedesktop/systemd1')
             self.systemd_interface \
                 = dbus.Interface(systemd_object,
                                  "org.freedesktop.systemd1.Manager")
             return True
         except dbus.DBusException as e:
             self.lgr.error("Systemd is not listening on name "
-                           f"org.freedesktop.systemd1: {e}")
+                           "org.freedesktop.systemd1: %s", e)
         return False
 
     def start_unit(self,
                    unit: str,
                    success_event: ContextEvent,
                    failure_event: ContextEvent):
-        self.lgr.info(f"Starting {unit}")
+        self.lgr.info("Starting %s", unit)
         try:
             name = f"{unit}.service"
             jobid = int(self.systemd_interface
@@ -90,7 +90,7 @@ class SystemdManager:
         except dbus.DBusException as e:
             self.lgr.error("Was not able to call "
                            "org.freedesktop.systemd1.Manager"
-                           f".ReloadOrRestartUnit , check your policy: {e}")
+                           ".ReloadOrRestartUnit , check your policy: %s", e)
             return None
         self.systemd_jobs[jobid] = (success_event, failure_event)
         return jobid
@@ -99,7 +99,7 @@ class SystemdManager:
                   unit: str,
                   success_event: ContextEvent,
                   failure_event: ContextEvent):
-        self.lgr.info(f"Stopping {unit}")
+        self.lgr.info("Stopping %s", unit)
         try:
             name = f"{unit}.service"
             jobid = int(self.systemd_interface
@@ -108,7 +108,7 @@ class SystemdManager:
         except dbus.DBusException as e:
             self.lgr.error("Was not able to call "
                            "org.freedesktop.systemd1.Manager.StopUnit"
-                           f", check your policy {e}")
+                           ", check your policy %s", e)
             return None
         self.systemd_jobs[jobid] = (success_event, failure_event)
         return jobid

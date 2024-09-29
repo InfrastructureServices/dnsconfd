@@ -1,14 +1,14 @@
+import os
+import logging
+import sys
 from argparse import ArgumentParser, BooleanOptionalAction
-from dnsconfd.cli_commands import CLI_Commands as Cmds
+import yaml
+import yaml.scanner
+
+from dnsconfd import CLICommands as Cmds
 from dnsconfd.configuration import Option, StaticServersOption, StringOption
 from dnsconfd.configuration import IpOption, BoolOption
 from dnsconfd.fsm.exit_code import ExitCode
-
-import os
-import yaml
-import yaml.scanner
-import logging
-import sys
 
 
 class DnsconfdArgumentParser(ArgumentParser):
@@ -18,7 +18,7 @@ class DnsconfdArgumentParser(ArgumentParser):
         :param args: arguments for the parent constructor
         :param kwargs: keyword arguments for the parent constructor
         """
-        super(DnsconfdArgumentParser, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.lgr = logging.getLogger(self.__class__.__name__)
         self._parsed = None
         self._env = os.environ
@@ -186,8 +186,7 @@ class DnsconfdArgumentParser(ArgumentParser):
         :return:
         """
 
-        self._parsed = (super(DnsconfdArgumentParser, self)
-                        .parse_args(*args, **kwargs))
+        self._parsed = super().parse_args(*args, **kwargs)
 
         # config will provide defaults
         if self._parsed.config_file is not None:
@@ -211,21 +210,21 @@ class DnsconfdArgumentParser(ArgumentParser):
         if (option.in_file
                 and config.get(option.name, None) is not None):
             final_val = config[option.name]
-            self.lgr.debug(f"Applying value {final_val}"
-                           f" to {option.name} from file")
+            self.lgr.debug("Applying value %s"
+                           " to %s from file", final_val, option.name)
         if (option.in_env
                 and self._env.get(option.name.upper(), None) is not None):
             if isinstance(option, BoolOption):
                 final_val = self._env[option.name.upper()] in ["yes", "1"]
             else:
                 final_val = self._env[option.name.upper()]
-            self.lgr.debug(f"Applying value {final_val}"
-                           f" to {option.name} from env variable")
+            self.lgr.debug("Applying value %s "
+                           "to %s from env variable", final_val, option.name)
         if (option.in_args
                 and getattr(self._parsed, option.name) is not None):
             final_val = getattr(self._parsed, option.name)
-            self.lgr.debug(f"Applying value {final_val}"
-                           f" to {option.name} from cmdline")
+            self.lgr.debug("Applying value %s "
+                           "to %s from cmdline", final_val, option.name)
         if not option.validate(final_val):
             raise ValueError
 
@@ -234,7 +233,7 @@ class DnsconfdArgumentParser(ArgumentParser):
     @staticmethod
     def _open_config_file(path):
         # this method exists mainly for the sake of unit testing
-        return open(path, "r")
+        return open(path, "r", encoding="utf-8")
 
     def _read_config(self, path: str) -> dict:
         config = {}
@@ -245,11 +244,11 @@ class DnsconfdArgumentParser(ArgumentParser):
                 config = temp_config
         except OSError as e:
             self.lgr.warning("Could not open configuration file "
-                             f"at {path}, {e}")
+                             "at %s, %s", path, e)
             return {}
         except yaml.scanner.ScannerError as e:
             self.lgr.warning("Could not parse configuration file "
-                             f"at {path}, {e}")
+                             "at %s, %s", path, e)
             return {}
 
         if not isinstance(config, dict):

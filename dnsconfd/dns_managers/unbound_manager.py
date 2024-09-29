@@ -1,9 +1,9 @@
-from dnsconfd.dns_managers import DnsManager
-from dnsconfd.network_objects import ServerDescription, DnsProtocol
-
 import subprocess
 import logging
 from copy import deepcopy
+
+from dnsconfd.dns_managers import DnsManager
+from dnsconfd.network_objects import ServerDescription, DnsProtocol
 
 
 class UnboundManager(DnsManager):
@@ -31,7 +31,8 @@ class UnboundManager(DnsManager):
         else:
             modules = "ipsecmod iterator"
         try:
-            with open("/run/dnsconfd/unbound.conf", "w") as conf_file:
+            with open("/run/dnsconfd/unbound.conf", "w",
+                      encoding="utf-8") as conf_file:
                 conf_file.writelines(["server:\n",
                                       f"\tmodule-config: \"{modules}\"\n",
                                       f"\tinterface: {my_address}\n"
@@ -74,7 +75,8 @@ class UnboundManager(DnsManager):
                       "%s", ' '.join(control_args))
         proc = subprocess.run(control_args,
                               stdout=subprocess.PIPE,
-                              stderr=subprocess.PIPE)
+                              stderr=subprocess.PIPE,
+                              check=False)
         self.lgr.debug("Returned code %s, "
                        "stdout: \"%s\", "
                        "stderr:\"%s\"",
@@ -130,10 +132,10 @@ class UnboundManager(DnsManager):
                 return False
         for zone in stable_zones:
             if self.zones_to_servers[zone] == zones_to_servers[zone]:
-                self.lgr.debug(f"Zone {zone} is the same in old and new "
-                               + "config thus skipping it")
+                self.lgr.debug("Zone %s is the same in old and new "
+                               "config thus skipping it", zone)
                 continue
-            self.lgr.debug(f"Updating zone {zone}")
+            self.lgr.debug("Updating zone %s", zone)
             add_cmd = self._get_forward_add_command(zone,
                                                     zones_to_servers[zone])
             if (not self._execute_cmd(f"forward_remove {zone}")

@@ -1,12 +1,10 @@
 from typing import Callable
+from gi.repository import GLib
 
-from dnsconfd.dns_managers import UnboundManager, DnsManager
+from dnsconfd.dns_managers import UnboundManager
 from dnsconfd.fsm import ContextEvent, ExitCode, ContextState
 from dnsconfd.fsm.exit_code_handler import ExitCodeHandler
 from dnsconfd.fsm.transitions import TransitionImplementations
-
-from gi.repository import GLib
-
 from dnsconfd.server_manager import ServerManager
 from dnsconfd.systemd_manager import SystemdManager
 
@@ -100,9 +98,8 @@ class Starting(TransitionImplementations):
             self.lgr.error("Failed to connect to systemd through DBUS")
             self.exit_code_handler.set_exit_code(ExitCode.DBUS_FAILURE)
             return ContextEvent("FAIL")
-        else:
-            self.lgr.info("Successfully connected to systemd through DBUS")
-            return ContextEvent("SUCCESS")
+        self.lgr.info("Successfully connected to systemd through DBUS")
+        return ContextEvent("SUCCESS")
 
     def _connecting_dbus_success_transition(self, event: ContextEvent) \
             -> ContextEvent | None:
@@ -116,9 +113,10 @@ class Starting(TransitionImplementations):
         :rtype: ContextEvent | None
         """
         # TODO we will configure this in network_objects
-        service_start_job = self.systemd_manager.start_unit(self.dns_mgr.service_name,
-                                                            ContextEvent("START_OK"),
-                                                            ContextEvent("START_FAIL"))
+        service_start_job = (
+            self.systemd_manager.start_unit(self.dns_mgr.service_name,
+                                            ContextEvent("START_OK"),
+                                            ContextEvent("START_FAIL")))
         if service_start_job is None:
             self.lgr.error("Failed to submit dns cache service start job")
             self.exit_code_handler.set_exit_code(ExitCode.DBUS_FAILURE)
@@ -139,9 +137,9 @@ class Starting(TransitionImplementations):
         :rtype: ContextEvent | None
         """
         self.lgr.info("Start job finished successfully, starting polling")
-        timer_event = ContextEvent("TIMER_UP", 0)
+        timer = ContextEvent("TIMER_UP", 0)
         GLib.timeout_add_seconds(1,
-                                 lambda: self.transition_function(timer_event))
+                                 lambda: self.transition_function(timer))
         return None
 
     def _polling_timer_up_transition(self, event: ContextEvent) \
@@ -158,20 +156,21 @@ class Starting(TransitionImplementations):
         """
         if not self.dns_mgr.is_ready():
             if event.data == 3:
-                self.lgr.critical(f"{self.dns_mgr.service_name} did not"
-                                  " respond in time, stopping dnsconfd")
+                self.lgr.critical("%s did not "
+                                  "respond in time, stopping dnsconfd",
+                                  self.dns_mgr.service_name)
                 self.exit_code_handler.set_exit_code(ExitCode.SERVICE_FAILURE)
                 return ContextEvent("TIMEOUT")
-            self.lgr.debug(f"{self.dns_mgr.service_name} still not ready, "
-                           "scheduling additional poll")
+            self.lgr.debug("%s still not ready, "
+                           "scheduling additional poll",
+                           self.dns_mgr.service_name)
             timer = ContextEvent("TIMER_UP", event.data + 1)
             GLib.timeout_add_seconds(1,
                                      lambda: self.transition_function(timer))
             return None
-        else:
-            self.lgr.debug("DNS cache service is responding, "
-                           "proceeding to setup of resolv.conf")
-            return ContextEvent("SERVICE_UP")
+        self.lgr.debug("DNS cache service is responding, "
+                       "proceeding to setup of resolv.conf")
+        return ContextEvent("SERVICE_UP")
 
     def _update_transition(self, event: ContextEvent):
         """ Transition to the same state
