@@ -10,39 +10,52 @@ from dnsconfd.network_objects import ServerDescription, InterfaceConfiguration
 
 
 class RoutingManager:
-    def __init__(self, wire_priority: bool, transition_function: Callable):
+    def __init__(self, transition_function: Callable):
+        """ Object responsible for managing of routes
+
+        This code was created in a way that always leaves this object
+        in consistent state after calling of public methods, so
+        the caller does not have to keep track of any information.
+
+        :param transition_function: function that should be called when
+        transition is necessary
+        """
         self._nm_interface = None
         self.lgr = logging.getLogger(self.__class__.__name__)
 
+        # routes submitted to host
         self.routes = {}
 
-        self.wire_priority = wire_priority
-
+        # watching connections' state
         self.interface_to_state_signal_connection = {}
         self.interfaces_up = {}
 
+        # watching true device state
         self.interface_ip_ready = {}
         self.interface_to_ip_signal_connections = {}
 
+        # these allow us to ignore old events
         self.state_serial = 0
         self.ip_serial = 0
         self.dhcp_serial = 0
+
         self.transition_function = transition_function
 
+        # already gathered connection information of interfaces
         self.interface_to_connection = {}
 
-        # interface -> (ip_dict, is_ready_bool)
+        # required dhcp objects
+        # interface -> dhcp_dict
         self.required_dhcp4 = {}
         self.required_dhcp6 = {}
-
         self.dhcp_objs_signal_connections = []
 
     @staticmethod
     def _serial_add(serial):
         return serial + 1 if serial < 1000 else 0
 
-    def change_serials(self, state_serial: bool,
-                       ip_serial: bool, dhcp_serial: bool):
+    def _change_serials(self, state_serial: bool,
+                        ip_serial: bool, dhcp_serial: bool):
         if state_serial:
             self.state_serial = self._serial_add(self.state_serial)
         if ip_serial:
@@ -50,14 +63,18 @@ class RoutingManager:
         if dhcp_serial:
             self.dhcp_serial = self._serial_add(self.dhcp_serial)
 
-    def are_all_up(self):
+    def are_all_up(self) -> bool:
+        """ Check whether all required interfaces are activated
+
+        :return: True if required interfaces are activated, otherwise False
+        """
         for is_up in self.interfaces_up.values():
             if not is_up:
                 return False
         return True
 
-    def on_device_state_changed(self, new_state, old_state,
-                                reason, serial=0, interface=0):
+    def _on_device_state_changed(self, new_state, old_state,
+                                 reason, serial=0, interface=0):
         # it is possible, that dbus event was already dispatched
         # that belonged to previous update, and we need to ensure
         # this will be ignored, since we can not remove them
@@ -80,7 +97,7 @@ class RoutingManager:
                            new_state, reason)
             self.transition_function(ContextEvent("INTERFACE_DOWN"))
 
-    def check_ip_object_ready(self, ip_object, interface, family):
+    def _check_ip_object_ready(self, ip_object, interface, family):
         self.lgr.debug("Checking whether ip object %s of interface "
                        "%s is ready, object %s",
                        family, interface, ip_object)
@@ -122,14 +139,14 @@ class RoutingManager:
                 return False
         return True
 
-    def on_ip_obj_change(self, cur_serial: int, interface: int,
-                         properties: dict, family: int):
+    def _on_ip_obj_change(self, cur_serial: int, interface: int,
+                          properties: dict, family: int):
         self.lgr.debug("on_ip_obj_change called %s %s %s",
                        interface, properties, family)
         if self.ip_serial != cur_serial or "RouteData" not in properties:
             self.lgr.debug("Rejected because of bad serial or RouteData")
             return
-        ready = self.check_ip_object_ready(properties, interface, family)
+        ready = self._check_ip_object_ready(properties, interface, family)
         if family == 4:
             old = self.interface_ip_ready[interface][1]
             self.interface_ip_ready[interface] = ready, old
@@ -141,6 +158,10 @@ class RoutingManager:
         self.transition_function(event)
 
     def are_all_ip_set(self):
+        """ Check whether the required configuration is truly in place
+
+        :return: True if configuration is in place, otherwise False
+        """
         self.lgr.debug("are_all_ip_set called %s", self.interface_ip_ready)
         for interface, booleans in self.interface_ip_ready.items():
             if not (booleans[0] and booleans[1]):
@@ -157,10 +178,10 @@ class RoutingManager:
         serial = self.ip_serial
         intfc = dbus.Interface(conf_obj,
                                "org.freedesktop.DBus.Properties")
-        cb = lambda dbus_int, props, invalid: self.on_ip_obj_change(serial,
-                                                                    interface,
-                                                                    props,
-                                                                    family)
+        cb = lambda dbus_int, props, invalid: self._on_ip_obj_change(serial,
+                                                                     interface,
+                                                                     props,
+                                                                     family)
         connection = intfc.connect_to_signal("PropertiesChanged",
                                              cb)
         self.lgr.debug("Successfully connected to ip %s of %s",
@@ -177,7 +198,7 @@ class RoutingManager:
         else:
             int_str = "org.freedesktop.NetworkManager.IP6Config"
         all_props = prop_int.GetAll(int_str)
-        ready = self.check_ip_object_ready(all_props, interface, family)
+        ready = self._check_ip_object_ready(all_props, interface, family)
         self.lgr.debug("ip object ready result %s", ready)
         if family == 4:
             self.interface_ip_ready[interface] = (ready, False)
@@ -194,6 +215,11 @@ class RoutingManager:
                 .GetAll("org.freedesktop.NetworkManager.Device"))
 
     def subscribe_to_ip_objs_change(self, interfaces: list[int]):
+        """ Subscribe to interfaces ip objects
+
+        :param interfaces: list of interface indexes
+        :return: True if yes and all was successful, otherwise False
+        """
         if not self._get_nm_interface("subscribe_to_ip_objs_change "
                                       "failed nm connection"):
             return False
@@ -218,6 +244,11 @@ class RoutingManager:
         return True
 
     def subscribe_to_device_state_change(self, interfaces: list[int]):
+        """ Subscribe to devices state changes
+
+        :param interfaces: interface indexes of devices
+        :return: True if yes and all was successful, otherwise False
+        """
         if not self._get_nm_interface("Could not connect to nm "
                                       "in subscribe_to_device_state_change"):
             return False
@@ -234,7 +265,7 @@ class RoutingManager:
                 device_interface = (
                     dbus.Interface(dev_obj,
                                    "org.freedesktop.NetworkManager.Device"))
-                cb = functools.partial(self.on_device_state_changed,
+                cb = functools.partial(self._on_device_state_changed,
                                        serial=self.state_serial,
                                        interface=interface)
                 self.interface_to_state_signal_connection[interface] = (
@@ -257,7 +288,8 @@ class RoutingManager:
                 self.interface_to_ip_signal_connections[interface][1].remove()
 
     def clear_subscriptions(self):
-        self.change_serials(True, True, True)
+        """ Clear all subscriptions """
+        self._change_serials(True, True, True)
         self.interfaces_up = {}
         for interface in self.interface_to_state_signal_connection:
             self.interface_to_state_signal_connection[interface].remove()
@@ -270,10 +302,15 @@ class RoutingManager:
         self.required_dhcp6 = {}
 
     def clear_ip_subscriptions(self):
-        self.change_serials(False, True, False)
+        """ Clear only subscriptions to ip objects """
+        self._change_serials(False, True, False)
         self._clear_ip_records()
 
     def check_all_dhcp_ready(self):
+        """ Check whether all required DHCP objects are ready
+
+        :return: True if yes, otherwise False
+        """
         for req_dhcp in [self.required_dhcp4.values(),
                          self.required_dhcp6.values()]:
             for dhcp_dict in req_dhcp:
@@ -321,6 +358,10 @@ class RoutingManager:
             self.required_dhcp6[interface] = dhcp_props["Options"]
 
     def subscribe_required_dhcp(self):
+        """ Subscribe change of all required DHCP objects
+
+        :return: True if everything was successful, otherwise False
+        """
         if not self._get_nm_interface("Could not connect to nm "
                                       "in subscribe_required_dhcp"):
             return False
@@ -354,6 +395,12 @@ class RoutingManager:
         return True
 
     def gather_connections(self, servers: list[ServerDescription]):
+        """ Gather information about connections that were mentioned
+        for servers
+
+        :param servers: list of server descriptions
+        :return: True if all went well, otherwise False
+        """
         if not self._get_nm_interface("routing will result when all "
                                       "interfaces are ready"):
             return False
@@ -380,6 +427,22 @@ class RoutingManager:
         return True
 
     def handle_routes_process(self, servers: list[ServerDescription]):
+        """ Attempt to create all required routes and clear routes that are
+        no longer required
+
+        if route is required then first we check whether there is gateway
+        in connection or DHCP options. If yes then we create routes for
+        DNS servers.
+        If not then we look whether connection or DHCP contains route
+        that would contain the server and if yes then create its more specific
+        version (32 or 128 prefix).
+        If there is already route in place, then we rely on it.
+        At last, we clear all routes that we set in place and are no longer
+        required.
+
+        :param servers: List of server descriptions
+        :return: True on success otherwise False
+        """
         # we need to refresh the dbus connection, because NetworkManager
         # restart would invalidate it
         if not self._get_nm_interface("routing will result when all "
@@ -753,11 +816,12 @@ class RoutingManager:
         return applied
 
     def remove_routes(self):
+        """ Try to remove all routes that were submitted by Dnsconfd """
         routes_str = " ".join([str(x) for x in self.routes])
         self.lgr.debug("routes: %s", routes_str)
         if not self._get_nm_interface("Failed to contact NetworkManager "
                                       "through dbus, will not remove routes"):
-            return ContextEvent("SUCCESS")
+            return
 
         found_interfaces = {}
 
@@ -787,4 +851,3 @@ class RoutingManager:
                                      "%s, Will not remove its routes. "
                                      "%s", ifname, e)
                     continue
-        return ContextEvent("SUCCESS")

@@ -10,7 +10,9 @@ class UnboundManager(DnsManager):
     service_name = "unbound"
 
     def __init__(self, dnssec: bool):
-        """ Object responsible for executing unbound configuration changes """
+        """ Object responsible for executing unbound configuration changes
+        :param dnssec: Indicating whether dnssec should be enabled
+        """
         super().__init__()
         self.zones_to_servers = {}
         self.lgr = logging.getLogger(self.__class__.__name__)
@@ -21,8 +23,6 @@ class UnboundManager(DnsManager):
 
         :param my_address: address where unbound should listen
         :type my_address: str
-        :param dnssec: enable DNSSEC validation, defaults to False
-        :type dnssec: bool, optional
         :return: True on success, otherwise False
         :rtype: bool
         """

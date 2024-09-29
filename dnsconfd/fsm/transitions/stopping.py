@@ -1,5 +1,5 @@
 from dnsconfd import SystemManager
-from dnsconfd.dns_managers import DnsManager
+from dnsconfd.dns_managers import UnboundManager
 from dnsconfd.fsm import ContextEvent, ExitCode, ContextState
 from dnsconfd.fsm.exit_code_handler import ExitCodeHandler
 from dnsconfd.fsm.transitions import TransitionImplementations
@@ -12,13 +12,24 @@ class Stopping(TransitionImplementations):
 
     def __init__(self,
                  config: dict,
-                 dns_mgr: DnsManager,
+                 dns_mgr: UnboundManager,
                  exit_code_handler: ExitCodeHandler,
                  sys_mgr: SystemManager,
                  main_loop,
                  systemd_manager: SystemdManager,
                  route_mgr: RoutingManager,
                  server_mgr: ServerManager):
+        """ Object responsible for stopping of Dnsconfd
+
+        :param config: dictionary with configuration
+        :param dns_mgr: dns cache manager
+        :param exit_code_handler: handler of the exit code
+        :param sys_mgr: system manager
+        :param main_loop: GLib loop executing events
+        :param systemd_manager: systemd manager
+        :param route_mgr: routing manager
+        :param server_mgr: server information handler
+        """
         super().__init__(config, dns_mgr, exit_code_handler)
         self.sys_mgr = sys_mgr
         self.main_loop = main_loop
@@ -150,25 +161,19 @@ class Stopping(TransitionImplementations):
             self.lgr.info("Config says we should not handle routes, skipping")
             return ContextEvent("SUCCESS")
         self.lgr.debug("Removing routes")
-        return self.route_mgr.remove_routes()
+        self.route_mgr.remove_routes()
+        return ContextEvent("SUCCESS")
 
     def _reverting_resolv_conf_transition(self, event: ContextEvent) \
             -> ContextEvent | None:
-        """ Transition to SUBMITTING_STOP_JOB
-
-        Attempt to submit stop job
-
-        :param event: Event with exit code in data
-        :type event: ContextEvent
-        :return: SUCCESS or FAIL with exit code
-        :rtype: ContextEvent | None
-        """
         if not self.systemd_manager.subscribe_systemd_signals():
             self.exit_code_handler.set_exit_code(ExitCode.DBUS_FAILURE)
             return ContextEvent("FAIL")
-        jobid = self.systemd_manager.stop_unit(self.dns_mgr.service_name,
-                                               ContextEvent("STOP_SUCCESS"),
-                                               ContextEvent("STOP_FAILURE"))
+        jobid = self.systemd_manager.change_unit_state(
+            2,
+            self.dns_mgr.service_name,
+            ContextEvent("STOP_SUCCESS"),
+            ContextEvent("STOP_FAILURE"))
         if jobid is None:
             self.exit_code_handler.set_exit_code(ExitCode.DBUS_FAILURE)
             return ContextEvent("FAIL")
@@ -176,15 +181,6 @@ class Stopping(TransitionImplementations):
 
     def _running_stop_transition(self, event: ContextEvent) \
             -> ContextEvent | None:
-        """ Transition to REVERTING_RESOLV_CONF
-
-        Attempt to revert resolv.conf content
-
-        :param event: Not used
-        :type event: ContextEvent
-        :return: SUCCESS or FAIL with exit code
-        :rtype: ContextEvent | None
-        """
         if event.name == "RESTART_FAIL":
             self.exit_code_handler.set_exit_code(ExitCode.SERVICE_FAILURE)
         self.lgr.info("Stopping dnsconfd")
@@ -196,15 +192,6 @@ class Stopping(TransitionImplementations):
         return ContextEvent("SUCCESS")
 
     def _exit_transition(self, event: ContextEvent):
-        """ Transition to STOPPING
-
-        Save exit code and stop main loop
-
-        :param event: Event holding exit code in data
-        :type event: ContextEvent
-        :return: None
-        :rtype: ContextEvent | None
-        """
         if event.name == "START_FAIL":
             self.exit_code_handler.set_exit_code(ExitCode.SERVICE_FAILURE)
         self.lgr.info("Stopping event loop and FSM")

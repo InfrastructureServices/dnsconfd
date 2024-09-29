@@ -11,6 +11,11 @@ from dnsconfd.network_objects import DnsProtocol
 
 class ResolveDbusInterface(dbus.service.Object):
     def __init__(self, runtime_context: DnsconfdContext, config):
+        """ Implementation of the Resolve1 DBUS interface
+
+        :param runtime_context: execution context of Dnsconfd
+        :param config: configuration dictionary
+        """
         super().__init__(object_path="/org/freedesktop/resolve1",
                          bus_name=BusName(config["dbus_name"],
                                           dbus.SystemBus()))
