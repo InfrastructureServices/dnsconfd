@@ -1,4 +1,5 @@
 #!/usr/bin/python3
+import logging
 
 from dnsconfd.fsm import ContextEvent
 from dnsconfd.fsm import DnsconfdContext
@@ -31,11 +32,15 @@ if __name__ == "__main__":
     ctx = DnsconfdContext(config, main_loop)
     # this has to happen before we expose the API
     GLib.idle_add(lambda: ctx.transition_function(ContextEvent("KICKOFF")))
-
-    if config["api_choice"] == "resolve1":
-        input_module = ResolveDbusInterface(ctx, config)
-    else:
-        input_module = DnsconfdDbusInterface(ctx, config)
+    lgr = logging.getLogger("dnsconfd")
+    try:
+        if config["api_choice"] == "resolve1":
+            input_module = ResolveDbusInterface(ctx, config)
+        else:
+            input_module = DnsconfdDbusInterface(ctx, config)
+    except dbus.DBusException as e:
+        lgr.critical("Failed to connect to DBUS, check your policy %s", e)
+        sys.exit(ExitCode.DBUS_FAILURE.value)
 
     # using lambdas here allows us to not use exit in DnsconfdContext class
     signal.signal(signal.SIGTERM,
