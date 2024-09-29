@@ -14,7 +14,12 @@ from dnsconfd.fsm import ContextEvent
 
 
 class DnsconfdDbusInterface(dbus.service.Object):
-    def __init__(self, runtime_context: DnsconfdContext, config):
+    def __init__(self, runtime_context: DnsconfdContext, config: dict):
+        """ Implementation of the Dnsconfd DBUS interface
+
+        :param runtime_context: execution context of Dnsconfd
+        :param config: configuration dictionary
+        """
         super().__init__(object_path="/com/redhat/dnsconfd",
                          bus_name=BusName(config["dbus_name"],
                                           dbus.SystemBus()))
@@ -30,7 +35,14 @@ class DnsconfdDbusInterface(dbus.service.Object):
 
     @dbus.service.method(dbus_interface='com.redhat.dnsconfd.Manager',
                          in_signature='aa{sv}', out_signature='bs')
-    def Update(self, servers: list[dict[str, typing.Any]]):
+    def Update(self, servers: list[dict[str, typing.Any]])\
+            -> tuple[bool, str]:
+        """ Update forwarders that should be used
+
+        :param servers: list of dictionaries describing servers.
+        Members are described in DBUS API documentation
+        :return: Tuple with True or False and message with more info
+        """
         new_servers = []
         self.lgr.info("update dbus method called with args: %s", servers)
         if self.ignore_api:
@@ -181,10 +193,19 @@ class DnsconfdDbusInterface(dbus.service.Object):
     @dbus.service.method(dbus_interface='com.redhat.dnsconfd.Manager',
                          in_signature='b', out_signature='s')
     def Status(self, json_format: bool):
+        """ Get status of Dnsconfd
+
+        :param json_format: True if output should be JSON
+        :return: string with status
+        """
         return self.runtime_context.get_status(json_format)
 
     @dbus.service.method(dbus_interface='com.redhat.dnsconfd.Manager',
                          in_signature='', out_signature='bs')
-    def Reload(self):
+    def Reload(self) -> tuple[bool, str]:
+        """ Reload configuration of underlying cache service
+
+        :return: Tuple with True or False and message with more info
+        """
         self.lgr.info("Received request for reload of plugin")
         return self.runtime_context.reload_service()

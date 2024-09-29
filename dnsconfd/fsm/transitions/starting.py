@@ -18,6 +18,16 @@ class Starting(TransitionImplementations):
                  transition_function: Callable,
                  systemd_manager: SystemdManager,
                  server_mgr: ServerManager):
+        """ Object responsible for start of Dnsconfd
+
+        :param config: dictionary with configuration
+        :param dns_mgr: dns cache manager
+        :param exit_code_handler: handler of the exit code
+        :param transition_function: function to be called when transition is
+        necessary
+        :param systemd_manager: systemd manager
+        :param server_mgr: handler of server information
+        """
         super().__init__(config, dns_mgr, exit_code_handler)
         self.systemd_manager = systemd_manager
         self.server_manager = server_mgr
@@ -62,16 +72,6 @@ class Starting(TransitionImplementations):
         }
 
     def _starting_kickoff_transition(self, event: ContextEvent):
-        """ Transition to CONNECTING_DBUS
-
-        Attempt to connect to DBUS and subscribe to systemd signals
-
-        :param event: not used
-        :type event: ContextEvent
-        :return: Success or FAIL with exit code
-        :rtype: ContextEvent | None
-        """
-
         address = self.config["listen_address"]
         if self.dns_mgr.configure(address):
             self.lgr.info("Successfully configured DNS manager")
@@ -83,16 +83,6 @@ class Starting(TransitionImplementations):
 
     def _conf_dns_mgr_success_transition(self, event: ContextEvent) \
             -> ContextEvent | None:
-        """ Transition to CONNECTING_DBUS
-
-        Attempt to configure dns manager and its files
-
-        :param event: not used
-        :type: event: ContextEvent
-        :return: SUCCESS or FAIL with exit code
-        :rtype: ContextEvent | None
-        """
-
         if (not self.systemd_manager.connect_systemd()
                 or not self.systemd_manager.subscribe_systemd_signals()):
             self.lgr.error("Failed to connect to systemd through DBUS")
@@ -103,20 +93,13 @@ class Starting(TransitionImplementations):
 
     def _connecting_dbus_success_transition(self, event: ContextEvent) \
             -> ContextEvent | None:
-        """ Transition to SUBMITTING_START_JOB
-
-        Attempt to connect to submit systemd start job of cache service
-
-        :param event: not used
-        :type event: ContextEvent
-        :return: Success or FAIL with exit code
-        :rtype: ContextEvent | None
-        """
         # TODO we will configure this in network_objects
         service_start_job = (
-            self.systemd_manager.start_unit(self.dns_mgr.service_name,
-                                            ContextEvent("START_OK"),
-                                            ContextEvent("START_FAIL")))
+            self.systemd_manager.change_unit_state(
+                0,
+                self.dns_mgr.service_name,
+                ContextEvent("START_OK"),
+                ContextEvent("START_FAIL")))
         if service_start_job is None:
             self.lgr.error("Failed to submit dns cache service start job")
             self.exit_code_handler.set_exit_code(ExitCode.DBUS_FAILURE)
@@ -127,15 +110,6 @@ class Starting(TransitionImplementations):
 
     def _job_finished_success_transition(self, event: ContextEvent) \
             -> ContextEvent | None:
-        """ Transition to POLLING
-
-        Register timeout callback with TIMER_UP event into the main loop
-
-        :param event: Not used
-        :type event: ContextEvent
-        :return: None
-        :rtype: ContextEvent | None
-        """
         self.lgr.info("Start job finished successfully, starting polling")
         timer = ContextEvent("TIMER_UP", 0)
         GLib.timeout_add_seconds(1,
@@ -144,16 +118,6 @@ class Starting(TransitionImplementations):
 
     def _polling_timer_up_transition(self, event: ContextEvent) \
             -> ContextEvent | None:
-        """ Transition to POLLING
-
-        Check whether service is already running and if not then whether
-        Dnsconfd is waiting too long already.
-
-        :param event: Event with count of done polls in data
-        :type event: ContextEvent
-        :return: None or SERVICE_UP if service is up
-        :rtype: ContextEvent | None
-        """
         if not self.dns_mgr.is_ready():
             if event.data == 3:
                 self.lgr.critical("%s did not "
@@ -173,15 +137,6 @@ class Starting(TransitionImplementations):
         return ContextEvent("SERVICE_UP")
 
     def _update_transition(self, event: ContextEvent):
-        """ Transition to the same state
-
-        Save received network_objects and stay in the current state
-
-        :param event: event with interface config in data
-        :type event: ContextEvent
-        :return: None
-        :rtype: ContextEvent | None
-        """
         if event.data is None:
             return None
         self.server_manager.set_dynamic_servers(event.data)

@@ -31,8 +31,7 @@ class DnsconfdContext:
         systemd_manager = SystemdManager(self.transition_function)
         self.exit_code_handler = ExitCodeHandler()
         self.server_manager = ServerManager(config)
-        self.routing_manager = RoutingManager(config["prioritize_wire"],
-                                              self.transition_function)
+        self.routing_manager = RoutingManager(self.transition_function)
 
         transitions_implementations = [
             Starting(config,

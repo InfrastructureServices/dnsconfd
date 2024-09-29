@@ -14,6 +14,8 @@ class CLICommands:
                api_choice: str) -> typing.NoReturn:
         """ Call Dnsconfd status method through DBUS and print result
 
+        :param api_choice: choice of which api should be used dnsconfd or
+        resolve1
         :param dbus_name: DBUS name Dnsconfd listens on
         :type dbus_name: str
         :param json_format: True if status should be in JSON format
@@ -135,6 +137,13 @@ class CLICommands:
     def update(dbus_name: str,
                servers: str,
                api_choice: str) -> typing.NoReturn:
+        """ Call Update DBUS method of Dnsconfd
+
+        :param dbus_name: DBUS name Dnsconfd listens on
+        :param servers: JSON string with servers that should be set in place
+        :param api_choice: dnsconfd or resolve1
+        :return:
+        """
         try:
             server_list = json.loads(servers)
         except json.JSONDecodeError as e:
