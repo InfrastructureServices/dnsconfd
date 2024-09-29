@@ -36,7 +36,8 @@ class SystemManager:
                 os.unlink(self._resolv_conf_path)
             else:
                 self.lgr.debug("Resolvconf is plain file")
-                with open(self._resolv_conf_path, "r") as orig_resolv:
+                with open(self._resolv_conf_path, "r",
+                          encoding="utf-8") as orig_resolv:
                     self._backup = orig_resolv.read()
         except FileNotFoundError as e:
             self.lgr.error("Not present resolvconf: %s", e)
@@ -47,7 +48,8 @@ class SystemManager:
             return False
 
         try:
-            with open(self._resolv_conf_path, "w") as new_resolv:
+            with open(self._resolv_conf_path, "w",
+                      encoding="utf-8") as new_resolv:
                 new_resolv.write(self._get_resolvconf_string(search_domains))
         except OSError as e:
             self.lgr.error("OSError encountered while writing "
@@ -74,7 +76,8 @@ class SystemManager:
         """
         if self._backup is not None:
             try:
-                with open(self._resolv_conf_path, "w") as new_resolv:
+                with open(self._resolv_conf_path, "w",
+                          encoding="utf-8") as new_resolv:
                     new_resolv.write(self._backup)
             except OSError as e:
                 self.lgr.error("OSError encountered while writing "
@@ -100,7 +103,8 @@ class SystemManager:
         """
         self.lgr.info("Updating resolvconf with domains %s", search_domains)
         try:
-            with open(self._resolv_conf_path, "w") as new_resolv:
+            with open(self._resolv_conf_path, "w",
+                      encoding="utf-8") as new_resolv:
                 new_resolv.write(self._get_resolvconf_string(search_domains))
         except OSError as e:
             self.lgr.error("OSError encountered while writing "
@@ -118,13 +122,13 @@ class SystemManager:
         try:
             if os.path.islink(self._resolv_conf_path):
                 os.unlink(self._resolv_conf_path)
-            open(self._resolv_conf_path, 'w+').close()
+            open(self._resolv_conf_path, 'w+', encoding="utf-8").close()
             shutil.chown(self._resolv_conf_path, user, None)
         except OSError as e:
             self.lgr.error("Failed to change ownership of resolv.conf: %s",
                            e)
             return False
         except LookupError as e:
-            self.lgr.error("User %s was not found, does it exist? %s"
-                           , user, e)
+            self.lgr.error("User %s was not found, does it exist? %s",
+                           user, e)
         return True

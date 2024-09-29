@@ -1,4 +1,5 @@
 from typing import Callable
+from gi.repository import GLib
 
 from dnsconfd import SystemManager
 from dnsconfd.dns_managers import UnboundManager
@@ -8,8 +9,6 @@ from dnsconfd.fsm.transitions import TransitionImplementations
 from dnsconfd.routing_manager import RoutingManager
 from dnsconfd.server_manager import ServerManager
 from dnsconfd.systemd_manager import SystemdManager
-
-from gi.repository import GLib
 
 
 class Running(TransitionImplementations):
@@ -33,10 +32,10 @@ class Running(TransitionImplementations):
         self.search_domains = []
         self.transitions = {
             ContextState.UPDATING_RESOLV_CONF: {
-                "SUCCESS": (ContextState.SUBSCRIBING_ALL_NM_CONNECTIONS,
+                "SUCCESS": (ContextState.SUBSCRIBING_NM_CONNECTIONS,
                             self._subscribe_to_devices_connections)
             },
-            ContextState.SUBSCRIBING_ALL_NM_CONNECTIONS: {
+            ContextState.SUBSCRIBING_NM_CONNECTIONS: {
                 "SUCCESS": (ContextState.CHECK_ALL_CONNECTIONS_UP,
                             self._check_all_connections_up),
                 "FAIL": (ContextState.UNSUBSCRIBE_NM_AND_WAIT,
@@ -134,11 +133,11 @@ class Running(TransitionImplementations):
                            self._running_update_transition),
                 "RELOAD": (ContextState.SUBMITTING_RESTART_JOB,
                            self._running_reload_transition),
-                "DHCP_CHANGE": (ContextState.SUBSCRIBING_ALL_NM_CONNECTIONS,
+                "DHCP_CHANGE": (ContextState.SUBSCRIBING_NM_CONNECTIONS,
                                 self._subscribe_to_devices_connections),
-                "INTERFACE_UP": (ContextState.SUBSCRIBING_ALL_NM_CONNECTIONS,
+                "INTERFACE_UP": (ContextState.SUBSCRIBING_NM_CONNECTIONS,
                                  self._subscribe_to_devices_connections),
-                "INTERFACE_DOWN": (ContextState.SUBSCRIBING_ALL_NM_CONNECTIONS,
+                "INTERFACE_DOWN": (ContextState.SUBSCRIBING_NM_CONNECTIONS,
                                    self._subscribe_to_devices_connections),
             },
             ContextState.SUBMITTING_RESTART_JOB: {
@@ -151,29 +150,31 @@ class Running(TransitionImplementations):
             }
         }
 
-    def check_all_dhcp_ready(self, event: ContextEvent) -> ContextEvent | None:
+    def check_all_dhcp_ready(self, event: ContextEvent)\
+            -> ContextEvent | None:
         if self.route_mgr.check_all_dhcp_ready():
             self.lgr.info("All DHCP objects ready")
             return ContextEvent("SUCCESS")
-        else:
-            self.lgr.info("Some DHCP objects are not yet ready, will wait")
-            return ContextEvent("FAIL")
+        self.lgr.info("Some DHCP objects are not yet ready, will wait")
+        return ContextEvent("FAIL")
 
-    def subscribe_dhcp_changes(self, event: ContextEvent) -> ContextEvent | None:
+    def subscribe_dhcp_changes(self, event: ContextEvent)\
+            -> ContextEvent | None:
         if self.route_mgr.subscribe_required_dhcp():
             self.lgr.info("Successfully subscribed to DHCP changes")
             return ContextEvent("SUCCESS")
-        else:
-            self.lgr.info("Failed to subscribe to DHCP changes, will wait")
-            return ContextEvent("FAIL")
+        self.lgr.info("Failed to subscribe to DHCP changes, will wait")
+        return ContextEvent("FAIL")
 
-    def gather_conn_config(self, event: ContextEvent) -> ContextEvent | None:
-        if self.route_mgr.gather_connections(self.server_manager.get_all_servers()):
+    def gather_conn_config(self, event: ContextEvent)\
+            -> ContextEvent | None:
+        all_servers = self.server_manager.get_all_servers()
+        if self.route_mgr.gather_connections(all_servers):
             self.lgr.info("Successfully gathered connections")
             return ContextEvent("SUCCESS")
-        else:
-            self.lgr.info("Was not able to successfully gather connections, will wait")
-            return ContextEvent("FAIL")
+        self.lgr.info("Was not able to successfully gather connections, "
+                      "will wait")
+        return ContextEvent("FAIL")
 
     def unsub_only_ip(self, event: ContextEvent) -> ContextEvent | None:
         self.route_mgr.clear_ip_subscriptions()
@@ -184,73 +185,79 @@ class Running(TransitionImplementations):
         if self.route_mgr.are_all_ip_set():
             self.lgr.info("All required routes are in place, proceeding")
             return ContextEvent("SUCCESS")
-        else:
-            self.lgr.info("Not all required routes are in place, waiting")
-            return ContextEvent("FAIL")
+        self.lgr.info("Not all required routes are in place, waiting")
+        return ContextEvent("FAIL")
 
-    def subscribe_ip_changes(self, event: ContextEvent) -> ContextEvent | None:
-        if self.route_mgr.subscribe_to_ip_objs_change(self.server_manager.get_all_interfaces()):
+    def subscribe_ip_changes(self, event: ContextEvent)\
+            -> ContextEvent | None:
+        all_interfaces = self.server_manager.get_all_interfaces()
+        if self.route_mgr.subscribe_to_ip_objs_change(all_interfaces):
             self.lgr.info("Successfully subscribed to ip changes")
             return ContextEvent("SUCCESS")
-        else:
-            self.lgr.info("Was not able to subscribe to ip changes, will wait")
-            return ContextEvent("FAIL")
+        self.lgr.info("Was not able to subscribe to ip changes, will wait")
+        return ContextEvent("FAIL")
 
     def unsubscribe_now(self, event: ContextEvent) -> ContextEvent | None:
         self.route_mgr.clear_subscriptions()
         self.lgr.info("Successfully unsubscribed from NM events")
         return ContextEvent("SUCCESS")
 
-    def save_update_and_unsubscribe(self, event: ContextEvent) -> ContextEvent | None:
+    def save_update_and_unsubscribe(self, event: ContextEvent)\
+            -> ContextEvent | None:
         self.server_manager.set_dynamic_servers(event.data)
-        self.zones_to_servers, self.search_domains = self.server_manager.get_zones_to_servers()
+        self.zones_to_servers, self.search_domains = (
+            self.server_manager.get_zones_to_servers())
         self.route_mgr.clear_subscriptions()
         self.lgr.info("Successfully saved update and unsubscribed NM events")
         return ContextEvent("SUCCESS")
 
     def modify_connections(self, event: ContextEvent) -> ContextEvent | None:
-        if self.route_mgr.handle_routes_process(self.server_manager.get_all_servers()):
+        all_servers = self.server_manager.get_all_servers()
+        if self.route_mgr.handle_routes_process(all_servers):
             self.lgr.info("Connections successfully processed")
             return ContextEvent("SUCCESS")
-        else:
-            self.lgr.info("Was unable to set connections into required state, will wait")
-            return ContextEvent("FAIL")
+        self.lgr.info("Was unable to set connections into required state, "
+                      "will wait")
+        return ContextEvent("FAIL")
 
     def save_update_noop(self, event: ContextEvent) -> ContextEvent | None:
         self.server_manager.set_dynamic_servers(event.data)
-        self.zones_to_servers, self.search_domains = self.server_manager.get_zones_to_servers()
+        self.zones_to_servers, self.search_domains = (
+            self.server_manager.get_zones_to_servers())
         self.lgr.info("Successfully saved update")
         return None
 
     def unsub_and_wait(self, event: ContextEvent) -> ContextEvent | None:
         self.route_mgr.clear_subscriptions()
-        timer_event = ContextEvent("TIMER_UP", 0)
+        timer = ContextEvent("TIMER_UP", 0)
         GLib.timeout_add_seconds(1,
-                                 lambda: self.transition_function(timer_event))
+                                 lambda: self.transition_function(timer))
         self.lgr.info("Successfully unsubscribed from "
                       "NM events and set the timer to 1 second")
         return ContextEvent("SUCCESS")
 
-    def _check_all_connections_up(self, event: ContextEvent) -> ContextEvent | None:
+    def _check_all_connections_up(self, event: ContextEvent)\
+            -> ContextEvent | None:
         if self.route_mgr.are_all_up():
             self.lgr.debug("All connections are up, proceeding")
             return ContextEvent("SUCCESS")
-        else:
-            self.lgr.info("All connections are not yet up, waiting")
-            return ContextEvent("FAIL")
+        self.lgr.info("All connections are not yet up, waiting")
+        return ContextEvent("FAIL")
 
-    def _subscribe_to_devices_connections(self, event: ContextEvent) -> ContextEvent | None:
+    def _subscribe_to_devices_connections(self, event: ContextEvent)\
+            -> ContextEvent | None:
         if not self.config["handle_routing"]:
             self.lgr.info("Configuration says we should not handle routing,"
                           "thus skipping it")
             return ContextEvent("SKIP_ROUTING")
         self.route_mgr.clear_subscriptions()
-        if self.route_mgr.subscribe_to_device_state_change(self.server_manager.get_all_interfaces()):
+        all_interfaces = self.server_manager.get_all_interfaces()
+        if self.route_mgr.subscribe_to_device_state_change(all_interfaces):
             self.lgr.debug("Subscribing to device state change successful")
             return ContextEvent("SUCCESS")
-        else:
-            self.lgr.warning("Subscribing to device state change unsuccessful, will wait until NM is ready")
-            return ContextEvent("FAIL")
+        self.lgr.warning("Subscribing to device state change unsuccessful, "
+                         "will wait until NM is ready")
+        return ContextEvent("FAIL")
 
     def _updating_routes_success_transition(self, event: ContextEvent) \
             -> ContextEvent | None:
@@ -282,7 +289,8 @@ class Running(TransitionImplementations):
         """
         self.server_manager.set_dynamic_servers(event.data)
 
-        self.zones_to_servers, self.search_domains = self.server_manager.get_zones_to_servers()
+        self.zones_to_servers, self.search_domains = (
+            self.server_manager.get_zones_to_servers())
         if not self.sys_mgr.update_resolvconf(self.search_domains):
             self.lgr.error("Failed to update resolv.conf")
             self.exit_code_handler.set_exit_code(ExitCode.SERVICE_FAILURE)
@@ -327,12 +335,13 @@ class Running(TransitionImplementations):
         :return: SUCCESS if setting up was successful otherwise FAIL
         :rtype: ContextEvent | None
         """
-        self.zones_to_servers, self.search_domains = self.server_manager.get_zones_to_servers()
+        self.zones_to_servers, self.search_domains = (
+            self.server_manager.get_zones_to_servers())
         if not self.sys_mgr.set_resolvconf(self.search_domains):
             self.lgr.error("Failed to set up resolv.conf")
             self.exit_code_handler.set_exit_code(ExitCode.RESOLV_CONF_FAILURE)
             return ContextEvent("FAIL")
 
         self.lgr.info("Resolv.conf successfully prepared with "
-                      f"domains: {self.search_domains}")
+                      "domains: %s", self.search_domains)
         return ContextEvent("SUCCESS")

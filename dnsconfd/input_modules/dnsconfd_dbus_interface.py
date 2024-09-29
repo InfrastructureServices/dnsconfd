@@ -1,15 +1,16 @@
-from dnsconfd.network_objects import ServerDescription, InterfaceConfiguration
-from dnsconfd.network_objects import DnsProtocol
-from dnsconfd.fsm import DnsconfdContext
-from dnsconfd.fsm import ContextEvent
-
 import ipaddress
 from socket import AF_INET, AF_INET6
 import typing
 import logging
+import re
 import dbus.service
 from dbus.service import BusName
-import re
+
+
+from dnsconfd.network_objects import ServerDescription, InterfaceConfiguration
+from dnsconfd.network_objects import DnsProtocol
+from dnsconfd.fsm import DnsconfdContext
+from dnsconfd.fsm import ContextEvent
 
 
 class DnsconfdDbusInterface(dbus.service.Object):
@@ -31,13 +32,13 @@ class DnsconfdDbusInterface(dbus.service.Object):
                          in_signature='aa{sv}', out_signature='bs')
     def Update(self, servers: list[dict[str, typing.Any]]):
         new_servers = []
-        self.lgr.info(f"update dbus method called with args: {servers}")
+        self.lgr.info("update dbus method called with args: %s", servers)
         if self.ignore_api:
             return True, "Configured to ignore"
         ips_to_interface = {}
 
         for index, server in enumerate(servers):
-            self.lgr.debug(f"processing server: {server}")
+            self.lgr.debug("processing server: %s", server)
             if server.get("address", None) is None:
                 msg = f"{index + 1}. server in update has no address"
                 self.lgr.error(msg)
@@ -57,8 +58,7 @@ class DnsconfdDbusInterface(dbus.service.Object):
                     msg = f"{index + 1}. server has bad port {server["port"]}"
                     self.lgr.error(msg)
                     return False, msg
-                else:
-                    port = int(server["port"])
+                port = int(server["port"])
 
             protocol = DnsProtocol.PLAIN
             if server.get("protocol", None) is not None:
@@ -68,35 +68,33 @@ class DnsconfdDbusInterface(dbus.service.Object):
                           f"{server["protocol"]}, only plain or DoT allowed"
                     self.lgr.error(msg)
                     return False, msg
-                elif server["protocol"] == "DoT":
+                if server["protocol"] == "DoT":
                     protocol = DnsProtocol.DNS_OVER_TLS
 
             sni = None
             if server.get("sni", None) is not None:
                 if (not isinstance(server["sni"], str)
                         or not self.sni_pattern.fullmatch(server["sni"])):
-                    msg = f"{index + 1}. server sni is not "\
+                    msg = f"{index + 1}. server sni is not " \
                           f"allowed {server["sni"]}"
                     self.lgr.error(msg)
                     return False, msg
-                else:
-                    sni = str(server["sni"])
+                sni = str(server["sni"])
 
             domains = None
             if server.get("domains", None) is not None:
                 if not isinstance(server["domains"], list):
-                    msg = f"{index + 1}. server domains is not "\
+                    msg = f"{index + 1}. server domains is not " \
                           f"list {server["domains"]}"
                     self.lgr.error(msg)
                     return False, msg
-                elif [x for x in server["domains"]
-                      if not isinstance(x, tuple)]:
-                    msg = f"{index + 1}. server domains must all be tuples "\
+                if [x for x in server["domains"] if not isinstance(x, tuple)]:
+                    msg = f"{index + 1}. server domains must all be tuples " \
                           f"{server["domains"]}"
                     self.lgr.error(msg)
                     return False, msg
-                elif [x for x in server["domains"] if len(x) != 2]:
-                    msg = f"{index + 1}. server domains must all be tuples "\
+                if [x for x in server["domains"] if len(x) != 2]:
+                    msg = f"{index + 1}. server domains must all be tuples " \
                           f"with 2 members {server["domains"]}"
                     self.lgr.error(msg)
                     return False, msg
@@ -108,12 +106,12 @@ class DnsconfdDbusInterface(dbus.service.Object):
                               f"has to be either bool or int {search}"
                         self.lgr.error(msg)
                         return False, msg
-                    elif not self.domain_pattern.fullmatch(domain):
+                    if not self.domain_pattern.fullmatch(domain):
                         msg = (f"{index + 1}."
                                f"server domain is not domain {domain}")
                         self.lgr.error(msg)
                         return False, msg
-                    elif domain == "." and search:
+                    if domain == "." and search:
                         msg = (f"{index + 1}."
                                f"domain is '.' cannot be used for search")
                         self.lgr.error(msg)
@@ -129,11 +127,10 @@ class DnsconfdDbusInterface(dbus.service.Object):
                            f"{server["interface"]}")
                     self.lgr.error(msg)
                     return False, msg
-                else:
-                    interface = int(server["interface"])
-                    is_wireless = (self.prio_wire
-                                   and (InterfaceConfiguration.
-                                        is_interface_wireless(interface)))
+                interface = int(server["interface"])
+                is_wireless = (self.prio_wire
+                               and (InterfaceConfiguration.
+                                    is_interface_wireless(interface)))
 
             if interface:
                 parsed_addr_str = str(parsed_address)
@@ -144,8 +141,7 @@ class DnsconfdDbusInterface(dbus.service.Object):
                                      "ignoring server with interface %s",
                                      interface)
                     continue
-                else:
-                    ips_to_interface[parsed_addr_str] = interface
+                ips_to_interface[parsed_addr_str] = interface
 
             dnssec = False
 
@@ -154,13 +150,12 @@ class DnsconfdDbusInterface(dbus.service.Object):
                     msg = f"{index + 1}. dnssec is not bool"
                     self.lgr.error(msg)
                     return False, msg
-                else:
-                    dnssec = bool(server["dnssec"])
+                dnssec = bool(server["dnssec"])
 
             if (self.dnssec_enabled and not dnssec
                     and (not domains or [x for x in domains if x[0] == '.'])):
-                msg = (f"Server used for . domain can not have disabled "
-                       f"dnssec when it is enabled by configuration")
+                msg = ("Server used for . domain can not have disabled "
+                       "dnssec when it is enabled by configuration")
                 self.lgr.error(msg)
                 return False, msg
 

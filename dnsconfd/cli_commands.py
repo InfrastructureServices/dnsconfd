@@ -1,14 +1,13 @@
-from dnsconfd import NetworkManager
-from dnsconfd import SystemManager
-
-from sys import exit
-from dbus import DBusException
-import dbus
+import sys
 import typing
 import json
+from dbus import DBusException
+import dbus
+
+from dnsconfd import NetworkManager, SystemManager
 
 
-class CLI_Commands:
+class CLICommands:
     @staticmethod
     def status(dbus_name: str,
                json_format: bool,
@@ -33,15 +32,15 @@ class CLI_Commands:
                                              object_path)
         except DBusException as e:
             print(f"Dnsconfd is not listening on name {dbus_name}, {e}")
-            exit(1)
+            sys.exit(1)
         try:
             print(dnsconfd_object.Status(json_format,
                                          dbus_interface=int_name))
         except DBusException as e:
             print("Was not able to call Status method, check your DBus policy:"
                   + f"{e}")
-            exit(1)
-        exit(0)
+            sys.exit(1)
+        sys.exit(0)
 
     @staticmethod
     def nm_config(enable: bool) -> typing.NoReturn:
@@ -56,10 +55,10 @@ class CLI_Commands:
             success = NetworkManager().disable()
         if not success:
             print("Dnsconfd was unable to configure Network Manager")
-            exit(1)
+            sys.exit(1)
         print(f"Network Manager will {'use' if enable else 'not use'}"
               + " dnsconfd now")
-        exit(0)
+        sys.exit(0)
 
     @staticmethod
     def reload(dbus_name: str,
@@ -84,15 +83,15 @@ class CLI_Commands:
                                              object_path)
         except DBusException as e:
             print(f"Dnsconfd is not listening on name {dbus_name}, {e}")
-            exit(1)
+            sys.exit(1)
         try:
             all_ok, msg = dnsconfd_object.Reload(dbus_interface=int_name)
             print(msg)
-            exit(0 if all_ok else 1)
+            sys.exit(0 if all_ok else 1)
         except DBusException as e:
             print("Was not able to call Status method, check your DBus policy:"
                   + f"{e}")
-            exit(1)
+            sys.exit(1)
 
     @staticmethod
     def chown_resolvconf(config: dict, user: str) -> typing.NoReturn:
@@ -103,8 +102,8 @@ class CLI_Commands:
         :return: No return
         """
         if not SystemManager(config).chown_resolvconf(user):
-            exit(1)
-        exit(0)
+            sys.exit(1)
+        sys.exit(0)
 
     @staticmethod
     def install(config: dict) -> typing.NoReturn:
@@ -116,8 +115,8 @@ class CLI_Commands:
         """
         if (not NetworkManager().enable() or
                 not SystemManager(config).chown_resolvconf("dnsconfd")):
-            exit(1)
-        exit(0)
+            sys.exit(1)
+        sys.exit(0)
 
     @staticmethod
     def uninstall(config: dict) -> typing.NoReturn:
@@ -129,8 +128,8 @@ class CLI_Commands:
         """
         if (not NetworkManager().disable() or
                 not SystemManager(config).chown_resolvconf("root")):
-            exit(1)
-        exit(0)
+            sys.exit(1)
+        sys.exit(0)
 
     @staticmethod
     def update(dbus_name: str,
@@ -139,8 +138,8 @@ class CLI_Commands:
         try:
             server_list = json.loads(servers)
         except json.JSONDecodeError as e:
-            print("Servers are not valid JSON string")
-            exit(1)
+            print(f"Servers are not valid JSON string: {e}")
+            sys.exit(1)
         bus = dbus.SystemBus()
 
         # unfortunately domains have to be converted explicitly,
@@ -153,19 +152,19 @@ class CLI_Commands:
                                          for dom in server["domains"]]
         except (IndexError, TypeError) as e:
             print(f"Failed to convert domains, {e}")
-            exit(1)
+            sys.exit(1)
 
         try:
             if api_choice != "dnsconfd":
-                print(f"This command does not support resolve1")
-                exit(1)
+                print("This command does not support resolve1")
+                sys.exit(1)
             dnsconfd_object = bus.get_object(dbus_name,
                                              "/com/redhat/dnsconfd")
             dnsconfd_interface = dbus.Interface(dnsconfd_object,
                                                 "com.redhat.dnsconfd.Manager")
         except DBusException as e:
             print(f"Dnsconfd is not listening on name {dbus_name}, {e}")
-            exit(1)
+            sys.exit(1)
         try:
             all_ok, message = dnsconfd_interface.Update(server_list,
                                                         signature="aa{sv}")
@@ -173,5 +172,5 @@ class CLI_Commands:
         except DBusException as e:
             print("Was not able to call update method, check your DBus policy:"
                   + f"{e}")
-            exit(1)
-        exit(0 if all_ok else 1)
+            sys.exit(1)
+        sys.exit(0 if all_ok else 1)

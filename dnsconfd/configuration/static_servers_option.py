@@ -1,6 +1,7 @@
-from dnsconfd.configuration import Option
 import ipaddress
 import re
+
+from dnsconfd.configuration import Option
 
 
 class StaticServersOption(Option):
@@ -52,13 +53,12 @@ class StaticServersOption(Option):
                         if not isinstance(domain["domain"], str):
                             self.lgr.error("each domain must be a string")
                             return False
-                        elif not isinstance(domain["search"], bool):
+                        if not isinstance(domain["search"], bool):
                             self.lgr.error("search has to be bool")
                             return False
-
-                        elif not domain_pattern.fullmatch(domain["domain"]):
-                            self.lgr.error(f"invalid domain "
-                                           f"{domain['domain']}")
+                        if not domain_pattern.fullmatch(domain["domain"]):
+                            self.lgr.error("invalid domain %s",
+                                           domain['domain'])
                             return False
                 if "dnssec" in resolver:
                     if not isinstance(resolver["dnssec"], bool):
@@ -67,16 +67,16 @@ class StaticServersOption(Option):
                 for key in resolver:
                     if key not in ["address", "protocol", "port",
                                    "sni", "domains", "dnssec"]:
-                        self.lgr.error(f"Invalid property {key}")
+                        self.lgr.error("Invalid property %s", key)
                         return False
                 try:
                     ipaddress.ip_address(resolver["address"])
                 except ValueError:
-                    self.lgr.error(f"{resolver["address"]} is not"
-                                   " valid ip address")
+                    self.lgr.error("%s is not valid ip address",
+                                   resolver["address"])
                     return False
             return True
         except AttributeError:
-            self.lgr.error(f"Static servers must be list of"
-                           f" servers, invalid value {value} was given")
+            self.lgr.error("Static servers must be list of"
+                           " servers, invalid value %s was given", value)
             return False

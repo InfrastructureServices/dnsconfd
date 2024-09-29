@@ -1,14 +1,12 @@
+import logging
+import json
+
 from dnsconfd import SystemManager
 from dnsconfd.dns_managers import UnboundManager
 from dnsconfd.fsm.exit_code_handler import ExitCodeHandler
 from dnsconfd.network_objects import InterfaceConfiguration
-from dnsconfd.fsm import ContextEvent
-from dnsconfd.fsm import ContextState
+from dnsconfd.fsm import ContextEvent, ContextState
 from dnsconfd.fsm.transitions import Starting, Running, Stopping
-
-import logging
-import json
-
 from dnsconfd.routing_manager import RoutingManager
 from dnsconfd.server_manager import ServerManager
 from dnsconfd.systemd_manager import SystemdManager
@@ -33,7 +31,8 @@ class DnsconfdContext:
         systemd_manager = SystemdManager(self.transition_function)
         self.exit_code_handler = ExitCodeHandler()
         self.server_manager = ServerManager(config)
-        self.routing_manager = RoutingManager(config["prioritize_wire"], self.transition_function)
+        self.routing_manager = RoutingManager(config["prioritize_wire"],
+                                              self.transition_function)
 
         transitions_implementations = [
             Starting(config,
@@ -74,7 +73,7 @@ class DnsconfdContext:
         :return: Always false. This allows use in loop callbacks
         """
         self.lgr.debug("FSM transition function called, "
-                       f"state: {self.state}, event: {event.name}")
+                       "state: %s, event: %s", self.state, event.name)
         while event is not None:
             if (self.state not in self.transitions
                     or event.name not in self.transitions[self.state]):
@@ -85,8 +84,9 @@ class DnsconfdContext:
             self.state, callback \
                 = self.transitions[self.state][event.name]
             event = callback(event)
-            self.lgr.info(f"New state: {self.state}, new event: "
-                          f"{'None' if event is None else event.name}")
+            self.lgr.info("New state: %s, new event: %s",
+                          self.state,
+                          'None' if event is None else event.name)
         # a bit of a hack, so loop add functions remove this immediately
         return False
 
@@ -98,7 +98,8 @@ class DnsconfdContext:
         :rtype: str
         """
         self.lgr.debug("Handling request for status")
-        servers = [a.to_dict() for a in self.server_manager.dynamic_servers + self.server_manager.static_servers]
+        servers = [a.to_dict() for a in self.server_manager.dynamic_servers
+                   + self.server_manager.static_servers]
         found_interfaces = {}
         for srv in servers:
             if srv["interface"] is not None:
@@ -131,9 +132,8 @@ class DnsconfdContext:
         if self.state != ContextState.RUNNING:
             return (False, "Reload can not be performed at this time. "
                     + f"Current state: {self.state}")
-        else:
-            self.transition_function(ContextEvent("RELOAD"))
-            return True, "Starting reload"
+        self.transition_function(ContextEvent("RELOAD"))
+        return True, "Starting reload"
 
     def get_exit_code(self) -> int:
         """ Get exit code Dnsconfd should stop with

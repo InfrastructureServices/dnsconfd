@@ -37,7 +37,8 @@ class ServerManager:
             new_srv.priority = 150
             self.static_servers.append(new_srv)
         if self.static_servers:
-            self.lgr.info(f"Configured static servers: {self.static_servers}")
+            self.lgr.info("Configured static servers: %s",
+                          self.static_servers)
 
     def get_zones_to_servers(self):
         new_zones_to_servers = {}
@@ -53,11 +54,11 @@ class ServerManager:
                 if search:
                     search_domains.append(domain)
 
-        for zone in new_zones_to_servers:
-            new_zones_to_servers[zone].sort(key=lambda x: x.priority,
-                                            reverse=True)
-        self.lgr.debug(f"New zones to server prepared: {new_zones_to_servers}")
-        self.lgr.debug(f"New search domains prepared: {search_domains}")
+        for zone in new_zones_to_servers.values():
+            zone.sort(key=lambda x: x.priority, reverse=True)
+        self.lgr.debug("New zones to server prepared: %s",
+                       new_zones_to_servers)
+        self.lgr.debug("New search domains prepared: %s", search_domains)
         return new_zones_to_servers, search_domains
 
     def get_all_servers(self):

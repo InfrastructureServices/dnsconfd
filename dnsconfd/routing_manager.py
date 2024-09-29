@@ -1,8 +1,8 @@
+import functools
 import ipaddress
 import logging
 import socket
 from typing import Any, Callable
-
 import dbus
 
 from dnsconfd.fsm import ContextEvent
@@ -41,7 +41,8 @@ class RoutingManager:
     def _serial_add(serial):
         return serial + 1 if serial < 1000 else 0
 
-    def change_serials(self, state_serial: bool, ip_serial: bool, dhcp_serial: bool):
+    def change_serials(self, state_serial: bool,
+                       ip_serial: bool, dhcp_serial: bool):
         if state_serial:
             self.state_serial = self._serial_add(self.state_serial)
         if ip_serial:
@@ -50,12 +51,13 @@ class RoutingManager:
             self.dhcp_serial = self._serial_add(self.dhcp_serial)
 
     def are_all_up(self):
-        for interface in self.interfaces_up:
-            if not self.interfaces_up[interface]:
+        for is_up in self.interfaces_up.values():
+            if not is_up:
                 return False
         return True
 
-    def on_device_state_changed(self, serial, interface, new_state, old_state, reason):
+    def on_device_state_changed(self, new_state, old_state,
+                                reason, serial=0, interface=0):
         # it is possible, that dbus event was already dispatched
         # that belonged to previous update, and we need to ensure
         # this will be ignored, since we can not remove them
@@ -120,7 +122,8 @@ class RoutingManager:
                 return False
         return True
 
-    def on_ip_obj_change(self, cur_serial: int, interface: int, properties: dict, family: int):
+    def on_ip_obj_change(self, cur_serial: int, interface: int,
+                         properties: dict, family: int):
         self.lgr.debug("on_ip_obj_change called %s %s %s",
                        interface, properties, family)
         if self.ip_serial != cur_serial or "RouteData" not in properties:
@@ -184,7 +187,7 @@ class RoutingManager:
 
     def _get_device_object_props(self, int_name):
         device_path = self._nm_interface.GetDeviceByIpIface(int_name)
-        self.lgr.debug(f"Device path is {device_path}")
+        self.lgr.debug("Device path is %s", device_path)
         obj = dbus.SystemBus().get_object("org.freedesktop.NetworkManager",
                                           device_path)
         return (obj, dbus.Interface(obj, "org.freedesktop.DBus.Properties")
@@ -219,7 +222,8 @@ class RoutingManager:
                                       "in subscribe_to_device_state_change"):
             return False
         for interface in interfaces:
-            int_name = InterfaceConfiguration.get_if_name(interface, strict=True)
+            int_name = InterfaceConfiguration.get_if_name(interface,
+                                                          strict=True)
             if int_name is None:
                 self.lgr.debug("Could not get interface "
                                "name in subscribe_to_device_state_change")
@@ -230,13 +234,9 @@ class RoutingManager:
                 device_interface = (
                     dbus.Interface(dev_obj,
                                    "org.freedesktop.NetworkManager.Device"))
-                cur_serial = self.state_serial
-                cb = lambda new, old, reason: self.on_device_state_changed(
-                    cur_serial,
-                    interface,
-                    new,
-                    old,
-                    reason)
+                cb = functools.partial(self.on_device_state_changed,
+                                       serial=self.state_serial,
+                                       interface=interface)
                 self.interface_to_state_signal_connection[interface] = (
                     device_interface.connect_to_signal("StateChanged", cb))
 
@@ -332,7 +332,8 @@ class RoutingManager:
                     found_interfaces.append(i)
 
         for if_index in found_interfaces:
-            int_name = InterfaceConfiguration.get_if_name(if_index, strict=True)
+            int_name = InterfaceConfiguration.get_if_name(if_index,
+                                                          strict=True)
             if int_name is None:
                 self.lgr.debug("Could not get interface name "
                                "in subscribe_required_dhcp")
@@ -340,12 +341,12 @@ class RoutingManager:
             try:
                 dev_obj, props = self._get_device_object_props(int_name)
                 if if_index in self.required_dhcp4:
-                    self.lgr.debug("subscribing to interface %s dhcp4 object"
-                                   , if_index)
+                    self.lgr.debug("subscribing to interface %s dhcp4 object",
+                                   if_index)
                     self._sub_dhcp_obj(props, self.dhcp_serial, if_index, 4)
                 if if_index in self.required_dhcp6:
-                    self.lgr.debug("subscribing to interface %s dhcp6 object"
-                                   , if_index)
+                    self.lgr.debug("subscribing to interface %s dhcp6 object",
+                                   if_index)
                     self._sub_dhcp_obj(props, self.dhcp_serial, if_index, 6)
             except dbus.DBusException as e:
                 self.lgr.debug("Subscription to dhcp object failed %s", e)
@@ -363,17 +364,17 @@ class RoutingManager:
             af = 4 if server.address_family == socket.AF_INET else 6
             interfaces.setdefault(server.interface, {})[af] = True
 
-        for if_index in interfaces:
+        for if_index, need_dict in interfaces.items():
             applied = self._get_nm_device_config(if_index)
             if applied is None:
                 self.lgr.debug("All interfaces were not "
                                "ready to gather connections")
                 return False
             self.interface_to_connection[if_index] = applied
-            if (interfaces[if_index].get(4, False)
+            if (need_dict.get(4, False)
                     and applied[0]["ipv4"]["method"] == "auto"):
                 self.required_dhcp4[if_index] = {}
-            if (interfaces[if_index].get(6, False)
+            if (need_dict.get(6, False)
                     and applied[0]["ipv6"]["method"] == "auto"):
                 self.required_dhcp6[if_index] = {}
         return True
@@ -390,14 +391,14 @@ class RoutingManager:
 
         found_interfaces = self.interface_to_connection
 
-        self.lgr.debug("interface and connections "
-                       f"is {interface_to_connection}")
+        self.lgr.debug("interface and connections %s",
+                       interface_to_connection)
         interface_names = {}
 
         for x in found_interfaces:
             interface_names[x] = InterfaceConfiguration.get_if_name(x)
 
-        self.lgr.debug(f"interfaces are {interface_names.values()}")
+        self.lgr.debug("interfaces are %s", interface_names.values)
 
         interfaces_to_servers = {}
         for server in servers:
@@ -613,8 +614,8 @@ class RoutingManager:
                         dbus.String("next-hop"):
                             gateway_dbus_string})
                     self.lgr.info("New route is: %s and will be "
-                                  "submitted for interface %s"
-                                  , new_route, int_index)
+                                  "submitted for interface %s",
+                                  new_route, int_index)
                     valid_routes[server_str] = (new_route, int_index)
                     if parsed_server_str.version == 4:
                         connection["ipv4"]["route-data"].append(new_route)
@@ -672,8 +673,6 @@ class RoutingManager:
                         self.routes.pop(destination)
         return True
 
-    # TODO Ensure the same server can not have 2 interfaces
-
     def _remove_checked_routes(self,
                                connection: dict[str, dict[str, Any]],
                                valid_routes: dict | None) -> bool:
@@ -686,14 +685,14 @@ class RoutingManager:
                              or dest_str not in valid_routes)):
                     connection[family]["route-data"].remove(checked_route)
                     modified = True
-                    self.lgr.info(f"Removing %s route %s",
+                    self.lgr.info("Removing %s route %s",
                                   family, checked_route)
         return modified
 
     def _get_nm_device_interface(self, ifname):
         """Get DBus proxy object of Device identified by ifname."""
         device_path = self._nm_interface.GetDeviceByIpIface(ifname)
-        self.lgr.debug(f"Device path is {device_path}")
+        self.lgr.debug("Device path is %s", device_path)
         nm_int_str = "org.freedesktop.NetworkManager"
         dev_int_str = "org.freedesktop.NetworkManager.Device"
         device_object = dbus.SystemBus().get_object(nm_int_str,
@@ -718,10 +717,10 @@ class RoutingManager:
 
     def _reapply_routes(self, ifname, connection, cver):
         self.lgr.debug("Reapplying changed connection")
-        self.lgr.info(f"New ipv4 route data "
-                      f"{connection["ipv4"]["route-data"]}")
-        self.lgr.info(f"New ipv6 route data "
-                      f"{connection["ipv6"]["route-data"]}")
+        self.lgr.info("New ipv4 route data %s",
+                      connection["ipv4"]["route-data"])
+        self.lgr.info("New ipv6 route data %s",
+                      connection["ipv6"]["route-data"])
         dev_int = self._get_nm_device_interface(ifname)
         dev_int.Reapply(connection, cver, 0)
 
@@ -738,13 +737,13 @@ class RoutingManager:
             self.lgr.info("interface %s has no name and thus "
                           "we will not handle its routing now", index)
             return None
-        self.lgr.debug(f"Getting NetworkManager info about %s", int_name)
+        self.lgr.debug("Getting NetworkManager info about %s", int_name)
         try:
             dev_obj, dev_props = self._get_device_object_props(int_name)
             dev_int = dbus.Interface(dev_obj,
                                      "org.freedesktop.NetworkManager.Device")
             applied = dev_int.GetAppliedConnection(0)
-            self.lgr.debug(f"Applied connection is %s", applied)
+            self.lgr.debug("Applied connection is %s", applied)
         except dbus.DBusException as e:
             self.lgr.info("Failed to retrieve info about %s "
                           "from NetworkManager its routing will be "
@@ -755,15 +754,15 @@ class RoutingManager:
 
     def remove_routes(self):
         routes_str = " ".join([str(x) for x in self.routes])
-        self.lgr.debug(f"routes: {routes_str}")
+        self.lgr.debug("routes: %s", routes_str)
         if not self._get_nm_interface("Failed to contact NetworkManager "
                                       "through dbus, will not remove routes"):
             return ContextEvent("SUCCESS")
 
         found_interfaces = {}
 
-        for destination in self.routes:
-            found_interfaces[self.routes[destination][1]] = True
+        for destination in self.routes.values():
+            found_interfaces[destination[1]] = True
 
         for int_index in found_interfaces:
             reapply_needed = False

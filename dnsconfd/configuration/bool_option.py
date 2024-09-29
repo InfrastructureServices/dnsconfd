@@ -14,8 +14,8 @@ class BoolOption(Option):
         :rtype: bool
         """
         if not isinstance(value, bool):
-            self.lgr.error(f"Expected true or false for option {self.name}"
-                           f" but {value} was given")
+            self.lgr.error("Expected true or false for option %s"
+                           " but %s was given", self.name, value)
             return False
 
         return True
