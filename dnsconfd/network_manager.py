@@ -17,7 +17,7 @@ class NetworkManager:
     def enable(self) -> bool:
         """ Enables dnsconfd in Network Manager. Requires root privileges. """
         try:
-            with open(self.NM_CONF, "w") as f:
+            with open(self.NM_CONF, "w", encoding="utf-8") as f:
                 # TODO: have own plugin in NM
                 f.writelines([self.HEADER,
                               "[main]\n",
@@ -32,7 +32,7 @@ class NetworkManager:
     def disable(self) -> bool:
         """ Disables dnsconfd in Network Manager. Requires root privileges. """
         try:
-            with open(self.NM_CONF, "w") as f:
+            with open(self.NM_CONF, "w", encoding="utf-8") as f:
                 f.writelines([self.HEADER])
         except OSError as e:
             print(f"Unable to configure network manager: {e}")
