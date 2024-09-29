@@ -31,26 +31,27 @@ class SystemManager:
         try:
             if os.path.islink(self._resolv_conf_path):
                 self._backup_link = os.readlink(self._resolv_conf_path)
-                self.lgr.debug(f"Resolvconf is symlink to {self._backup_link}")
+                self.lgr.debug("Resolvconf is symlink to %s",
+                               self._backup_link)
                 os.unlink(self._resolv_conf_path)
             else:
                 self.lgr.debug("Resolvconf is plain file")
                 with open(self._resolv_conf_path, "r") as orig_resolv:
                     self._backup = orig_resolv.read()
         except FileNotFoundError as e:
-            self.lgr.error(f"Not present resolvconf: {e}")
+            self.lgr.error("Not present resolvconf: %s", e)
             return False
         except OSError as e:
             self.lgr.error("OSError encountered while reading "
-                           f"resolv.conf {e}")
+                           "resolv.conf %s", e)
             return False
 
         try:
             with open(self._resolv_conf_path, "w") as new_resolv:
                 new_resolv.write(self._get_resolvconf_string(search_domains))
         except OSError as e:
-            self.lgr.error(f"OSError encountered while writing "
-                           f"resolv.conf: {e}")
+            self.lgr.error("OSError encountered while writing "
+                           "resolv.conf: %s", e)
             return False
         return True
 
@@ -76,8 +77,8 @@ class SystemManager:
                 with open(self._resolv_conf_path, "w") as new_resolv:
                     new_resolv.write(self._backup)
             except OSError as e:
-                self.lgr.error(f"OSError encountered while writing "
-                               f"resolv.conf {e}")
+                self.lgr.error("OSError encountered while writing "
+                               "resolv.conf %s", e)
                 return False
         elif self._backup_link is not None:
             try:
@@ -85,7 +86,7 @@ class SystemManager:
                 os.symlink(self._backup_link, self._resolv_conf_path)
             except OSError as e:
                 self.lgr.error("OSError encountered while linking "
-                               f"back resolv.conf: {e}")
+                               "back resolv.conf: %s", e)
                 return False
         return True
 
@@ -97,13 +98,13 @@ class SystemManager:
         :return: True if operation was successful, otherwise False
         :rtype: bool
         """
-        self.lgr.info(f"Updating resolvconf with domains {search_domains}")
+        self.lgr.info("Updating resolvconf with domains %s", search_domains)
         try:
             with open(self._resolv_conf_path, "w") as new_resolv:
                 new_resolv.write(self._get_resolvconf_string(search_domains))
         except OSError as e:
             self.lgr.error("OSError encountered while writing "
-                           f"resolv.conf: {e}")
+                           "resolv.conf: %s", e)
             return False
         return True
 
@@ -120,8 +121,10 @@ class SystemManager:
             open(self._resolv_conf_path, 'w+').close()
             shutil.chown(self._resolv_conf_path, user, None)
         except OSError as e:
-            self.lgr.error(f"Failed to change ownership of resolv.conf: {e}")
+            self.lgr.error("Failed to change ownership of resolv.conf: %s",
+                           e)
             return False
         except LookupError as e:
-            self.lgr.error(f"User {user} was not found, does it exist? {e}")
+            self.lgr.error("User %s was not found, does it exist? %s"
+                           , user, e)
         return True
