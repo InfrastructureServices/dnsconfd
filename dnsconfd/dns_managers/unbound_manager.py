@@ -33,11 +33,13 @@ class UnboundManager(DnsManager):
         try:
             with open("/run/dnsconfd/unbound.conf", "w",
                       encoding="utf-8") as conf_file:
-                conf_file.writelines(["server:\n",
-                                      f"\tmodule-config: \"{modules}\"\n",
-                                      f"\tinterface: {my_address}\n"
-                                      "forward-zone:\n"
-                                      "\tname: \".\"\n"])
+                conf_file.write("server:\n"
+                                f"\tmodule-config: \"{modules}\"\n"
+                                f"\tinterface: {my_address}\n"
+                                f"\tdo-not-query-address: 127.0.0.1/8\n"
+                                "forward-zone:\n"
+                                "\tname: \".\"\n"
+                                "\tforward-addr: \"127.0.0.1\"\n")
         except OSError as e:
             self.lgr.critical("Could not write Unbound configuration, %s",
                               e)
@@ -121,14 +123,21 @@ class UnboundManager(DnsManager):
         # we will be stripping non-tls servers if tls is enabled
         # TODO: Document this
         for zone in removed_zones:
-            if (not self._execute_cmd(f"forward_remove {zone}")
+            # 127.0.0.1 works here, because unbound has 127.0.0.1/8 in
+            # do-not-query-address by default, and we add that in our config
+            if zone == ".":
+                if (not self._execute_cmd("forward_add . 127.0.0.1")
+                        or not self._execute_cmd(f"flush_zone {zone}")):
+                    return False
+                continue
+            if (not self._execute_cmd(f"forward_remove +i {zone}")
                     or not self._execute_cmd(f"flush_zone {zone}")):
                 return False
         for zone in added_zones:
             add_cmd = self._get_forward_add_command(zone,
                                                     zones_to_servers[zone])
-            if (not self._execute_cmd(f"flush_zone {zone}")
-                    or not self._execute_cmd(add_cmd)):
+            if (not self._execute_cmd(add_cmd)
+                    or not self._execute_cmd(f"flush_zone {zone}")):
                 return False
         for zone in stable_zones:
             if self.zones_to_servers[zone] == zones_to_servers[zone]:
@@ -138,9 +147,9 @@ class UnboundManager(DnsManager):
             self.lgr.debug("Updating zone %s", zone)
             add_cmd = self._get_forward_add_command(zone,
                                                     zones_to_servers[zone])
-            if (not self._execute_cmd(f"forward_remove {zone}")
-                    or not self._execute_cmd(f"flush_zone {zone}")
-                    or not self._execute_cmd(add_cmd)):
+            if (not self._execute_cmd(f"forward_remove +i {zone}")
+                    or not self._execute_cmd(add_cmd)
+                    or not self._execute_cmd(f"flush_zone {zone}")):
                 return False
 
         # since we need to break references to ServerDescription objects
