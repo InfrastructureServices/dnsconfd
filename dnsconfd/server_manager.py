@@ -44,7 +44,7 @@ class ServerManager:
             self.lgr.info("Configured static servers: %s",
                           self.static_servers)
 
-    def get_zones_to_servers(self)\
+    def get_zones_to_servers(self, servers=None) \
             -> tuple[dict[str, list[ServerDescription]], list[str]]:
         """ Get zones to servers and search domains
 
@@ -53,23 +53,28 @@ class ServerManager:
         """
         new_zones_to_servers = {}
 
-        search_domains = []
+        search_domains = {}
+        if servers is not None:
+            all_servers = servers
+        else:
+            all_servers = self.dynamic_servers + self.static_servers
 
-        for server in self.dynamic_servers + self.static_servers:
+        for server in all_servers:
             for domain, search in server.domains:
                 try:
                     new_zones_to_servers[domain].append(server)
                 except KeyError:
                     new_zones_to_servers[domain] = [server]
                 if search:
-                    search_domains.append(domain)
+                    search_domains[domain] = True
 
         for zone in new_zones_to_servers.values():
             zone.sort(key=lambda x: x.priority, reverse=True)
         self.lgr.debug("New zones to server prepared: %s",
                        new_zones_to_servers)
-        self.lgr.debug("New search domains prepared: %s", search_domains)
-        return new_zones_to_servers, search_domains
+        self.lgr.debug("New search domains prepared: %s",
+                       search_domains.keys())
+        return new_zones_to_servers, list(search_domains.keys())
 
     def get_all_servers(self) -> list[ServerDescription]:
         """ Get all forwarders

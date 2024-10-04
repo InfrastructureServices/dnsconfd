@@ -2,7 +2,7 @@
 %global selinuxtype targeted
 
 Name:           dnsconfd
-Version:        1.4.0
+Version:        1.4.1
 Release:        1%{?dist}
 Summary:        Local DNS cache configuration daemon
 License:        MIT

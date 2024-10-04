@@ -1,7 +1,7 @@
 import functools
 import ipaddress
 import logging
-import socket
+from copy import deepcopy
 from typing import Any, Callable
 import dbus
 
@@ -26,42 +26,24 @@ class RoutingManager:
         # routes submitted to host
         self.routes = {}
 
+        # servers that were present at the start of the transaction
+        self.current_transaction_servers = []
+
         # watching connections' state
         self.interface_to_state_signal_connection = {}
         self.interfaces_up = {}
 
         # watching true device state
-        self.interface_ip_ready = {}
-        self.interface_to_ip_signal_connections = {}
+        self.interface_ip_objects = {}
+        self.interface_to_ip_signal_connections = []
 
         # these allow us to ignore old events
-        self.state_serial = 0
-        self.ip_serial = 0
-        self.dhcp_serial = 0
+        self.serial = 0
 
         self.transition_function = transition_function
 
         # already gathered connection information of interfaces
         self.interface_to_connection = {}
-
-        # required dhcp objects
-        # interface -> dhcp_dict
-        self.required_dhcp4 = {}
-        self.required_dhcp6 = {}
-        self.dhcp_objs_signal_connections = []
-
-    @staticmethod
-    def _serial_add(serial):
-        return serial + 1 if serial < 1000 else 0
-
-    def _change_serials(self, state_serial: bool,
-                        ip_serial: bool, dhcp_serial: bool):
-        if state_serial:
-            self.state_serial = self._serial_add(self.state_serial)
-        if ip_serial:
-            self.ip_serial = self._serial_add(self.ip_serial)
-        if dhcp_serial:
-            self.dhcp_serial = self._serial_add(self.dhcp_serial)
 
     def are_all_up(self) -> bool:
         """ Check whether all required interfaces are activated
@@ -78,7 +60,7 @@ class RoutingManager:
         # it is possible, that dbus event was already dispatched
         # that belonged to previous update, and we need to ensure
         # this will be ignored, since we can not remove them
-        if self.state_serial != serial:
+        if self.serial != serial:
             self.lgr.debug("Ignored on_device_state_changed call, "
                            "because it had wrong serial")
             return
@@ -97,11 +79,11 @@ class RoutingManager:
                            new_state, reason)
             self.transition_function(ContextEvent("INTERFACE_DOWN"))
 
-    def _check_ip_object_ready(self, ip_object, interface, family):
-        self.lgr.debug("Checking whether ip object %s of interface "
-                       "%s is ready, object %s",
-                       family, interface, ip_object)
-        for route, route_interface in self.routes.values():
+    def _check_ip_object_contains_routes(self, ip_object, interface, family):
+        self.lgr.debug("_check_ip_object_contains_routes ip_object %s, "
+                       "interface %s, family %s",
+                       ip_object, interface, family)
+        for srv_str, (route, route_interface) in list(self.routes.items()):
             self.lgr.debug("Checking route %s of interface %s",
                            route, route_interface)
             if route_interface != interface:
@@ -113,6 +95,24 @@ class RoutingManager:
             if parsed_dest.version != family:
                 self.lgr.debug("Wrong family, skipping")
                 continue
+            ip_key = "ipv4" if family == 4 else "ipv6"
+            conn_dict = self.interface_to_connection[interface][0][ip_key]
+            conn_route_present = False
+            for conn_route in conn_dict["route-data"]:
+                if conn_route["prefix"] != parsed_dest.max_prefixlen:
+                    continue
+                parsed_conn_rt_dest = ipaddress.ip_address(conn_route["dest"])
+                if parsed_dest == parsed_conn_rt_dest:
+                    conn_route_present = True
+                    break
+            if not conn_route_present:
+                self.lgr.debug("We were about to check presence of "
+                               "route %s in ip_object of interface %s but "
+                               "it is no longer in connection",
+                               route, interface)
+                self.routes.pop(srv_str)
+                continue
+
             route_found = False
             if "RouteData" not in ip_object:
                 self.lgr.debug("Object does not contain routes, "
@@ -139,43 +139,118 @@ class RoutingManager:
                 return False
         return True
 
+    def _check_ip_object_ready(self, ip_object, interface, family):
+        self.lgr.debug("Checking whether ip object %s of interface "
+                       "%s is ready, object %s",
+                       family, interface, ip_object)
+        # we need to check that for each known server bound
+        # to this interface there is either:
+        # 1. Gateway
+        # 2. Already existing precise route for it
+        # 3. Route that would contain this server and we just need
+        #    to create its more specific copy
+        try:
+            ipaddress.ip_address(ip_object.get("Gateway", ""))
+            # gateway is there, that is the minimum we need
+            self.lgr.debug("IP object has gateway, thus ready")
+            return True
+        except ValueError:
+            pass
+        # now there has to be either specific route or at least backup route
+
+        this_object_servers = [a for a in self.current_transaction_servers
+                               if a.interface == interface
+                               and a.is_family(family)]
+        if "AddressData" in ip_object:
+            for srv in list(this_object_servers):
+                parsed_srv = ipaddress.ip_address(srv.address)
+                for address in ip_object["AddressData"]:
+                    parsed_net = ipaddress.ip_network(
+                        f"{address["address"]}/{address["prefix"]}",
+                        strict=False)
+                    if parsed_srv in parsed_net:
+                        self.lgr.debug("server %s is in interface local "
+                                       "network", parsed_srv)
+                        this_object_servers.remove(srv)
+        if not this_object_servers:
+            return True
+
+        if "RouteData" in ip_object:
+            for srv in this_object_servers:
+                parsed_srv = ipaddress.ip_address(srv.address)
+                found = False
+                for route_obj in ip_object["RouteData"]:
+                    if "dest" not in route_obj or "prefix" not in route_obj:
+                        continue
+                    if parsed_srv in ipaddress.ip_network(
+                            f"{route_obj["dest"]}/{route_obj["prefix"]}",
+                            strict=False):
+                        found = True
+                        break
+                if not found:
+                    self.lgr.debug("IP object is not ready to route %s",
+                                   parsed_srv)
+                    return False
+            return True
+
+        self.lgr.debug("IP object has no gateway and routes, thus is not "
+                       "ready for routing")
+        return False
+
     def _on_ip_obj_change(self, cur_serial: int, interface: int,
                           properties: dict, family: int):
         self.lgr.debug("on_ip_obj_change called %s %s %s",
                        interface, properties, family)
-        if self.ip_serial != cur_serial or "RouteData" not in properties:
-            self.lgr.debug("Rejected because of bad serial or RouteData")
+        if self.serial != cur_serial:
+            self.lgr.debug("Rejected because of bad serial")
             return
-        ready = self._check_ip_object_ready(properties, interface, family)
-        if family == 4:
-            old = self.interface_ip_ready[interface][1]
-            self.interface_ip_ready[interface] = ready, old
-        else:
-            old = self.interface_ip_ready[interface][0]
-            self.interface_ip_ready[interface] = old, ready
+        whole_object = self.interface_ip_objects[interface][family]
+        whole_object.update(properties)
+        ready = self._check_ip_object_ready(whole_object, interface, family)
         self.lgr.debug("ready is %s", ready)
-        event = ContextEvent("IP_SET") if ready else ContextEvent("IP_UNSET")
+        if ready:
+            event = ContextEvent("IP_READY")
+        else:
+            event = ContextEvent("IP_NOT_READY")
         self.transition_function(event)
 
-    def are_all_ip_set(self):
-        """ Check whether the required configuration is truly in place
-
-        :return: True if configuration is in place, otherwise False
+    def is_any_ip_object_ready(self):
+        """ Check whether there is at least one ip object that we
+            can use for routing
         """
-        self.lgr.debug("are_all_ip_set called %s", self.interface_ip_ready)
-        for interface, booleans in self.interface_ip_ready.items():
-            if not (booleans[0] and booleans[1]):
-                return False
-        return True
+        self.lgr.debug("is_any_ip_object_ready called %s",
+                       self.interface_ip_objects)
+        if not self.interface_ip_objects:
+            return True
+
+        routing_possible = False
+
+        # all ip objects must have routes that we submitted, but
+        # it is sufficient if just one has routing ready
+        for interface, ip_objects in self.interface_ip_objects.items():
+            for family in [4, 6]:
+                if ip_objects.get(family, None) is not None:
+                    if not self._check_ip_object_contains_routes(
+                            ip_objects[family], interface, family):
+                        return False
+                    if (not routing_possible
+                            and self._check_ip_object_ready(
+                                ip_objects[family], interface, family)):
+                        routing_possible = True
+
+        return routing_possible
 
     def _subscribe_ip_family_obj(self, device_properties, family, interface):
-        self.lgr.debug("_subscribe_ip_family_obj of %s %s",
+        self.lgr.debug("_subscribe_ip_family_obj family %s interface %s",
                        family, interface)
         nm_dbus_name = "org.freedesktop.NetworkManager"
         conf_key = "Ip4Config" if family == 4 else "Ip6Config"
         config_path = device_properties[conf_key]
+        if str(config_path) == "/":
+            return
+        self.lgr.debug("_subscribe_ip_family_obj object path %s", config_path)
         conf_obj = dbus.SystemBus().get_object(nm_dbus_name, config_path)
-        serial = self.ip_serial
+        serial = self.serial
         intfc = dbus.Interface(conf_obj,
                                "org.freedesktop.DBus.Properties")
         cb = lambda dbus_int, props, invalid: self._on_ip_obj_change(serial,
@@ -186,25 +261,16 @@ class RoutingManager:
                                              cb)
         self.lgr.debug("Successfully connected to ip %s of %s",
                        family, interface)
-        if family == 4:
-            shuffle = (connection, None)
-        else:
-            shuffle = (self.interface_to_ip_signal_connections[interface][0],
-                       connection)
-        self.interface_to_ip_signal_connections[interface] = shuffle
+        self.interface_to_ip_signal_connections.append(connection)
         prop_int = dbus.Interface(conf_obj, "org.freedesktop.DBus.Properties")
         if family == 4:
             int_str = "org.freedesktop.NetworkManager.IP4Config"
         else:
             int_str = "org.freedesktop.NetworkManager.IP6Config"
         all_props = prop_int.GetAll(int_str)
-        ready = self._check_ip_object_ready(all_props, interface, family)
-        self.lgr.debug("ip object ready result %s", ready)
-        if family == 4:
-            self.interface_ip_ready[interface] = (ready, False)
-        else:
-            old = self.interface_ip_ready[interface][0]
-            self.interface_ip_ready[interface] = (old, ready)
+        self.lgr.debug("ip object props %s", all_props)
+        self.interface_ip_objects.setdefault(interface, {})[family] = (
+            all_props)
 
     def _get_device_object_props(self, int_name):
         device_path = self._nm_interface.GetDeviceByIpIface(int_name)
@@ -214,17 +280,22 @@ class RoutingManager:
         return (obj, dbus.Interface(obj, "org.freedesktop.DBus.Properties")
                 .GetAll("org.freedesktop.NetworkManager.Device"))
 
-    def subscribe_to_ip_objs_change(self, interfaces: list[int]):
+    def subscribe_to_ip_objs_change(self):
         """ Subscribe to interfaces ip objects
 
-        :param interfaces: list of interface indexes
-        :return: True if yes and all was successful, otherwise False
+        :return: True if all was successful, otherwise False
         """
         if not self._get_nm_interface("subscribe_to_ip_objs_change "
                                       "failed nm connection"):
             return False
 
-        for interface in interfaces:
+        needed = {}
+        for srv in self.current_transaction_servers:
+            if srv.interface is not None:
+                fam = 4 if srv.is_family(4) else 6
+                needed.setdefault(srv.interface, {})[fam] = True
+
+        for interface, need_dict in needed.items():
             int_name = InterfaceConfiguration.get_if_name(interface,
                                                           strict=True)
             if int_name is None:
@@ -233,25 +304,35 @@ class RoutingManager:
                 return False
             try:
                 dev_obj, dev_props = self._get_device_object_props(int_name)
-                self._subscribe_ip_family_obj(dev_props,
-                                              4, interface)
-                self._subscribe_ip_family_obj(dev_props,
-                                              6, interface)
+                if need_dict.get(4, False):
+                    self._subscribe_ip_family_obj(dev_props,
+                                                  4, interface)
+                if need_dict.get(6, False):
+                    self._subscribe_ip_family_obj(dev_props,
+                                                  6, interface)
             except dbus.DBusException as e:
                 self.lgr.debug("exception encountered during "
                                "subscribe_to_ip_objs_change %s", e)
                 return False
         return True
 
-    def subscribe_to_device_state_change(self, interfaces: list[int]):
-        """ Subscribe to devices state changes
-
-        :param interfaces: interface indexes of devices
-        :return: True if yes and all was successful, otherwise False
+    def subscribe_to_device_state_change(
+            self, servers: list[ServerDescription]) -> bool:
+        """ Subscribe to state changes of interfaces that servers are bound to
+            This is also beginning of routing transaction and before next
+            call, clear_transaction should be called
+        :param servers: servers whose routing will be handled
+        :return: True on Success otherwise, False
         """
         if not self._get_nm_interface("Could not connect to nm "
                                       "in subscribe_to_device_state_change"):
             return False
+        interfaces = {}
+        for server in servers:
+            if server.interface is None:
+                continue
+            interfaces[server.interface] = True
+
         for interface in interfaces:
             int_name = InterfaceConfiguration.get_if_name(interface,
                                                           strict=True)
@@ -266,7 +347,7 @@ class RoutingManager:
                     dbus.Interface(dev_obj,
                                    "org.freedesktop.NetworkManager.Device"))
                 cb = functools.partial(self._on_device_state_changed,
-                                       serial=self.state_serial,
+                                       serial=self.serial,
                                        interface=interface)
                 self.interface_to_state_signal_connection[interface] = (
                     device_interface.connect_to_signal("StateChanged", cb))
@@ -278,177 +359,63 @@ class RoutingManager:
                 self.lgr.debug("failed subscribe_to_device_state_change %s",
                                e)
                 return False
+
+        self.current_transaction_servers = deepcopy(servers)
         return True
 
-    def _clear_ip_records(self):
-        self.interface_ip_ready = {}
-        for interface in self.interface_to_ip_signal_connections:
-            self.interface_to_ip_signal_connections[interface][0].remove()
-            if self.interface_to_ip_signal_connections[interface][1]:
-                self.interface_to_ip_signal_connections[interface][1].remove()
-
-    def clear_subscriptions(self):
-        """ Clear all subscriptions """
-        self._change_serials(True, True, True)
+    def clear_transaction(self):
+        """ Clear all subscriptions and state data """
+        self.serial = self.serial + 1 if self.serial < 1000 else 0
         self.interfaces_up = {}
         for interface in self.interface_to_state_signal_connection:
             self.interface_to_state_signal_connection[interface].remove()
-        self._clear_ip_records()
-        self.interface_to_connection = {}
-
-        for conn in self.dhcp_objs_signal_connections:
+        self.interface_to_state_signal_connection = {}
+        self.interface_ip_objects = {}
+        for conn in self.interface_to_ip_signal_connections:
             conn.remove()
-        self.required_dhcp4 = {}
-        self.required_dhcp6 = {}
+        self.interface_to_ip_signal_connections = []
+        self.interface_to_connection = {}
+        self.current_transaction_servers = []
 
-    def clear_ip_subscriptions(self):
-        """ Clear only subscriptions to ip objects """
-        self._change_serials(False, True, False)
-        self._clear_ip_records()
+    def gather_connections(self):
+        """ Gather connections of interfaces that we are interested in
 
-    def check_all_dhcp_ready(self):
-        """ Check whether all required DHCP objects are ready
-
-        :return: True if yes, otherwise False
-        """
-        for req_dhcp in [self.required_dhcp4.values(),
-                         self.required_dhcp6.values()]:
-            for dhcp_dict in req_dhcp:
-                if "ip_address" not in dhcp_dict:
-                    return False
-        return True
-
-    def _on_dhcp_change(self, serial, option_dict, interface, family):
-        self.lgr.debug("_on_dhcp_change called, serial %s "
-                       "options %s interface %s family %s",
-                       serial, option_dict, interface, family)
-        if serial != self.dhcp_serial:
-            self.lgr.debug("Serial refused")
-            return
-        if family == 4:
-            self.required_dhcp4[interface] = option_dict
-        else:
-            self.required_dhcp6[interface] = option_dict
-        self.transition_function(ContextEvent("DHCP_CHANGE"))
-
-    def _sub_dhcp_obj(self, dev_props, cur_serial, interface, family):
-        conf_path = dev_props["Dhcp4Config" if family == 4 else "Dhcp6Config"]
-        obj = dbus.SystemBus().get_object("org.freedesktop.NetworkManager",
-                                          conf_path)
-        dbus_int = dbus.Interface(obj, "org.freedesktop.DBus.Properties")
-
-        cb = lambda interface_str, properties, invalid: self._on_dhcp_change(
-            cur_serial,
-            properties["Options"],
-            interface,
-            family)
-        connection = dbus_int.connect_to_signal("PropertiesChanged", cb)
-        self.dhcp_objs_signal_connections.append(connection)
-        self.lgr.debug("Successfully subscribed to interface %s %s object",
-                       interface, family)
-        dhcp_props = dbus.Interface(obj,
-                                    "org.freedesktop"
-                                    ".DBus.Properties").GetAll(
-            "org.freedesktop.NetworkManager.DHCP4Config")
-        self.lgr.debug("Successfully retrieved dhcp properties %s",
-                       dhcp_props)
-        if family == 4:
-            self.required_dhcp4[interface] = dhcp_props["Options"]
-        else:
-            self.required_dhcp6[interface] = dhcp_props["Options"]
-
-    def subscribe_required_dhcp(self):
-        """ Subscribe change of all required DHCP objects
-
-        :return: True if everything was successful, otherwise False
-        """
-        if not self._get_nm_interface("Could not connect to nm "
-                                      "in subscribe_required_dhcp"):
-            return False
-
-        found_interfaces = []
-        for req_array in [self.required_dhcp4, self.required_dhcp6]:
-            for i in req_array:
-                if i not in found_interfaces:
-                    found_interfaces.append(i)
-
-        for if_index in found_interfaces:
-            int_name = InterfaceConfiguration.get_if_name(if_index,
-                                                          strict=True)
-            if int_name is None:
-                self.lgr.debug("Could not get interface name "
-                               "in subscribe_required_dhcp")
-                return False
-            try:
-                dev_obj, props = self._get_device_object_props(int_name)
-                if if_index in self.required_dhcp4:
-                    self.lgr.debug("subscribing to interface %s dhcp4 object",
-                                   if_index)
-                    self._sub_dhcp_obj(props, self.dhcp_serial, if_index, 4)
-                if if_index in self.required_dhcp6:
-                    self.lgr.debug("subscribing to interface %s dhcp6 object",
-                                   if_index)
-                    self._sub_dhcp_obj(props, self.dhcp_serial, if_index, 6)
-            except dbus.DBusException as e:
-                self.lgr.debug("Subscription to dhcp object failed %s", e)
-                return False
-        return True
-
-    def gather_connections(self, servers: list[ServerDescription]):
-        """ Gather information about connections that were mentioned
-        for servers
-
-        :param servers: list of server descriptions
-        :return: True if all went well, otherwise False
+        :return: True on success, otherwise False
         """
         if not self._get_nm_interface("routing will result when all "
                                       "interfaces are ready"):
             return False
-        interfaces = {}
-        for server in servers:
-            if server.interface is None:
-                continue
-            af = 4 if server.address_family == socket.AF_INET else 6
-            interfaces.setdefault(server.interface, {})[af] = True
 
-        for if_index, need_dict in interfaces.items():
+        for if_index in self.interfaces_up:
             applied = self._get_nm_device_config(if_index)
             if applied is None:
                 self.lgr.debug("All interfaces were not "
                                "ready to gather connections")
                 return False
             self.interface_to_connection[if_index] = applied
-            if (need_dict.get(4, False)
-                    and applied[0]["ipv4"]["method"] == "auto"):
-                self.required_dhcp4[if_index] = {}
-            if (need_dict.get(6, False)
-                    and applied[0]["ipv6"]["method"] == "auto"):
-                self.required_dhcp6[if_index] = {}
+
         return True
 
-    def handle_routes_process(self, servers: list[ServerDescription]):
-        """ Attempt to create all required routes and clear routes that are
-        no longer required
+    def handle_routes_process(self) -> tuple[list[ServerDescription], int]:
+        """ Check routing and attempt to create appropriate routes
 
-        if route is required then first we check whether there is gateway
-        in connection or DHCP options. If yes then we create routes for
-        DNS servers.
-        If not then we look whether connection or DHCP contains route
-        that would contain the server and if yes then create its more specific
-        version (32 or 128 prefix).
-        If there is already route in place, then we rely on it.
-        At last, we clear all routes that we set in place and are no longer
-        required.
+        Routing Algorithm works like this:
+        1. If server's address is in local network, no routing is needed
+        2. If interface has gateway set then we create route to gateway
+        3. If there is more broad route that would be used, then we create
+           its more specific version
+        4. otherwise server will not be allowed
 
-        :param servers: List of server descriptions
-        :return: True on success otherwise False
+        :return: list of routed servers and 0 when no route was submitted
+                 1 when route/s were submitted and 2 on error
         """
         # we need to refresh the dbus connection, because NetworkManager
         # restart would invalidate it
+        routed_servers = []
         if not self._get_nm_interface("routing will result when all "
                                       "interfaces are ready"):
-            return False
-
+            return [], 2
+        rc = 0
         interface_to_connection = self.interface_to_connection
         self.lgr.info("Commencing route check")
 
@@ -461,13 +428,13 @@ class RoutingManager:
         for x in found_interfaces:
             interface_names[x] = InterfaceConfiguration.get_if_name(x)
 
-        self.lgr.debug("interfaces are %s", interface_names.values)
-
         interfaces_to_servers = {}
-        for server in servers:
+        for server in self.current_transaction_servers:
             if server.interface is not None:
                 interfaces_to_servers.setdefault(server.interface, []).append(
                     server)
+            else:
+                routed_servers.append(server)
 
         for int_index in found_interfaces:
             valid_routes = {}
@@ -477,217 +444,162 @@ class RoutingManager:
             connection = interface_to_connection[int_index][0]
             self._reset_bin_routes(connection)
 
+            if int_index not in self.interface_ip_objects:
+                self.lgr.debug("There is no IP object for "
+                               "interface %s continuing", int_index)
+                continue
+            temp_routed_servers = []
             for server in interfaces_to_servers[int_index]:
                 server_str = server.get_server_string()
                 parsed_server_str = ipaddress.ip_address(server_str)
-                connection_existing_route = None
-                connection_existing_backup_route = None
-                dhcp_existing_route = False
-                dhcp_existing_backup_route = False
 
                 self.lgr.info("Checking routing for server %s", server_str)
 
-                same_network = False
-                if parsed_server_str.version == 4:
-                    ip_dict = connection["ipv4"]
-                else:
-                    ip_dict = connection["ipv6"]
-
-                dhcp_address_network = None
-                dhcp_gateway_str = None
-                dhcp_routes = []
-
-                if ip_dict["method"] == "auto":
-                    if parsed_server_str.version == 4:
-                        dhcp_dict = self.required_dhcp4[int_index]
-                    else:
-                        dhcp_dict = self.required_dhcp6[int_index]
-                    addr_str = dhcp_dict["ip_address"]
-                    addr_mask = dhcp_dict["subnet_mask"]
-                    if "routers" in dhcp_dict:
-                        dhcp_gateway_str = dhcp_dict["routers"].split()[0]
-                    if "static_routes" in dhcp_dict:
-                        dhcp_routes = dhcp_dict["static_routes"].split()
-                    dhcp_address_network = ipaddress.ip_network(
-                        f"{addr_str}/{addr_mask}", strict=False)
-
-                for addr in ip_dict["address-data"]:
-                    if parsed_server_str in ipaddress.ip_network(
-                            f"{addr["address"]}/{addr["prefix"]}",
-                            strict=False):
-                        same_network = True
-                        break
-                if (not same_network and dhcp_address_network
-                        and parsed_server_str in dhcp_address_network):
-                    same_network = True
-
-                if same_network:
-                    self.lgr.info("Server %s is in local network, "
-                                  "routing not needed", server_str)
+                family = parsed_server_str.version
+                ip_dict = self.interface_ip_objects[int_index].get(family,
+                                                                   None)
+                if ip_dict is None:
+                    self.lgr.debug("There is no ip data for family %s of "
+                                   "interface %s, continuing",
+                                   family, interface_names[int_index])
                     continue
+                if "RouteData" not in ip_dict:
+                    self.lgr.debug("There is no route data in ip_dict "
+                                   "%s, continuing", ip_dict)
 
-                for route in ip_dict["route-data"]:
-                    route_dest = ipaddress.ip_address(route["dest"])
+                present_gateway = None
+                parsed_present_gateway = None
+                try:
+                    parsed_present_gateway = ipaddress.ip_address(
+                        ip_dict["Gateway"])
+                    present_gateway = ip_dict["Gateway"]
+                except ValueError:
+                    pass
+
+                present_specific_route = None
+                present_backup_route = None
+                for route_obj in ip_dict["RouteData"]:
                     max_prefix = parsed_server_str.max_prefixlen
-                    if (route_dest == parsed_server_str
-                            and route["prefix"] == max_prefix):
-                        connection_existing_route = route
-                        break
-                for route in ip_dict["route-data"]:
-                    route_net = ipaddress.ip_network(
-                        f"{route["dest"]}/{route["prefix"]}")
-                    if "next-hop" in route and parsed_server_str in route_net:
-                        connection_existing_backup_route = route
-                        break
-                if dhcp_routes and not connection_existing_route:
-                    for dest_str, next_hop_str in zip(dhcp_routes[0::2],
-                                                      dhcp_routes[1::2]):
-                        parsed = ipaddress.ip_network(dest_str, strict=False)
-                        net_addr = parsed.network_address
-                        if (parsed.prefixlen == parsed.max_prefixlen
-                                and net_addr == parsed_server_str):
-                            dhcp_existing_route = True
-                        elif parsed_server_str in parsed:
-                            dhcp_existing_backup_route = ipaddress.ip_address(
-                                next_hop_str)
+                    if parsed_server_str not in ipaddress.ip_network(
+                            f"{route_obj["dest"]}/{route_obj["prefix"]}",
+                            strict=False):
+                        continue
+                    if route_obj["prefix"] == max_prefix:
+                        present_specific_route = route_obj
+                    elif "next-hop" not in route_obj:
+                        continue
+                    elif present_backup_route is None:
+                        present_backup_route = route_obj
+                    elif present_backup_route["prefix"] < route_obj["prefix"]:
+                        present_backup_route = route_obj
+                    elif present_backup_route["metric"] > route_obj["metric"]:
+                        present_backup_route = route_obj
 
-                nexthop_right = False
-                next_hop = None
-                if connection_existing_route:
-                    next_hop = connection_existing_route.get("next-hop", None)
+                nexthop_right = None
+                if parsed_present_gateway and present_specific_route:
+                    nexthop_right = (parsed_present_gateway ==
+                                     ipaddress.ip_address(
+                                         present_specific_route["next-hop"]))
+                elif present_specific_route and present_backup_route:
+                    sp_rt_hop = ipaddress.ip_address(
+                        present_specific_route["next-hop"])
+                    bk_rt_hop = ipaddress.ip_address(
+                        present_backup_route["next-hop"])
+                    nexthop_right = sp_rt_hop == bk_rt_hop
 
-                gateway_in_connection = "gateway" in ip_dict
-                if next_hop:
-                    parsed_hop = ipaddress.ip_address(next_hop)
-                    if (gateway_in_connection
-                            and parsed_hop == ipaddress.ip_address(
-                                ip_dict["gateway"])):
-                        nexthop_right = True
-                    elif (dhcp_gateway_str
-                          and parsed_hop == ipaddress.ip_address(
-                                dhcp_gateway_str)):
-                        nexthop_right = True
-                if connection_existing_route and nexthop_right:
+                same_network = False
+                if "AddressData" in ip_dict and ip_dict["AddressData"]:
+                    for address in ip_dict["AddressData"]:
+                        net = ipaddress.ip_network(
+                            f"{address["address"]}/{address["prefix"]}",
+                            strict=False)
+                        if parsed_server_str in net:
+                            same_network = True
+                            break
+                if same_network:
+                    self.lgr.info("Server is in the same network as "
+                                  "interface, routing not needed")
+                    self.lgr.debug("Appending %s to routed servers", server)
+                    routed_servers.append(server)
+                    continue
+                elif present_specific_route and nexthop_right:
+                    # correct route is present
                     if server_str in self.routes:
                         # route was submitted by us and it is valid
-                        valid_routes[server_str] = (connection_existing_route,
+                        valid_routes[server_str] = (present_specific_route,
                                                     int_index)
-                    self.lgr.debug("Routing is right, no additional action "
-                                   "required continuing")
+                    self.lgr.info("Routing is right, no additional action "
+                                  "required continuing")
+                    self.lgr.debug("Appending %s to routed servers", server)
+                    routed_servers.append(server)
                     continue
-                elif connection_existing_route:
-                    parsed_existing_hop = ipaddress.ip_address(
-                        connection_existing_route["next-hop"])
-                    if server_str in self.routes:
-                        if (not (gateway_in_connection or dhcp_gateway_str)
-                                and connection_existing_backup_route):
-                            parsed_backup_hop = ipaddress.ip_address(
-                                connection_existing_backup_route["next-hop"])
-                            if parsed_existing_hop != parsed_backup_hop:
-                                self.lgr.info(
-                                    "Route exists but the nexthop is not "
-                                    "right, to the original broader route "
-                                    "from connection, will change it")
-                                connection_existing_route["next-hop"] = (
-                                    connection_existing_backup_route
-                                )["next-hop"]
-                            else:
-                                self.lgr.info(
-                                    "Route exists and it is correct "
-                                    "according to broader route from "
-                                    "connection")
-                                continue
-                        elif (not (gateway_in_connection or dhcp_gateway_str)
-                              and dhcp_existing_backup_route):
-                            if (parsed_existing_hop !=
-                                    dhcp_existing_backup_route):
-                                self.lgr.info(
-                                    "Route exists but the nexthop is not "
-                                    "right, to the original broader route "
-                                    "from DHCP, will change it")
-                                dstr = dbus.String(
-                                    str(dhcp_existing_backup_route))
-                                connection_existing_route["next-hop"] = dstr
-                            else:
-                                self.lgr.info("Route exists and it is "
-                                              "correct according to broader "
-                                              "route from DHCP")
-                                continue
-                        elif gateway_in_connection or dhcp_gateway_str:
-                            self.lgr.info("Route exists but the nexthop "
-                                          "is not right, will change it")
-                            if gateway_in_connection:
-                                new_gw = ip_dict["gateway"]
-                            else:
-                                new_gw = dbus.String(dhcp_gateway_str)
-                            connection_existing_route["next-hop"] = new_gw
-                        else:
-                            self.lgr.error(
-                                "Route exists but the nexthop is not right "
-                                "and default gateway is not set, waiting "
-                                "for it to be set or until route occurs")
-                            return False
-                    else:
-                        self.lgr.warning(
-                            "Route exists but the nexthop is not right and "
-                            "it was not submitted by us, relying on your "
-                            "network configuration")
+                elif present_specific_route:
+                    # route is there, but the dest is not correct
+                    if server_str not in self.routes:
+                        self.lgr.info("The route does not have correct"
+                                      "destination according to gateway or "
+                                      "broader route, but it was not "
+                                      "submitted by us, thus relying on your "
+                                      "network configuration")
+                        self.lgr.debug("Appending %s to routed servers",
+                                       server)
+                        routed_servers.append(server)
                         continue
-
-                    valid_routes[server_str] = (connection_existing_route,
-                                                int_index)
+                    # route was submitted by us, change dest to gateway or
+                    # dest of broader route
+                    if present_gateway:
+                        new_hop_dbus_string = present_gateway
+                    elif present_backup_route:
+                        new_hop_dbus_string = present_backup_route["next-hop"]
+                    else:
+                        self.lgr.debug("The route was submitted by us, "
+                                       "but we have no way of determining "
+                                       "correct destination, thus waiting")
+                        continue
+                    found_route = None
+                    fam_data = connection["ipv4" if family == 4 else "ipv6"]
+                    for con_route in fam_data["route-data"]:
+                        parsed_route_dest = ipaddress.ip_address(
+                            con_route["dest"])
+                        if parsed_route_dest == parsed_server_str:
+                            found_route = con_route
+                            break
+                    found_route["next-hop"] = new_hop_dbus_string
+                    valid_routes[server_str] = (found_route, int_index)
+                    self.lgr.info("New destination will be %s",
+                                  new_hop_dbus_string)
                     reapply_needed = True
-                elif dhcp_existing_route:
-                    self.lgr.warning(
-                        "Route exists, but it was received through DHCP, "
-                        "relying on your network configuration")
+                    self.lgr.debug("Appending %s to temp routed servers",
+                                   server)
+                    temp_routed_servers.append(server)
                     continue
                 else:
-                    if gateway_in_connection or dhcp_gateway_str:
-                        self.lgr.debug("Route does not exist, creating it")
-                        if gateway_in_connection:
-                            gateway_dbus_string = ip_dict["gateway"]
-                        else:
-                            gateway_dbus_string = dbus.String(
-                                dhcp_gateway_str)
-                    elif connection_existing_backup_route:
-                        self.lgr.info(
-                            "Route does not exist, however there is route "
-                            "in connection that would contain this server, "
-                            "will create its specified version")
-                        nhop = connection_existing_backup_route["next-hop"]
-                        gateway_dbus_string = nhop
-                    elif dhcp_existing_backup_route:
-                        self.lgr.info(
-                            "Route does not exist, however there is route "
-                            "gotten through DHCP that would contain this "
-                            "server, will create its specified version")
-                        gateway_dbus_string = dbus.String(
-                            str(dhcp_existing_backup_route))
+                    # no specific route exists, try to create one
+                    if present_gateway:
+                        new_hop_dbus_string = present_gateway
+                    elif present_backup_route:
+                        new_hop_dbus_string = present_backup_route["next-hop"]
                     else:
-                        self.lgr.error("Route does not exist, and gateway "
-                                       "is not set, waiting until it is")
-                        return False
-
+                        self.lgr.info("Unable to determine route "
+                                      "destination, will wait")
+                        continue
                     new_route = dbus.Dictionary({
                         dbus.String("dest"):
                             dbus.String(server_str),
                         dbus.String("prefix"):
                             dbus.UInt32(parsed_server_str.max_prefixlen),
                         dbus.String("next-hop"):
-                            gateway_dbus_string})
-                    self.lgr.info("New route is: %s and will be "
-                                  "submitted for interface %s",
-                                  new_route, int_index)
+                            new_hop_dbus_string})
                     valid_routes[server_str] = (new_route, int_index)
-                    if parsed_server_str.version == 4:
-                        connection["ipv4"]["route-data"].append(new_route)
-                    else:
-                        connection["ipv6"]["route-data"].append(new_route)
+                    fam_data = connection["ipv4" if family == 4 else "ipv6"]
+                    fam_data["route-data"].append(new_route)
                     reapply_needed = True
+                    self.lgr.debug("Appending %s to temp routed servers",
+                                   server)
+                    temp_routed_servers.append(server)
             if self._remove_checked_routes(connection, valid_routes):
                 reapply_needed = True
-
+                rc = 1
             if reapply_needed:
                 try:
                     cver = interface_to_connection[int_index][1]
@@ -695,20 +607,30 @@ class RoutingManager:
                 except dbus.DBusException as e:
                     self.lgr.warning("Failed to reapply connection to "
                                      "%s, %s will wait", ifname, e)
-                    return False
+                    return [], 2
+                rc = 1
                 for destination in list(self.routes):
                     if self.routes[destination][1] == int_index:
                         self.routes.pop(destination)
                 self.routes.update(valid_routes)
+                self.lgr.debug("Extending routed servers with %s",
+                               temp_routed_servers)
+                routed_servers.extend(temp_routed_servers)
+        self.lgr.debug("Routed servers %s", routed_servers)
+        return routed_servers, rc
 
-        # now if there are routes in self.routes for interfaces that are
-        # not in found_interfaces, that means that there are either
+    def remove_redundant(self):
+        """ Remove routes from interfaces that no longer interest us
+
+        :return: True on success otherwise False
+        """
+        # interface_to_connection, that means that there are either
         # bogus routes or those interfaces were downed thus
         # walk them, remove bogus routes and then delete them from
         # self.routes
         downed_interfaces = []
         for route, interface in list(self.routes.values()):
-            if (interface not in found_interfaces
+            if (interface not in self.interface_to_connection
                     and interface not in downed_interfaces):
                 downed_interfaces.append(interface)
                 int_name = InterfaceConfiguration.get_if_name(interface,
@@ -791,8 +713,8 @@ class RoutingManager:
     def _reset_bin_routes(connection):
         # we need to remove this, so we can use route-data field
         # undocumented NetworkManager implementation detail
-        del connection["ipv4"]["routes"]
-        del connection["ipv6"]["routes"]
+        connection["ipv4"].pop("routes", None)
+        connection["ipv6"].pop("routes", None)
 
     def _get_nm_device_config(self, index):
         int_name = InterfaceConfiguration.get_if_name(index, strict=True)

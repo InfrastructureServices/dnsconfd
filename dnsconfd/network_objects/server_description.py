@@ -125,6 +125,11 @@ class ServerDescription:
         """
         return self.to_unbound_string()
 
+    def is_family(self, family):
+        if self.address_family == socket.AF_INET and family == 4:
+            return True
+        return False
+
     def to_dict(self):
         if self.port:
             port = self.port

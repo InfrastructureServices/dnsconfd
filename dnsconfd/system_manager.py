@@ -22,7 +22,7 @@ class SystemManager:
         self._resolver_options = config["resolver_options"]
         self.lgr = logging.getLogger(self.__class__.__name__)
 
-    def set_resolvconf(self, search_domains: list[str]) -> bool:
+    def set_resolvconf(self) -> bool:
         """ Replace resolv.conf content with our config and perform backup
 
         :return: True if operation was successful, otherwise False
@@ -46,15 +46,6 @@ class SystemManager:
             self.lgr.error("OSError encountered while reading "
                            "resolv.conf %s", e)
             return False
-
-        try:
-            with open(self._resolv_conf_path, "w",
-                      encoding="utf-8") as new_resolv:
-                new_resolv.write(self._get_resolvconf_string(search_domains))
-        except OSError as e:
-            self.lgr.error("OSError encountered while writing "
-                           "resolv.conf: %s", e)
-            return False
         return True
 
     def _get_resolvconf_string(self, search_domains=None):
@@ -64,7 +55,7 @@ class SystemManager:
         if self._resolver_options:
             conf += f"options {self._resolver_options}\n"
         conf += f"nameserver {self._listen_address}\n"
-        if len(search_domains):
+        if search_domains:
             conf += f"search {' '.join(search_domains)}\n"
         return conf
 
