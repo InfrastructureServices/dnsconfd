@@ -69,6 +69,10 @@ class Stopping(TransitionImplementations):
                 "STOP": (ContextState.REVERTING_RESOLV_CONF,
                          self._running_stop_transition)
             },
+            ContextState.SETTING_RESOLV_CONF: {
+                "FAIL": (ContextState.SUBMITTING_STOP_JOB,
+                         self._submit_stop_job)
+            },
             ContextState.UPDATING_RESOLV_CONF: {
                 "FAIL": (ContextState.REVERTING_RESOLV_CONF,
                          self._running_stop_transition)
@@ -145,10 +149,6 @@ class Stopping(TransitionImplementations):
             ContextState.WAIT_IP_OBJECTS: {
                 "STOP": (ContextState.REVERTING_RESOLV_CONF,
                          self._running_stop_transition)
-            },
-            ContextState.WAIT_FOR_DHCP: {
-                "STOP": (ContextState.REVERTING_RESOLV_CONF,
-                         self._running_stop_transition)
             }
         }
 
@@ -162,6 +162,17 @@ class Stopping(TransitionImplementations):
             return ContextEvent("SUCCESS")
         self.lgr.debug("Removing routes")
         self.route_mgr.remove_routes()
+        return ContextEvent("SUCCESS")
+
+    def _submit_stop_job(self, event: ContextEvent) -> ContextEvent | None:
+        jobid = self.systemd_manager.change_unit_state(
+            2,
+            self.dns_mgr.service_name,
+            ContextEvent("STOP_SUCCESS"),
+            ContextEvent("STOP_FAILURE"))
+        if jobid is None:
+            self.exit_code_handler.set_exit_code(ExitCode.DBUS_FAILURE)
+            return ContextEvent("FAIL")
         return ContextEvent("SUCCESS")
 
     def _reverting_resolv_conf_transition(self, event: ContextEvent) \

@@ -9,35 +9,38 @@ rlJournalStart
         rlRun "tmp=\$(mktemp -d)" 0 "Create tmp directory"
         rlRun "pushd $tmp"
         rlRun "set -o pipefail"
-        rlRun "podman network create dnsconfd_network --internal -d=bridge --gateway=192.168.6.1 --subnet=192.168.6.0/24"
+        rlRun "podman network create dnsconfd_network --internal -d=bridge --subnet=192.168.6.0/24 --gateway=192.168.6.1 --subnet=2001:db8::/64 --gateway=2001:db8::1"
         # dns=none is neccessary, because otherwise resolv.conf is created and
         # mounted by podman as read-only
-        rlRun "dhcp_cid=\$(podman run -d --cap-add=NET_RAW --network dnsconfd_network:ip=192.168.6.5 localhost/dnsconfd_utilities:latest dhcp_entry.sh /etc/dhcp/dhcpd-empty.conf)" 0 "Starting dhcpd container with empty dns"
-        rlRun "dnsconfd_cid=\$(podman run -d --cap-add=NET_ADMIN --cap-add=NET_RAW --dns='none' --network dnsconfd_network:ip=192.168.6.2 dnsconfd_testing:latest)" 0 "Starting dnsconfd container"
-        rlRun "dnsmasq1_cid=\$(podman run -d --dns='none' --network dnsconfd_network:ip=192.168.6.3 localhost/dnsconfd_utilities:latest dnsmasq_entry.sh --listen-address=192.168.6.3 --address=/first-address.test.com/192.168.6.3)" 0 "Starting first dnsmasq container"
-        rlRun "dnsmasq2_cid=\$(podman run -d --dns='none' --network dnsconfd_network:ip=192.168.6.4 localhost/dnsconfd_utilities:latest dnsmasq_entry.sh --listen-address=192.168.6.4 --address=/second-address.test.com/192.168.6.4)" 0 "Starting second dnsmasq container"
+        rlRun "dhcp4_cid=\$(podman run -d --cap-add=NET_RAW --network dnsconfd_network:ip=192.168.6.5,ip=2001:db8::a1 localhost/dnsconfd_utilities:latest dhcp_entry.sh /etc/dhcp/dhcpd-empty.conf)" 0 "Starting dhcpd container with empty dns"
+        rlRun "dhcp6_cid=\$(podman run -d --cap-add=NET_RAW --privileged --network dnsconfd_network:ip=2001:db8::4,ip=192.168.6.20 localhost/dnsconfd_utilities:latest ratool_entry.sh)" 0 "Starting dhcpd6 container"
+        rlRun "dnsconfd_cid=\$(podman run -d --cap-add=NET_ADMIN --cap-add=NET_RAW --privileged --dns='none' --network dnsconfd_network:interface_name=eth0,ip=192.168.6.2,ip=2001:db8::2 dnsconfd_testing:latest)" 0 "Starting dnsconfd container"
+        rlRun "dnsmasq1_cid=\$(podman run -d --dns='none' --network dnsconfd_network:ip=192.168.6.3,ip=2001:db8::a2 localhost/dnsconfd_utilities:latest dnsmasq_entry.sh --listen-address=192.168.6.3 --address=/first-address.test.com/192.168.6.3)" 0 "Starting first dnsmasq container"
+        rlRun "dnsmasq2_cid=\$(podman run -d --dns='none' --network dnsconfd_network:ip=192.168.6.4,ip=2001:db8::a3 localhost/dnsconfd_utilities:latest dnsmasq_entry.sh --listen-address=192.168.6.4 --address=/second-address.test.com/192.168.6.4)" 0 "Starting second dnsmasq container"
+        rlRun "dnsmasq3_cid=\$(podman run -d --dns='none' --network dnsconfd_network:ip=2001:db8::3 localhost/dnsconfd_utilities:latest dnsmasq_entry.sh --listen-address=2001:db8::3 --address=/third-address.test.com/2001:db8::3)" 0 "Starting second dnsmasq container"
     rlPhaseEnd
 
     rlPhaseStartTest
         sleep 2
+        rlRun "podman exec $dnsconfd_cid nmcli connection mod eth0 ipv4.gateway '' ipv4.addr '' ipv4.method auto ipv6.gateway '' ipv6.addresses '' ipv6.method auto" 0 "Setting eth0 to autoconfiguration"
         # This elaborative change of eth0 connection causes that NetworkManager will receive
         # the exact same address from dhcp that podman assigned to the container. Without this,
         # routing tables that podman creates would not be correct and we would face error during
         # clean up after the container
-        rlRun "podman exec $dnsconfd_cid nmcli connection mod eth0 ipv4.gateway '' ipv4.addr '' ipv4.method auto" 0 "Setting eth0 to autoconfiguration"
         sleep 3
-        rlRun "podman stop -t 0 $dhcp_cid" 0 "Stopping containers"
-        rlRun "podman container rm $dhcp_cid" 0 "Removing containers"
-        rlRun "dhcp_cid=\$(podman run -d --cap-add=NET_RAW --network dnsconfd_network:ip=192.168.6.5 localhost/dnsconfd_utilities:latest dhcp_entry.sh /etc/dhcp/dhcpd-common.conf)" 0 "Starting dhcpd container with dns list"
-        sleep 3
+        rlRun "podman stop -t 0 $dhcp4_cid" 0 "Stopping containers"
+        rlRun "podman container rm $dhcp4_cid" 0 "Removing containers"
+        rlRun "dhcp4_cid=\$(podman run -d --cap-add=NET_RAW --network dnsconfd_network:ip=192.168.6.5,ip=2001:db8::a1 localhost/dnsconfd_utilities:latest dhcp_entry.sh /etc/dhcp/dhcpd-common.conf)" 0 "Starting dhcpd container with dns list"
+        sleep 5
+        rlRun "podman exec $dnsconfd_cid nmcli connection up eth0"
         # restart of NetworkManager ensures new dhcp request
-        rlRun "podman exec $dnsconfd_cid systemctl restart NetworkManager"
         sleep 5
         rlRun "podman exec $dnsconfd_cid dnsconfd --dbus-name=$DBUS_NAME status --json > status1" 0 "Getting status of dnsconfd"
         rlAssertNotDiffer status1 $ORIG_DIR/expected_status.json
         rlRun "podman exec $dnsconfd_cid getent hosts first-address.test.com | grep 192.168.6.3" 0 "Verifying correct address resolution"
         rlRun "podman exec $dnsconfd_cid getent hosts second-address.test.com | grep 192.168.6.4" 0 "Verifying correct address resolution"
         rlRun "podman exec $dnsconfd_cid getent hosts second-address | grep 192.168.6.4" 0 "Verifying correct address resolution"
+        rlRun "podman exec $dnsconfd_cid getent hosts third-address.test.com | grep 2001:db8::3" 0 "Verifying correct address resolution"
     rlPhaseEnd
 
     rlPhaseStartCleanup
@@ -45,8 +48,8 @@ rlJournalStart
         rlRun "podman exec $dnsconfd_cid journalctl -u unbound" 0 "Saving unbound logs"
         rlRun "podman exec $dnsconfd_cid ip route" 0 "Saving present routes"
         rlRun "popd"
-        rlRun "podman stop -t 0 $dnsconfd_cid $dnsmasq1_cid $dnsmasq2_cid $dhcp_cid" 0 "Stopping containers"
-        rlRun "podman container rm $dnsconfd_cid $dnsmasq1_cid $dnsmasq2_cid $dhcp_cid" 0 "Removing containers"
+        rlRun "podman stop -t 0 $dnsconfd_cid $dnsmasq1_cid $dnsmasq2_cid $dnsmasq3_cid $dhcp4_cid $dhcp6_cid" 0 "Stopping containers"
+        rlRun "podman container rm $dnsconfd_cid $dnsmasq1_cid $dnsmasq2_cid $dnsmasq3_cid $dhcp4_cid $dhcp6_cid" 0 "Removing containers"
         rlRun "podman network rm dnsconfd_network" 0 "Removing networks"
         rlRun "rm -r $tmp" 0 "Remove tmp directory"
     rlPhaseEnd

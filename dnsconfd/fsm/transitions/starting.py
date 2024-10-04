@@ -137,7 +137,5 @@ class Starting(TransitionImplementations):
         return ContextEvent("SERVICE_UP")
 
     def _update_transition(self, event: ContextEvent):
-        if event.data is None:
-            return None
         self.server_manager.set_dynamic_servers(event.data)
         return None
