@@ -153,7 +153,8 @@ class DnsconfdDbusInterface(dbus.service.Object):
                                      "ignoring server with interface %s",
                                      interface)
                     continue
-                ips_to_interface[parsed_addr_str] = interface
+                else:
+                    ips_to_interface[parsed_addr_str] = interface
 
             dnssec = False
 

@@ -194,16 +194,16 @@ class ResolveDbusInterface(dbus.service.Object):
                         protocol = DnsProtocol.DNS_OVER_TLS
                     else:
                         protocol = DnsProtocol.PLAIN
-
                     if server.address in ips_to_interface:
-                        if ips_to_interface[server.address] != int(interface):
+                        if ips_to_interface[server.address] != int(cur_interface):
                             self.lgr.warning("2 servers with the same "
                                              "ip can not be bound to 2 "
                                              "interfaces, ignoring the "
                                              "one for interface %s",
-                                             int(interface))
+                                             int(cur_interface))
                             continue
-                        ips_to_interface[server.address] = int(interface)
+                    else:
+                        ips_to_interface[server.address] = int(cur_interface)
 
                     # since NetworkManager does not support dnssec config
                     # value, in this API we will set dnssec according
