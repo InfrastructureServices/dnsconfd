@@ -495,17 +495,19 @@ class RoutingManager:
                     elif present_backup_route["metric"] > route_obj["metric"]:
                         present_backup_route = route_obj
 
-                nexthop_right = None
-                if parsed_present_gateway and present_specific_route:
-                    nexthop_right = (parsed_present_gateway ==
-                                     ipaddress.ip_address(
-                                         present_specific_route["next-hop"]))
-                elif present_specific_route and present_backup_route:
-                    sp_rt_hop = ipaddress.ip_address(
-                        present_specific_route["next-hop"])
-                    bk_rt_hop = ipaddress.ip_address(
-                        present_backup_route["next-hop"])
-                    nexthop_right = sp_rt_hop == bk_rt_hop
+                nexthop_right = False
+                if (present_specific_route
+                        and "next-hop" in present_specific_route):
+                    if parsed_present_gateway:
+                        parsed_hop = ipaddress.ip_address(
+                                        present_specific_route["next-hop"])
+                        nexthop_right = parsed_present_gateway == parsed_hop
+                    elif present_backup_route:
+                        sp_rt_hop = ipaddress.ip_address(
+                            present_specific_route["next-hop"])
+                        bk_rt_hop = ipaddress.ip_address(
+                            present_backup_route["next-hop"])
+                        nexthop_right = sp_rt_hop == bk_rt_hop
 
                 same_network = False
                 if "AddressData" in ip_dict and ip_dict["AddressData"]:
@@ -535,7 +537,9 @@ class RoutingManager:
                     continue
                 elif present_specific_route:
                     # route is there, but the dest is not correct
-                    if server_str not in self.routes:
+                    # the next hop check here is more of a paranoia
+                    if ("next-hop" not in present_specific_route
+                            or server_str not in self.routes):
                         self.lgr.info("The route does not have correct"
                                       "destination according to gateway or "
                                       "broader route, but it was not "

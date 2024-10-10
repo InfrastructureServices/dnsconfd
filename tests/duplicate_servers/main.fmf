@@ -1,0 +1,7 @@
+summary: Verify that dnsconfd can handle connection to one network through 2 interfaces
+test: ./test.sh
+framework: beakerlib
+recommend:
+  - podman
+tag:
+  - integration
