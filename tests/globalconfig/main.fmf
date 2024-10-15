@@ -1,0 +1,7 @@
+summary: Test global DNS config and ensure that there is no attempt to contact different servers
+test: ./test.sh
+framework: beakerlib
+recommend:
+  - podman
+tag:
+  - disabled
