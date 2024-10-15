@@ -2,6 +2,7 @@ import logging
 import dbus.service
 from dbus.service import BusName
 
+from dnsconfd.input_modules import ResolvingMode
 from dnsconfd.network_objects import InterfaceConfiguration
 from dnsconfd.network_objects import ServerDescription
 from dnsconfd.fsm import DnsconfdContext
@@ -61,8 +62,8 @@ class ResolveDbusInterface(dbus.service.Object):
             self.lgr.debug("Call ignored, since ignore_api is set")
         interface_cfg = self._iface_config(interface_index)
         prio = self._ifprio(interface_cfg) if self.prio_wire else 100
-        servers = [ServerDescription(fam, addr, port, sni, prio)
-                   for fam, addr, port, sni in addresses]
+        servers = [ServerDescription(fam, addr, port, name, prio)
+                   for fam, addr, port, name in addresses]
         interface_cfg.servers = servers
         servers_to_string = ' '.join([str(server) for server in servers])
         self.lgr.info("Incoming DNS servers on %s:%s",
@@ -185,25 +186,30 @@ class ResolveDbusInterface(dbus.service.Object):
             self.lgr.info("API pushing update %s", interface)
             servers: list[ServerDescription] = []
             for cur_interface in self.interfaces.values():
+                if_index = int(cur_interface)
                 for server in cur_interface.servers:
-                    domains = []
-                    domains.extend(cur_interface.domains)
+                    routing_domains = []
+                    search_domains = []
+                    for domain, search in cur_interface.domains:
+                        if search:
+                            search_domains.append(domain)
+                        routing_domains.append(domain)
                     if cur_interface.is_default:
-                        domains.append((".", False))
+                        routing_domains.append(".")
                     if cur_interface.dns_over_tls:
                         protocol = DnsProtocol.DNS_OVER_TLS
                     else:
                         protocol = DnsProtocol.PLAIN
                     if server.address in ips_to_interface:
-                        if ips_to_interface[server.address] != int(cur_interface):
+                        if ips_to_interface[server.address] != if_index:
                             self.lgr.warning("2 servers with the same "
                                              "ip can not be bound to 2 "
                                              "interfaces, ignoring the "
                                              "one for interface %s",
-                                             int(cur_interface))
+                                             if_index)
                             continue
                     else:
-                        ips_to_interface[server.address] = int(cur_interface)
+                        ips_to_interface[server.address] = if_index
 
                     # since NetworkManager does not support dnssec config
                     # value, in this API we will set dnssec according
@@ -212,16 +218,17 @@ class ResolveDbusInterface(dbus.service.Object):
                     new_srv = ServerDescription(server.address_family,
                                                 server.address,
                                                 server.port,
-                                                server.sni,
+                                                server.name,
                                                 server.priority,
-                                                domains,
+                                                routing_domains,
+                                                search_domains,
                                                 cur_interface.index,
                                                 protocol,
                                                 self.dnssec_enabled)
 
                     servers.append(new_srv)
 
-            event = ContextEvent("UPDATE", servers)
+            event = ContextEvent("UPDATE", (servers, ResolvingMode.FREE))
             self.lgr.debug("UPDATE IS %s, %s", interface.index,
                            [a.to_dict() for a in servers])
             self.runtime_context.transition_function(event)

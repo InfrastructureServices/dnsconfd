@@ -1,6 +1,7 @@
 import logging
 
 from dnsconfd.network_objects import ServerDescription, DnsProtocol
+from dnsconfd.input_modules import ResolvingMode
 
 
 class ServerManager:
@@ -13,6 +14,8 @@ class ServerManager:
         self.dynamic_servers: list[ServerDescription] = []
         self.static_servers: list[ServerDescription] = []
 
+        self.mode = ResolvingMode.FREE
+
         for resolver in config["static_servers"]:
             prot = resolver.get("protocol", None)
             if prot is not None:
@@ -21,21 +24,18 @@ class ServerManager:
                 elif prot == "DoT":
                     prot = DnsProtocol.DNS_OVER_TLS
             port = resolver.get("port", None)
-            sni = resolver.get("sni", None)
-            domains = resolver.get("domains", None)
-            if domains is not None:
-                transformed_domains = []
-                for x in domains:
-                    transformed_domains.append((x["domain"], x["search"]))
-                domains = transformed_domains
+            name = resolver.get("name", None)
+            routing_domains = resolver.get("routing_domains", None)
+            search_domains = resolver.get("search_domains", None)
             interface = resolver.get("interface", None)
             dnssec = resolver.get("dnssec", False)
 
             new_srv = ServerDescription.from_config(resolver["address"],
                                                     prot,
                                                     port,
-                                                    sni,
-                                                    domains,
+                                                    name,
+                                                    routing_domains,
+                                                    search_domains,
                                                     interface,
                                                     dnssec)
             new_srv.priority = 150
@@ -44,7 +44,7 @@ class ServerManager:
             self.lgr.info("Configured static servers: %s",
                           self.static_servers)
 
-    def get_zones_to_servers(self, servers=None) \
+    def get_zones_to_servers(self, servers) \
             -> tuple[dict[str, list[ServerDescription]], list[str]]:
         """ Get zones to servers and search domains
 
@@ -54,19 +54,23 @@ class ServerManager:
         new_zones_to_servers = {}
 
         search_domains = {}
-        if servers is not None:
-            all_servers = servers
-        else:
-            all_servers = self.dynamic_servers + self.static_servers
 
-        for server in all_servers:
-            for domain, search in server.domains:
-                try:
-                    new_zones_to_servers[domain].append(server)
-                except KeyError:
-                    new_zones_to_servers[domain] = [server]
-                if search:
-                    search_domains[domain] = True
+        for server in servers:
+            if (server.interface is not None
+                    and self.mode == ResolvingMode.FULL_RESTRICTIVE):
+                continue
+            for domain in server.routing_domains:
+                if server.interface is not None:
+                    if (self.mode == ResolvingMode.RESTRICT_GLOBAL
+                            and domain == "."):
+                        continue
+                new_zones_to_servers.setdefault(domain, []).append(server)
+
+            for rev_zone in server.get_rev_zones():
+                new_zones_to_servers.setdefault(rev_zone, []).append(server)
+
+            for domain in server.search_domains:
+                search_domains[domain] = True
 
         for zone in new_zones_to_servers.values():
             zone.sort(key=lambda x: x.priority, reverse=True)
@@ -83,22 +87,38 @@ class ServerManager:
         """
         return self.dynamic_servers + self.static_servers
 
-    def set_dynamic_servers(self, servers: list[ServerDescription]):
+    def get_used_servers(self) -> list[ServerDescription]:
+        """ Get forwarders that will be used according to mode
+
+        :return: list of server descriptions of forwarders that will be used
+        """
+        all_servers = self.dynamic_servers + self.static_servers
+        used_servers = []
+        for server in all_servers:
+            if server.interface is not None:
+                if self.mode == ResolvingMode.FULL_RESTRICTIVE:
+                    continue
+                elif self.mode == ResolvingMode.RESTRICT_GLOBAL:
+                    # if domains contain only . then omit this server
+                    subdomain_present = False
+                    for domain in server.routing_domains:
+                        if domain != ".":
+                            subdomain_present = True
+                            break
+                    if (not subdomain_present
+                            and not server.networks
+                            and not server.search_domains):
+                        continue
+            used_servers.append(server)
+
+        return used_servers
+
+    def set_dynamic_servers(self, servers: list[ServerDescription], mode: int):
         """ Set list of dynamic servers
 
         :param servers: list of new dynamic servers
+        :param mode: Resolving mode representing how the servers should be
+                     handled
         """
         self.dynamic_servers = servers
-
-    def get_all_interfaces(self) -> list[int]:
-        """ Get list of all interface indexes mentioned in configuration
-
-        :return: list of all interface indexes mentioned in configuration
-        """
-        found_interfaces = []
-
-        for server in self.dynamic_servers + self.static_servers:
-            if (server.interface is not None
-                    and server.interface not in found_interfaces):
-                found_interfaces.append(server.interface)
-        return found_interfaces
+        self.mode = mode

@@ -1,9 +1,9 @@
 from typing import Callable
 from gi.repository import GLib
 
-from dnsconfd import SystemManager
+from dnsconfd import SystemManager, ExitCode
 from dnsconfd.dns_managers import UnboundManager
-from dnsconfd.fsm import ContextEvent, ExitCode, ContextState
+from dnsconfd.fsm import ContextEvent, ContextState
 from dnsconfd.fsm.exit_code_handler import ExitCodeHandler
 from dnsconfd.fsm.transitions import TransitionImplementations
 from dnsconfd.routing_manager import RoutingManager
@@ -194,7 +194,7 @@ class Running(TransitionImplementations):
 
     def _save_update_and_unsubscribe(self, event: ContextEvent) \
             -> ContextEvent | None:
-        self.server_manager.set_dynamic_servers(event.data)
+        self.server_manager.set_dynamic_servers(event.data[0], event.data[1])
         self.route_mgr.clear_transaction()
         self.lgr.info("Successfully saved update and unsubscribed NM events")
         return ContextEvent("SUCCESS")
@@ -213,7 +213,7 @@ class Running(TransitionImplementations):
         return ContextEvent("FAIL")
 
     def _save_update_noop(self, event: ContextEvent) -> ContextEvent | None:
-        self.server_manager.set_dynamic_servers(event.data)
+        self.server_manager.set_dynamic_servers(event.data[0], event.data[1])
         self.lgr.info("Successfully saved update")
         return None
 
@@ -236,13 +236,13 @@ class Running(TransitionImplementations):
 
     def _subscribe_to_devices_connections(self, event: ContextEvent) \
             -> ContextEvent | None:
+        servers = self.server_manager.get_used_servers()
         if not self.config["handle_routing"]:
             self.lgr.info("Configuration says we should not handle routing,"
                           "thus skipping it")
-            self.routed_servers = self.server_manager.get_all_servers()
+            self.routed_servers = servers
             return ContextEvent("SKIP_ROUTING")
         self.route_mgr.clear_transaction()
-        servers = self.server_manager.get_all_servers()
         if self.route_mgr.subscribe_to_device_state_change(servers):
             self.lgr.debug("Subscribing to device state change successful")
             return ContextEvent("SUCCESS")

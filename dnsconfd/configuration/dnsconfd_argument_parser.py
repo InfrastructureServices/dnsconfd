@@ -8,7 +8,7 @@ import yaml.scanner
 from dnsconfd import CLICommands as Cmds
 from dnsconfd.configuration import Option, StaticServersOption, StringOption
 from dnsconfd.configuration import IpOption, BoolOption
-from dnsconfd.fsm.exit_code import ExitCode
+from dnsconfd import ExitCode
 
 
 class DnsconfdArgumentParser(ArgumentParser):
@@ -164,14 +164,19 @@ class DnsconfdArgumentParser(ArgumentParser):
                                                help="perform Dnsconfd steps")
         uninstall.set_defaults(func=lambda: Cmds.uninstall(vars(self._parsed)))
 
-        reload = subparsers.add_parser("update",
+        update = subparsers.add_parser("update",
                                        help="update dnsconfd forwarders list")
 
-        reload.add_argument("server_list",
+        update.add_argument("server_list",
                             default="[]",
                             help="JSON formatted list of servers")
-        reload.set_defaults(func=lambda: Cmds.update(self._parsed.dbus_name,
+        update.add_argument("mode",
+                            default=0,
+                            help="Mode of resolution",
+                            type=int)
+        update.set_defaults(func=lambda: Cmds.update(self._parsed.dbus_name,
                                                      self._parsed.server_list,
+                                                     self._parsed.mode,
                                                      self._parsed.api_choice))
 
     @staticmethod

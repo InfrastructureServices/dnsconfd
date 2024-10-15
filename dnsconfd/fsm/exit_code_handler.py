@@ -1,4 +1,4 @@
-from dnsconfd.fsm import ExitCode
+from dnsconfd import ExitCode
 
 
 class ExitCodeHandler:
