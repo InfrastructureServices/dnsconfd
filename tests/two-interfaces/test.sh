@@ -37,7 +37,7 @@ rlJournalStart
         sleep 2
         interface0_num=$(podman exec $dnsconfd_cid ip -json a s eth0 | jq '.[] | .ifindex')
         interface1_num=$(podman exec $dnsconfd_cid ip -json a s eth1 | jq '.[] | .ifindex')
-        rlRun "podman exec $dnsconfd_cid dnsconfd update '[{\"address\":\"192.168.6.3\", \"interface\": $interface0_num},{\"address\":\"192.168.7.3\", \"interface\": $interface1_num}]'" 0 "submit update"
+        rlRun "podman exec $dnsconfd_cid dnsconfd update '[{\"address\":\"192.168.6.3\", \"interface\": $interface0_num},{\"address\":\"192.168.7.3\", \"interface\": $interface1_num}]' 0" 0 "submit update"
         sleep 2
         rlRun "podman exec $dnsconfd_cid dnsconfd status --json > status1" 0 "Getting status of dnsconfd"
         rlAssertNotDiffer status1 $ORIG_DIR/expected_status.json

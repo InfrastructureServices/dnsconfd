@@ -1,8 +1,9 @@
 from typing import Callable
 from gi.repository import GLib
 
+from dnsconfd import ExitCode
 from dnsconfd.dns_managers import UnboundManager
-from dnsconfd.fsm import ContextEvent, ExitCode, ContextState
+from dnsconfd.fsm import ContextEvent, ContextState
 from dnsconfd.fsm.exit_code_handler import ExitCodeHandler
 from dnsconfd.fsm.transitions import TransitionImplementations
 from dnsconfd.server_manager import ServerManager
@@ -137,5 +138,5 @@ class Starting(TransitionImplementations):
         return ContextEvent("SERVICE_UP")
 
     def _update_transition(self, event: ContextEvent):
-        self.server_manager.set_dynamic_servers(event.data)
+        self.server_manager.set_dynamic_servers(event.data[0], event.data[1])
         return None

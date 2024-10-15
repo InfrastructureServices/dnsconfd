@@ -6,11 +6,10 @@ import re
 import dbus.service
 from dbus.service import BusName
 
-
 from dnsconfd.network_objects import ServerDescription, InterfaceConfiguration
 from dnsconfd.network_objects import DnsProtocol
-from dnsconfd.fsm import DnsconfdContext
-from dnsconfd.fsm import ContextEvent
+from dnsconfd.input_modules import ResolvingMode
+from dnsconfd.fsm import DnsconfdContext, ContextEvent
 
 
 class DnsconfdDbusInterface(dbus.service.Object):
@@ -29,25 +28,34 @@ class DnsconfdDbusInterface(dbus.service.Object):
         self.dnssec_enabled = config["dnssec_enabled"]
         self.lgr = logging.getLogger(self.__class__.__name__)
         domain_re = r"((?!-)([A-Za-z0-9-]){1,63}(?<!-)\.?)+|\."
-        sni_re = r"((?!-)([A-Za-z0-9-]){1,63}(?<!-)\.?)+"
+        search_re = r"((?!-)([A-Za-z0-9-]){1,63}(?<!-)\.?)+"
+        name_re = r"((?!-)([A-Za-z0-9-]){1,63}(?<!-)\.?)+"
         self.domain_pattern = re.compile(domain_re)
-        self.sni_pattern = re.compile(sni_re)
+        self.search_pattern = re.compile(search_re)
+        self.name_pattern = re.compile(name_re)
 
     @dbus.service.method(dbus_interface='com.redhat.dnsconfd.Manager',
-                         in_signature='aa{sv}', out_signature='bs')
-    def Update(self, servers: list[dict[str, typing.Any]])\
+                         in_signature='aa{sv}u', out_signature='bs')
+    def Update(self, servers: list[dict[str, typing.Any]], mode: int) \
             -> tuple[bool, str]:
         """ Update forwarders that should be used
 
         :param servers: list of dictionaries describing servers.
         Members are described in DBUS API documentation
+        :param mode: Resolving mode representing how the servers should be
+                     handled
         :return: Tuple with True or False and message with more info
         """
         new_servers = []
-        self.lgr.info("update dbus method called with args: %s", servers)
+        self.lgr.info("Update dbus method called with args: %s", servers)
         if self.ignore_api:
             return True, "Configured to ignore"
         ips_to_interface = {}
+
+        if mode not in [0, 1, 2]:
+            msg = f"Mode {mode} not in allowed range 0-2"
+            self.lgr.error(msg)
+            return False, msg
 
         for index, server in enumerate(servers):
             self.lgr.debug("processing server: %s", server)
@@ -83,53 +91,55 @@ class DnsconfdDbusInterface(dbus.service.Object):
                 if server["protocol"] == "DoT":
                     protocol = DnsProtocol.DNS_OVER_TLS
 
-            sni = None
-            if server.get("sni", None) is not None:
-                if (not isinstance(server["sni"], str)
-                        or not self.sni_pattern.fullmatch(server["sni"])):
-                    msg = f"{index + 1}. server sni is not " \
-                          f"allowed {server["sni"]}"
+            name = None
+            if server.get("name", None) is not None:
+                if (not isinstance(server["name"], str)
+                        or not self.name_pattern.fullmatch(server["name"])):
+                    msg = f"{index + 1}. server name is not " \
+                          f"allowed {server["name"]}"
                     self.lgr.error(msg)
                     return False, msg
-                sni = str(server["sni"])
+                name = str(server["name"])
 
-            domains = None
-            if server.get("domains", None) is not None:
-                if not isinstance(server["domains"], list):
-                    msg = f"{index + 1}. server domains is not " \
+            routing_domains = None
+            if server.get("routing_domains", None) is not None:
+                if not isinstance(server["routing_domains"], list):
+                    msg = f"{index + 1}. server routing domains is not " \
                           f"list {server["domains"]}"
                     self.lgr.error(msg)
                     return False, msg
-                if [x for x in server["domains"] if not isinstance(x, tuple)]:
-                    msg = f"{index + 1}. server domains must all be tuples " \
-                          f"{server["domains"]}"
-                    self.lgr.error(msg)
-                    return False, msg
-                if [x for x in server["domains"] if len(x) != 2]:
-                    msg = f"{index + 1}. server domains must all be tuples " \
-                          f"with 2 members {server["domains"]}"
-                    self.lgr.error(msg)
-                    return False, msg
-
-                for (domain, search) in server["domains"]:
-                    if (not isinstance(search, bool)
-                            and not isinstance(search, int)):
-                        msg = f"{index + 1}. server domains second member " \
-                              f"has to be either bool or int {search}"
+                for domain in server["routing_domains"]:
+                    if not isinstance(domain, str):
+                        msg = (f"{index + 1}."
+                               f"server routing domain is not string")
                         self.lgr.error(msg)
                         return False, msg
                     if not self.domain_pattern.fullmatch(domain):
                         msg = (f"{index + 1}."
-                               f"server domain is not domain {domain}")
+                               f"server routing domain is not domain {domain}")
                         self.lgr.error(msg)
                         return False, msg
-                    if domain == "." and search:
+                routing_domains = server["routing_domains"]
+
+            search_domains = None
+            if server.get("search_domains", None) is not None:
+                if not isinstance(server["search_domains"], list):
+                    msg = f"{index + 1}. server search domains is not " \
+                          f"list {server["domains"]}"
+                    self.lgr.error(msg)
+                    return False, msg
+                for domain in server["search_domains"]:
+                    if not isinstance(domain, str):
                         msg = (f"{index + 1}."
-                               f"domain is '.' cannot be used for search")
+                               f"server search domain is not string")
                         self.lgr.error(msg)
                         return False, msg
-                domains = [(str(domain), bool(search))
-                           for (domain, search) in server["domains"]]
+                    if not self.search_pattern.fullmatch(domain):
+                        msg = (f"{index + 1}."
+                               f"server search domain is not domain {domain}")
+                        self.lgr.error(msg)
+                        return False, msg
+                search_domains = server["search_domains"]
 
             interface = None
             is_wireless = False
@@ -157,7 +167,6 @@ class DnsconfdDbusInterface(dbus.service.Object):
                     ips_to_interface[parsed_addr_str] = interface
 
             dnssec = False
-
             if server.get("dnssec", None) is not None:
                 if not isinstance(server["dnssec"], bool):
                     msg = f"{index + 1}. dnssec is not bool"
@@ -166,11 +175,38 @@ class DnsconfdDbusInterface(dbus.service.Object):
                 dnssec = bool(server["dnssec"])
 
             if (self.dnssec_enabled and not dnssec
-                    and (not domains or [x for x in domains if x[0] == '.'])):
+                    and (not routing_domains
+                         or [x for x in routing_domains if x == '.'])):
                 msg = ("Server used for . domain can not have disabled "
                        "dnssec when it is enabled by configuration")
                 self.lgr.error(msg)
                 return False, msg
+
+            networks = None
+            if server.get("networks", None) is not None:
+                if not isinstance(server["networks"], list):
+                    msg = f"{index + 1}. server networks is not " \
+                          f"list {server["networks"]}"
+                    self.lgr.error(msg)
+                    return False, msg
+                networks = []
+                for net in server["networks"]:
+                    try:
+                        networks.append(ipaddress.ip_network(net))
+                    except ValueError:
+                        msg = f"{index + 1}. server network is not " \
+                              f"valid network {net}"
+                        self.lgr.error(msg)
+                        return False, msg
+
+            firewall_zone = None
+            if server.get("firewall_zone", None) is not None:
+                if not isinstance(server["firewall_zone"], str):
+                    msg = (f"{index + 1}."
+                           f"server search domain is not string")
+                    self.lgr.error(msg)
+                    return False, msg
+                firewall_zone = server["firewall_zone"]
 
             # you may notice the type conversions throughout this method,
             # these are present to get rid of dbus types and prevent
@@ -180,14 +216,18 @@ class DnsconfdDbusInterface(dbus.service.Object):
             serv_desc = ServerDescription(addr_family,
                                           parsed_address.packed,
                                           port,
-                                          sni,
+                                          name,
                                           priority=50 if is_wireless else 100,
-                                          domains=domains,
+                                          routing_domains=routing_domains,
+                                          search_domains=search_domains,
                                           interface=interface,
                                           protocol=protocol,
-                                          dnssec=dnssec)
+                                          dnssec=dnssec,
+                                          networks=networks,
+                                          firewall_zone=firewall_zone)
             new_servers.append(serv_desc)
-        event = ContextEvent("UPDATE", new_servers)
+        event = ContextEvent("UPDATE",
+                             (new_servers, ResolvingMode(mode)))
         self.runtime_context.transition_function(event)
         return True, "Done"
 

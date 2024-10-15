@@ -22,10 +22,10 @@ def instance():
       {"address": "192.168.9.3", "protocol": "garbage"}],
      False),
     ([{"address": "192.168.8.3"},
-      {"address": "192.168.9.3", "protocol": "plain", "domains": [{"search": True, "domain": "dummy.com"}]}],
+      {"address": "192.168.9.3", "protocol": "plain", "routing_domains": ["dummy.com"]}],
      True),
     ([{"address": "192.168.8.3"},
-      {"address": "192.168.9.3", "protocol": "plain", "domains": [{"search": "nope", "domain": "dummy.com"}]}],
+      {"address": "192.168.9.3", "protocol": "plain", "domains": [False]}],
      False),
 ])
 def test_validate(value, result, instance):

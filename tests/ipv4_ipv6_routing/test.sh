@@ -156,7 +156,7 @@ rlJournalStart
         interface1_num=$(podman exec $dnsconfd_cid ip -json a s eth1 | jq '.[] | .ifindex')
         interface2_num=$(podman exec $dnsconfd_cid ip -json a s eth2 | jq '.[] | .ifindex')
         interface3_num=$(podman exec $dnsconfd_cid ip -json a s eth3 | jq '.[] | .ifindex')
-        rlRun "podman exec $dnsconfd_cid dnsconfd update '[{\"address\":\"192.168.6.3\", \"interface\": $interface0_num, \"domains\": [[\"first-domain.com\", false]]}, {\"address\":\"2001:db8::103\", \"interface\": $interface1_num, \"domains\": [[\"second-domain.com\", false]]}, {\"address\":\"192.168.8.3\", \"interface\": $interface2_num, \"domains\": [[\"third-domain.com\", false]]}, {\"address\":\"2001:db8::303\", \"interface\": $interface3_num, \"domains\": [[\"fourth-domain.com\", false]]}]'" 0 "submit update"
+        rlRun "podman exec $dnsconfd_cid dnsconfd update '[{\"address\":\"192.168.6.3\", \"interface\": $interface0_num, \"routing_domains\": [\"first-domain.com\"]}, {\"address\":\"2001:db8::103\", \"interface\": $interface1_num, \"routing_domains\": [\"second-domain.com\"]}, {\"address\":\"192.168.8.3\", \"interface\": $interface2_num, \"routing_domains\": [\"third-domain.com\"]}, {\"address\":\"2001:db8::303\", \"interface\": $interface3_num, \"routing_domains\": [\"fourth-domain.com\"]}]' 0" 0 "submit update"
         sleep 5
         rlRun "podman exec $dnsconfd_cid ip route | grep -e 192.168.6.3 -e 192.168.8.3" 0 "Verify that route to one of the ipv4 DNS is present"
         rlRun "podman exec $dnsconfd_cid ip -6 route | grep -e 2001:db8::103 -e 2001:db8::303" 0 "Verify that route to one of the ipv6 DNS is present"

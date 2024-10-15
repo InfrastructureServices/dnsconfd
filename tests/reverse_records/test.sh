@@ -12,26 +12,22 @@ rlJournalStart
         # dns=none is neccessary, because otherwise resolv.conf is created and
         # mounted by podman as read-only
         rlRun "dnsconfd_cid=\$(podman run -d --dns='none' --network dnsconfd_network:ip=192.168.6.2 dnsconfd_testing:latest)" 0 "Starting dnsconfd container"
-        rlRun "dnsmasq_cid=\$(podman run -d --dns='none' --network dnsconfd_network:ip=192.168.6.3 localhost/dnsconfd_utilities:latest dnsmasq_entry.sh --listen-address=192.168.6.3 --address=/address.test.com/192.168.6.3)" 0 "Starting dnsmasq container"
+        rlRun "dnsmasq_cid1=\$(podman run -d --dns='none' --network dnsconfd_network:ip=192.168.6.3 localhost/dnsconfd_utilities:latest dnsmasq_entry.sh --listen-address=192.168.6.3 --host-record=address-one.example.com,8.8.8.8)" 0 "Starting dnsmasq container"
+        rlRun "dnsmasq_cid2=\$(podman run -d --dns='none' --network dnsconfd_network:ip=192.168.6.4 localhost/dnsconfd_utilities:latest dnsmasq_entry.sh --listen-address=192.168.6.4 --host-record=address-two.example.com,8.8.8.8)" 0 "Starting dnsmasq container"
+        rlRun "dnsmasq_cid3=\$(podman run -d --dns='none' --network dnsconfd_network:ip=192.168.6.5 localhost/dnsconfd_utilities:latest dnsmasq_entry.sh --listen-address=192.168.6.5 --host-record=address-three.example.com,8.8.8.8 --host-record=address-four.example.com,8.8.4.4)" 0 "Starting dnsmasq container"
     rlPhaseEnd
 
     rlPhaseStartTest
         sleep 2
-        rlRun "podman exec $dnsconfd_cid nmcli connection mod eth0 ipv4.dns 192.168.6.3" 0 "Adding dns server to NM active profile"
-        sleep 2
-        rlRun "podman exec $dnsconfd_cid dnsconfd status --json > status1" 0 "Getting status of dnsconfd"
-        rlAssertNotDiffer status1 $ORIG_DIR/expected_status.json
-        rlRun "podman exec $dnsconfd_cid getent hosts address.test.com | grep 192.168.6.3" 0 "Verifying correct address resolution"
-        # new api testing
         rlRun "podman exec $dnsconfd_cid /bin/bash -c 'echo api_choice: dnsconfd >> /etc/dnsconfd.conf'" 0 "switching API"
         rlRun "podman exec $dnsconfd_cid systemctl restart dnsconfd" 0 "restarting dnsconfd"
         sleep 2
-        interface_num=$(podman exec $dnsconfd_cid ip -json a s eth0 | jq '.[] | .ifindex')
-        rlRun "podman exec $dnsconfd_cid dnsconfd update '[{\"address\":\"192.168.6.3\", \"interface\": $interface_num}]' 0" 0 "submit update"
+        rlRun "podman exec $dnsconfd_cid dnsconfd update '[{\"address\":\"192.168.6.3\", \"networks\": [\"8.0.0.0/8\"]}, {\"address\":\"192.168.6.4\", \"networks\": [\"192.168.7.0/24\"]}, {\"address\":\"192.168.6.5\", \"networks\": [\"192.168.8.0/24\", \"8.8.4.0/24\"]}]' 0" 0 "submit update"
         sleep 2
         rlRun "podman exec $dnsconfd_cid dnsconfd status --json > status1" 0 "Getting status of dnsconfd"
         rlAssertNotDiffer status1 $ORIG_DIR/expected_status.json
-        rlRun "podman exec $dnsconfd_cid getent hosts address.test.com | grep 192.168.6.3" 0 "Verifying correct address resolution"
+        rlRun "podman exec $dnsconfd_cid host 8.8.8.8 | grep address-one.example.com" 0 "Verifying correct address resolution"
+        rlRun "podman exec $dnsconfd_cid host 8.8.4.4 | grep address-four.example.com" 0 "Verifying correct address resolution"
     rlPhaseEnd
 
     rlPhaseStartCleanup
@@ -39,8 +35,8 @@ rlJournalStart
         rlRun "podman exec $dnsconfd_cid journalctl -u unbound" 0 "Saving unbound logs"
         rlRun "podman exec $dnsconfd_cid ip route" 0 "Saving present routes"
         rlRun "popd"
-        rlRun "podman stop -t 0 $dnsconfd_cid $dnsmasq_cid" 0 "Stopping containers"
-        rlRun "podman container rm $dnsconfd_cid $dnsmasq_cid" 0 "Removing containers"
+        rlRun "podman stop -t 0 $dnsconfd_cid $dnsmasq_cid1 $dnsmasq_cid2 $dnsmasq_cid3" 0 "Stopping containers"
+        rlRun "podman container rm $dnsconfd_cid $dnsmasq_cid1 $dnsmasq_cid2 $dnsmasq_cid3" 0 "Removing containers"
         rlRun "podman network rm dnsconfd_network" 0 "Removing networks"
         rlRun "rm -r $tmp" 0 "Remove tmp directory"
     rlPhaseEnd

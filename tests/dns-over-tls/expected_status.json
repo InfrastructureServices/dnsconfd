@@ -1,1 +1,1 @@
-{"service": "unbound", "cache_config": {".": ["192.168.6.3@853#named"]}, "state": "RUNNING", "servers": [{"address": "192.168.6.3", "port": 853, "sni": "named", "domains": ["."], "interface": "eth0", "protocol": "DNS_OVER_TLS", "dnssec": false}]}
+{"service": "unbound", "cache_config": {".": ["192.168.6.3@853#named"]}, "state": "RUNNING", "servers": [{"address": "192.168.6.3", "port": 853, "name": "named", "routing_domains": ["."], "search_domains": [], "interface": "eth0", "protocol": "DNS_OVER_TLS", "dnssec": false, "networks": [], "firewall_zone": null}]}

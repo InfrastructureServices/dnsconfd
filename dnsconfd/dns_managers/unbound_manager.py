@@ -100,6 +100,7 @@ class UnboundManager(DnsManager):
         added_zones = []
         stable_zones = []
         removed_zones = []
+        new_zones_to_servers = {}
         for zone in zones_to_servers:
             if zone in self.zones_to_servers:
                 stable_zones.append(zone)
@@ -134,54 +135,74 @@ class UnboundManager(DnsManager):
                     or not self._execute_cmd(f"flush_zone {zone}")):
                 return False
         for zone in added_zones:
+            used_srvs = self._get_used_servers(zones_to_servers[zone])
             add_cmd = self._get_forward_add_command(zone,
-                                                    zones_to_servers[zone])
+                                                    used_srvs)
             if (not self._execute_cmd(add_cmd)
                     or not self._execute_cmd(f"flush_zone {zone}")):
                 return False
+            new_zones_to_servers[zone] = deepcopy(used_srvs)
         for zone in stable_zones:
             if self.zones_to_servers[zone] == zones_to_servers[zone]:
                 self.lgr.debug("Zone %s is the same in old and new "
                                "config thus skipping it", zone)
+                new_zones_to_servers[zone] = deepcopy(zones_to_servers[zone])
                 continue
             self.lgr.debug("Updating zone %s", zone)
+            used_srvs = self._get_used_servers(zones_to_servers[zone])
             add_cmd = self._get_forward_add_command(zone,
-                                                    zones_to_servers[zone])
+                                                    used_srvs)
             if (not self._execute_cmd(f"forward_remove +i {zone}")
                     or not self._execute_cmd(add_cmd)
                     or not self._execute_cmd(f"flush_zone {zone}")):
                 return False
+            new_zones_to_servers[zone] = deepcopy(used_srvs)
 
         # since we need to break references to ServerDescription objects
         # held before, but keep all the metadata, deepcopy is required
-        self.zones_to_servers = deepcopy(zones_to_servers)
+        self.zones_to_servers = new_zones_to_servers
         self.lgr.info("Unbound updated to configuration: %s",
                       self.get_status())
         return True
 
-    def _get_forward_add_command(self,
-                                 zone: str,
-                                 servers: list[ServerDescription]):
+    @staticmethod
+    def _get_used_servers(servers: list[ServerDescription]):
         max_prio = servers[0].priority
         used_protocol = servers[0].protocol
-        servers_str = []
         # this will remove duplicate servers
         unique_servers = {}
-        insecure = False
+        zone_servers = []
+
         for srv in servers:
             if srv.protocol == used_protocol and srv.priority == max_prio:
                 srv_string = srv.to_unbound_string()
                 if srv_string not in unique_servers:
-                    servers_str.append(srv_string)
-                    unique_servers[srv.to_unbound_string()] = True
-                if self.dnssec and not insecure and not srv.dnssec:
-                    insecure = True
+                    unique_servers[srv_string] = True
+                    zone_servers.append(srv)
             else:
                 break
+
+        return zone_servers
+
+    def _get_forward_add_command(self,
+                                 zone: str,
+                                 servers: list[ServerDescription]):
+        used_protocol = servers[0].protocol
+        servers_str = []
+        # this will remove duplicate servers
+        insecure = False
+        for srv in servers:
+            servers_str.append(srv.to_unbound_string())
+            if self.dnssec and not insecure and not srv.dnssec:
+                insecure = True
         tls = used_protocol == DnsProtocol.DNS_OVER_TLS
         flags = None
         if tls or insecure:
-            flags = f"+{'i' if insecure else ''}{'t' if tls else ''} "
+            flags = "+"
+            for check, flag in [(insecure, "i"), (tls, "t")]:
+                if check:
+                    flags += flag
+            flags += " "
 
         return (f"forward_add {flags if flags else ''}"
                 f"{zone} {' '.join(servers_str)}")

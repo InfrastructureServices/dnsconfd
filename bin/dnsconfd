@@ -1,11 +1,11 @@
 #!/usr/bin/python3
 import logging
 
+from dnsconfd.input_modules import ResolveDbusInterface, DnsconfdDbusInterface
 from dnsconfd.fsm import ContextEvent
 from dnsconfd.fsm import DnsconfdContext
-from dnsconfd.input_modules import ResolveDbusInterface, DnsconfdDbusInterface
 from dnsconfd.configuration import DnsconfdArgumentParser as ArgParser
-from dnsconfd.fsm.exit_code import ExitCode
+from dnsconfd.exit_code import ExitCode
 
 import sys
 import signal

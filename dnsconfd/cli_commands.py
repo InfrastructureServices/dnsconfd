@@ -136,13 +136,14 @@ class CLICommands:
     @staticmethod
     def update(dbus_name: str,
                servers: str,
+               mode: int,
                api_choice: str) -> typing.NoReturn:
         """ Call Update DBUS method of Dnsconfd
 
         :param dbus_name: DBUS name Dnsconfd listens on
         :param servers: JSON string with servers that should be set in place
+        :param mode: Resolving mode that should be set
         :param api_choice: dnsconfd or resolve1
-        :return:
         """
         try:
             server_list = json.loads(servers)
@@ -150,18 +151,6 @@ class CLICommands:
             print(f"Servers are not valid JSON string: {e}")
             sys.exit(1)
         bus = dbus.SystemBus()
-
-        # unfortunately domains have to be converted explicitly,
-        # because dbus-python can not guess type of array containing
-        # string and boolean
-        try:
-            for server in server_list:
-                if "domains" in server:
-                    server["domains"] = [dbus.Struct((dom[0], dom[1]))
-                                         for dom in server["domains"]]
-        except (IndexError, TypeError) as e:
-            print(f"Failed to convert domains, {e}")
-            sys.exit(1)
 
         try:
             if api_choice != "dnsconfd":
@@ -176,7 +165,8 @@ class CLICommands:
             sys.exit(1)
         try:
             all_ok, message = dnsconfd_interface.Update(server_list,
-                                                        signature="aa{sv}")
+                                                        mode,
+                                                        signature="aa{sv}u")
             print(f"{message}")
         except DBusException as e:
             print("Was not able to call update method, check your DBus policy:"

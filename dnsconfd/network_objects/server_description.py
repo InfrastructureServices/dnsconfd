@@ -10,12 +10,16 @@ class ServerDescription:
                  address_family: int,
                  address: bytes,
                  port: int = None,
-                 sni: str = None,
+                 name: str = None,
                  priority: int = 100,
-                 domains: list[tuple[str, bool]] = None,
-                 interface: int = None,
+                 routing_domains: list[str] = None,
+                 search_domains: list[str] = None,
+                 interface: int | None = None,
                  protocol: DnsProtocol = DnsProtocol.PLAIN,
-                 dnssec: bool = False):
+                 dnssec: bool = False,
+                 networks: list[ipaddress.IPv4Network]
+                           | list[ipaddress.IPv6Network] = None,
+                 firewall_zone: str = None):
         """ Object holding information about DNS server
 
         :param address_family: Indicates whether this is IPV4 of IPV6
@@ -24,8 +28,8 @@ class ServerDescription:
         :type address: bytes
         :param port: Port the server is listening on, defaults to None
         :type port: int, Optional
-        :param sni: Server name indication, when TLS is used, defaults to None
-        :type sni: str, Optional
+        :param name: Server name indication, when TLS is used, defaults to None
+        :type name: str, Optional
         :param priority: Priority of this server. Higher priority means server
                          will be used instead of lower priority ones, defaults
                          to 50
@@ -34,17 +38,23 @@ class ServerDescription:
         self.address_family = address_family
         self.address = bytes(address)
         self.port = port
-        self.sni = sni
+        self.name = name
         self.priority = priority
-        self.domains = domains if domains is not None else [('.', False)]
+        self.networks = networks if networks else []
+        if routing_domains:
+            self.routing_domains = routing_domains
+        else:
+            self.routing_domains = ["."]
+        self.search_domains = search_domains if search_domains else []
         self.interface = interface
         self.protocol = protocol if protocol is not None else DnsProtocol.PLAIN
         self.dnssec = dnssec
+        self.firewall_zone = firewall_zone
 
     def to_unbound_string(self) -> str:
         """ Get string formatted in unbound format
 
-        <address>[@port][#sni]
+        <address>[@port][#name]
 
         :return: server string in unbound format
         :rtype: str
@@ -54,28 +64,32 @@ class ServerDescription:
             srv_string += f"@{self.port}"
         elif self.protocol == DnsProtocol.DNS_OVER_TLS:
             srv_string += "@853"
-        if self.sni:
-            srv_string += f"#{self.sni}"
+        if self.name:
+            srv_string += f"#{self.name}"
         return srv_string
 
     @staticmethod
     def from_config(address: str,
                     protocol: DnsProtocol | None = None,
                     port: int | None = None,
-                    sni: str | None = None,
-                    domains: list[tuple[bool, str]] | None = None,
+                    name: str | None = None,
+                    routing_domains: list[str] | None = None,
+                    search_domains: list[str] | None = None,
                     interface: int = None,
-                    dnssec: bool = False) -> Optional["ServerDescription"]:
+                    dnssec: bool = False,
+                    nets: list[str] = None) -> Optional["ServerDescription"]:
         """ Create instance of ServerDescription
 
-        :param dnssec:
-        :param interface:
-        :param domains:
         :param address: String containing ip address
         :param protocol: Either 'plain' or 'DoT'
         :param port: port for connection
-        :param sni: server name indication that should be presented in
+        :param name: server name indication that should be presented in
                     certificate
+        :param routing_domains:
+        :param search_domains:
+        :param interface:
+        :param dnssec:
+        :param nets:
         :return:
         """
         address_parsed = ipaddress.ip_address(address)
@@ -84,15 +98,19 @@ class ServerDescription:
         else:
             address_family = socket.AF_INET6
 
+        networks = [ipaddress.ip_network(x) for x in nets] if nets else None
+
         srv = ServerDescription(address_family,
                                 socket.inet_pton(address_family,
                                                  str(address_parsed)),
                                 port,
-                                sni,
-                                domains=domains,
+                                name,
+                                routing_domains=routing_domains,
+                                search_domains=search_domains,
                                 interface=interface,
                                 protocol=protocol,
-                                dnssec=dnssec)
+                                dnssec=dnssec,
+                                networks=networks)
         return srv
 
     def get_server_string(self) -> str:
@@ -108,12 +126,14 @@ class ServerDescription:
             __value: ServerDescription
             return (self.address == __value.address
                     and self.port == __value.port
-                    and self.sni == __value.sni
+                    and self.name == __value.name
                     and self.protocol == __value.protocol
                     and self.priority == __value.priority
                     and self.dnssec == __value.dnssec
                     and self.interface == __value.interface
-                    and self.domains == __value.domains)
+                    and self.routing_domains == __value.routing_domains
+                    and self.search_domains == __value.search_domains
+                    and self.networks == __value.networks)
         except AttributeError:
             return False
 
@@ -137,11 +157,28 @@ class ServerDescription:
             port = 853
         else:
             port = 53
-        domains = [a[0] for a in self.domains] if self.domains else None
         return {"address": self.get_server_string(),
                 "port": port,
-                "sni": self.sni,
-                "domains": domains,
+                "name": self.name,
+                "routing_domains": self.routing_domains,
+                "search_domains": self.search_domains,
                 "interface": self.interface,
                 "protocol": self.protocol.name,
-                "dnssec": self.dnssec}
+                "dnssec": self.dnssec,
+                "networks": [str(x) for x in self.networks],
+                "firewall_zone": self.firewall_zone}
+
+    def get_rev_zones(self):
+        zones = []
+        for net in self.networks:
+            mem_bits = 8 if net.version == 4 else 4
+            to_whole = (mem_bits - (net.prefixlen % mem_bits)) % mem_bits
+            subnets = list(net.subnets(to_whole))
+            cut_index = ((subnets[0].max_prefixlen - subnets[0].prefixlen)
+                         // mem_bits)
+
+            for subnet in subnets:
+                splitted = subnet.network_address.reverse_pointer.split(".")
+                zones.append(".".join(splitted[cut_index:]))
+
+        return zones

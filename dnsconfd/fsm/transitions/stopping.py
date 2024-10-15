@@ -1,6 +1,6 @@
-from dnsconfd import SystemManager
+from dnsconfd import SystemManager, ExitCode
 from dnsconfd.dns_managers import UnboundManager
-from dnsconfd.fsm import ContextEvent, ExitCode, ContextState
+from dnsconfd.fsm import ContextEvent, ContextState
 from dnsconfd.fsm.exit_code_handler import ExitCodeHandler
 from dnsconfd.fsm.transitions import TransitionImplementations
 from dnsconfd.routing_manager import RoutingManager

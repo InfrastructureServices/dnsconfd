@@ -1,4 +1,4 @@
-.TH "dnsconfd.conf" "5" "10 Oct 2023" "dnsconfd-1.4.2" ""
+.TH "dnsconfd.conf" "5" "10 Oct 2023" "dnsconfd-1.5.0" ""
 
 .SH NAME
 
@@ -26,18 +26,22 @@ Options to be used in resolv.conf for alteration of resolver, default "edns0 tru
 Enable dnssec record validation, default no
 .IP "handle_routing"
 Dnsconfd will submit necessary routes to routing manager, default yes
-.IP "static_servers"
-List of servers that should be configured, default is empty
 .IP "api_choice"
 Dnsconfd will switch between APIs. Allowed options are resolve1 and dnsconfd.
 Default is resolve1
+.IP "static_servers"
+List of servers that should be configured, default is empty
 
 Available attributes of servers are:
 
  \(bu \fBaddress\fP required, string of servers ip address
  \(bu \fBprotocol\fP optional, DoT or plain
- \(bu \fBsni\fP optional, server name indication used for TLS checks
+ \(bu \fBname\fP optional, name that should be present in server's TLS certificate
  \(bu \fBport\fP optional, port on which server is listening. If not given then 53 is used for plain protocol and 853 for DoT
+ \(bu \fBrouting_domains\fP optional, domains whose resolution should be performed through this server
+ \(bu \fBsearch_domains\fP optional, domains that should be used for host-name lookup
+ \(bu \dnssec\fP optional, boolean indicating whether this server supports dnssec or not
+ \(bu \networks\fP optional, networks whose reverse dns records must be resolved by this server
 
 Examples:
 
@@ -46,16 +50,15 @@ Enabling one global server using DNS over TLS
 static_servers:
    - address: 192.168.6.3
      protocol: "DoT"
-     sni: named
+     name: named
 
 Enabling one server for specific domain and second for everything else
 
 static_servers:
     - address: 192.168.6.3
     - address: 192.168.6.4
-      domains:
-        - domain: domain.com
-          search: true
+      routing_domains:
+        - example.com
 
 .IP "ignore_api"
 If enabled, dnsconfd will ignore configuration received through API, default no

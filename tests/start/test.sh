@@ -20,7 +20,7 @@ rlJournalStart
 
         rlServiceStart dnsconfd
         sleep 5
-        rlRun "dnsconfd update '[{\"address\":\"192.168.6.3\", \"interface\": $interface_num}]'"
+        rlRun "dnsconfd update '[{\"address\":\"192.168.6.3\", \"interface\": $interface_num}]' 0"
         sleep 2
         rlRun "dnsconfd status | grep unbound" 0 "Verifying status of dnsconfd"
         # we can not simply check for a AVC until chrony issue is fixed
