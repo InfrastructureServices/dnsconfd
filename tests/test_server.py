@@ -4,7 +4,6 @@
 import socket
 import sys
 import os.path
-import pytest
 
 sys.path.append(os.path.join(sys.path[0], '..'))
 
