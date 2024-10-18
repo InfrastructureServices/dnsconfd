@@ -32,8 +32,11 @@ class StaticServersOption(Option):
                                    "specification")
                     return False
                 if "protocol" in resolver:
-                    if (resolver["protocol"] != "DoT"
-                            and resolver["protocol"] != "plain"):
+                    if not isinstance(resolver["protocol"], str):
+                        self.lgr.error("protocol has to be a string")
+                        return False
+                    if (resolver["protocol"].lower() != "dot"
+                            and resolver["protocol"].lower() != "plain"):
                         self.lgr.error("protocol contains invalid value")
                         return False
                 if "port" in resolver:
