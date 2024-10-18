@@ -1,6 +1,6 @@
 # com.redhat.dnsconfd
 
-version: **1.5.0**
+version: **1.5.1**
 
 ## com.redhat.dnsconfd.Manager
 
@@ -22,6 +22,10 @@ version: **1.5.0**
     - interface: optional, integer indicating if server can be used only through interface with this interface index.
     - dnssec: optional, boolean indicating whether this server supports dnssec or not. Defaulting to `False`.
     - networks: optional, list of strings representing networks whose reverse dns records must be resolved by this server
+    - connection-uuid: optional, string uuid of the connection associated with server in NetworkManager
+    - connection-name: optional, string name of the connection associated with server in NetworkManager
+    - connection-object: optional, string path of the connection object associated with server in NetworkManager
+    - priority: optional, integer indicating priority of this server, lower means higher priority
     - firewall_zone: optional, string indicating name of firewall zone that this server should be associated with
   - **mode**: Unsigned integer representing resolving mode Dnsconfd should work in.
     - 0 - Free, all available server can be used for resolving of all names

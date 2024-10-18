@@ -35,6 +35,10 @@ Available fields of servers are:
  \(bu \fBinterface\fP optional, integer indicating if server can be used only through interface with this interface index.
  \(bu \fBdnssec\fP optional, boolean indicating whether this server supports dnssec or not
  \(bu \fBnetworks\fP optional, list of strings representing networks whose reverse dns records must be resolved by this server
+ \(bu \fBconnection-uuid\fP optional, string uuid of the connection associated with server in NetworkManager
+ \(bu \fBconnection-name\fP optional, string name of the connection associated with server in NetworkManager
+ \(bu \fBconnection-object\fP optional, string path of the connection object associated with server in NetworkManager
+ \(bu \fBpriority\fP optional, integer indicating priority of this server, lower means higher priority
  \(bu \fBfirewall_zone\fP optional, string indicating name of firewall zone that this server should be associated with
 
 .IP "-h, --help"
@@ -54,7 +58,7 @@ Bad arguments.
 
 Use only one server for all queries and only through interface with index 3.
 
-# dnsconfd update '[{"address":"192.168.6.3", "protocol": "DoT", "name": "named"}]' 0
+# dnsconfd update '[{"address":"192.168.6.3", "protocol": "dot", "name": "named"}]' 0
 
 Use only one server for all queries, enable dns over tls and verify that server
 presents certificate containing hostname 'named'.
