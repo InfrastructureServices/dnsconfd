@@ -83,12 +83,12 @@ class DnsconfdDbusInterface(dbus.service.Object):
             protocol = DnsProtocol.PLAIN
             if server.get("protocol", None) is not None:
                 if (not isinstance(server["protocol"], str)
-                        or server["protocol"] not in ["plain", "DoT"]):
+                        or server["protocol"].lower() not in ["plain", "dot"]):
                     msg = f"{index + 1}. server has unknown protocol " \
                           f"{server["protocol"]}, only plain or DoT allowed"
                     self.lgr.error(msg)
                     return False, msg
-                if server["protocol"] == "DoT":
+                if server["protocol"].lower() == "dot":
                     protocol = DnsProtocol.DNS_OVER_TLS
 
             name = None

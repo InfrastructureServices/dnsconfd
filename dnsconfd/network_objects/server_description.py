@@ -23,17 +23,26 @@ class ServerDescription:
         """ Object holding information about DNS server
 
         :param address_family: Indicates whether this is IPV4 of IPV6
-        :type address_family: int
         :param address: Address of server
-        :type address: bytes
         :param port: Port the server is listening on, defaults to None
-        :type port: int, Optional
         :param name: Server name indication, when TLS is used, defaults to None
-        :type name: str, Optional
         :param priority: Priority of this server. Higher priority means server
                          will be used instead of lower priority ones, defaults
                          to 50
-        :type priority: int
+        :param routing_domains: domains whose members will be resolved only by
+                                this or other servers with the same domain
+                                entry
+        :param search_domains: domains that should be used for host-name
+                               lookup
+        :param interface: indicating if server can be used only through
+                          interface with this interface index
+        :param protocol: protocol that should be used for communication with
+                         this server
+        :param dnssec: indicating whether this server supports dnssec or not
+        :param networks: networks whose reverse dns records must be resolved
+                         by this server
+        :param firewall_zone: name of firewall zone that this server should be
+                              associated with
         """
         self.address_family = address_family
         self.address = bytes(address)
@@ -145,12 +154,22 @@ class ServerDescription:
         """
         return self.to_unbound_string()
 
-    def is_family(self, family):
+    def is_family(self, family: int) -> bool:
+        """ Get whether this server is of specified IP family
+
+        :param family: 4 or 6
+        :return: True if this object is of the same family as specified,
+                 otherwise False
+        """
         if self.address_family == socket.AF_INET and family == 4:
             return True
         return False
 
     def to_dict(self):
+        """ Get dictionary representing values held by this object
+
+        :return: dictionary representation of this object
+        """
         if self.port:
             port = self.port
         elif self.protocol == DnsProtocol.DNS_OVER_TLS:
@@ -168,7 +187,13 @@ class ServerDescription:
                 "networks": [str(x) for x in self.networks],
                 "firewall_zone": self.firewall_zone}
 
-    def get_rev_zones(self):
+    def get_rev_zones(self) -> list[str]:
+        """ Get domains that this server should handle according to its
+            networks
+
+        :return: list of strings containing reverse domains belonging to
+                 networks
+        """
         zones = []
         for net in self.networks:
             mem_bits = 8 if net.version == 4 else 4
