@@ -1,0 +1,6 @@
+summary: Configure syslog logging and verify that it is working
+test: ./test.sh
+framework: beakerlib
+tag:
+  - distribution
+duration: 120m

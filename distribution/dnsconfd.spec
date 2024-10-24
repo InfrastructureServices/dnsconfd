@@ -24,6 +24,7 @@ BuildRequires:  systemd-rpm-macros
 Requires:  (%{name}-selinux if selinux-policy-%{selinuxtype})
 Requires:  python3-gobject-base
 Requires:  python3-pyyaml
+Requires:  python3-systemd
 Requires:  dbus-common
 Requires:  %{name}-cache
 Suggests:  %{name}-unbound

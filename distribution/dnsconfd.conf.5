@@ -29,6 +29,16 @@ Dnsconfd will submit necessary routes to routing manager, default yes
 .IP "api_choice"
 Dnsconfd will switch between APIs. Allowed options are resolve1 and dnsconfd.
 Default is resolve1
+.IP stderr_log
+Dnsconfd will write logs into stderr, default yes
+.IP journal_log
+Dnsconfd will send logs into journal, default no
+.IP syslog_log
+Dnsconfd will send logs into syslog destination specified by this option,
+by default disabled. See command line option for destination specification
+syntax.
+.IP file_log
+Dnsconfd will write logs into specified file, not used by default
 .IP "static_servers"
 List of servers that should be configured, default is empty
 
