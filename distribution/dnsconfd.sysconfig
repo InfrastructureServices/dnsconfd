@@ -1,1 +1,3 @@
 OPTIONS=""
+STDERR_LOG=no
+JOURNAL_LOG=yes

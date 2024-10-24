@@ -2,12 +2,14 @@ import os
 import logging
 import sys
 from argparse import ArgumentParser, BooleanOptionalAction
+
 import yaml
 import yaml.scanner
+import systemd.journal
 
 from dnsconfd import CLICommands as Cmds
 from dnsconfd.configuration import Option, StaticServersOption, StringOption
-from dnsconfd.configuration import IpOption, BoolOption
+from dnsconfd.configuration import IpOption, BoolOption, SyslogOption
 from dnsconfd import ExitCode
 
 
@@ -28,6 +30,19 @@ class DnsconfdArgumentParser(ArgumentParser):
                          "Log level of dnsconfd",
                          "INFO",
                          validation=r"DEBUG|INFO|WARNING|ERROR|CRITICAL"),
+            BoolOption("stderr_log",
+                       "Log to stdout",
+                       True),
+            BoolOption("journal_log",
+                       "Log to journal",
+                       False),
+            SyslogOption("syslog_log",
+                         "Specify destination where syslog logs should "
+                         "be sent",
+                         ""),
+            Option("file_log",
+                   "Path to log file",
+                   default=""),
             StringOption("dbus_name",
                          "DBUS name that dnsconfd should use",
                          "org.freedesktop.resolve1",
@@ -179,9 +194,30 @@ class DnsconfdArgumentParser(ArgumentParser):
                                                      self._parsed.mode,
                                                      self._parsed.api_choice))
 
-    @staticmethod
-    def _config_log(log_level):
-        logging.basicConfig(level=log_level)
+    def _config_log(self, config):
+        handlers = []
+        log_level = self._get_option_value(config, self._config_values[0])
+        if self._get_option_value(config, self._config_values[1]):
+            handlers.append(logging.StreamHandler())
+
+        if self._get_option_value(config, self._config_values[2]):
+            handlers.append(systemd.journal.JournalHandler(
+                SYSLOG_IDENTIFIER="dnsconfd"))
+
+        syslog_log = self._get_option_value(config, self._config_values[3])
+        if syslog_log:
+            syslog_handler = self._config_values[3].construct_handler(
+                syslog_log)
+            if syslog_handler:
+                handlers.append(syslog_handler)
+
+        file_log = self._get_option_value(config, self._config_values[4])
+        if file_log:
+            try:
+                handlers.append(logging.FileHandler(file_log))
+            except PermissionError as e:
+                self.lgr.error("Was unable to open log file %s", e)
+        logging.basicConfig(level=log_level, handlers=handlers)
 
     def parse_args(self, *args, **kwargs):
         """ Parse arguments
@@ -200,9 +236,7 @@ class DnsconfdArgumentParser(ArgumentParser):
             config = self._read_config(os.environ.get("CONFIG_FILE",
                                                       "/etc/dnsconfd.conf"))
 
-        log_level = self._get_option_value(config, self._config_values[0])
-        self._config_log(log_level)
-
+        self._config_log(config)
         for option in self._config_values:
             setattr(self._parsed,
                     option.name,
