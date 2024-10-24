@@ -35,6 +35,22 @@ Options to be used in resolv.conf for alteration of resolver, default "edns0 tru
 Enable dnssec record validation, default no
 .IP "--handle-routing, --no-handle-routing"
 Dnsconfd will submit necessary routes to routing manager, default yes
+.IP "--stderr-log, --no-stderr-log"
+Dnsconfd will write logs into stderr, default yes
+.IP "--journal-log, --no-journal-log"
+Dnsconfd will send logs into journal, default no
+.IP "--syslog-log"
+Dnsconfd will send logs into syslog destination specified by this option,
+by default disabled.
+You can specify either linux domain socket by 'unix:<path>' where path
+will usually be /dev/log on your system, or you can use tcp or udp protocols
+like: '<transport_protocol>:<host>:<port>' where 'transport_protocol' is
+either tcp or udp, host can be ipv4, ipv6 address in square brackets or
+hostname and the port where syslog daemon is listening.
+Examples: udp:localhost:514, udp:[::1]:514, tcp:127.0.0.1:514,
+tcp:myhost.example.com:514
+.IP "--file-log"
+Dnsconfd will write logs into specified file, not used by default
 .IP "--api-choice"
 Dnsconfd will switch between APIs. Allowed options are resolve1 and dnsconfd.
 Default is resolve1
@@ -79,6 +95,16 @@ Options to be used in resolv.conf for alteration of resolver, default "edns0 tru
 Enable dnssec record validation, default no
 .IP HANDLE_ROUTING
 Dnsconfd will submit necessary routes to routing manager, default yes
+.IP STDERR_LOG
+Dnsconfd will write logs into stderr, default yes
+.IP JOURNAL_LOG
+Dnsconfd will send logs into journal, default no
+.IP SYSLOG_LOG
+Dnsconfd will send logs into syslog destination specified by this option,
+by default disabled. See command line option for destination specification
+syntax.
+.IP FILE_LOG
+Dnsconfd will write logs into specified file, not used by default
 .IP API_CHOICE
 Dnsconfd will switch between APIs. Allowed options are resolve1 and dnsconfd.
 Default is resolve1
@@ -94,6 +120,11 @@ by setting handle_routing option to 'no'.
 
 .SH NOTES
 The only currently supported backend is Unbound.
+
+Although default is to use stderr for logs and not journal, service is
+distributed with sysconfig file that reverses this behaviour, so when
+running Dnsconfd service you will have advantages of direct journal
+logs.
 
 .SH Installation
 
