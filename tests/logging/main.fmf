@@ -1,0 +1,7 @@
+summary: Test logging options
+test: ./test.sh
+framework: beakerlib
+recommend:
+  - podman
+tag:
+  - integration

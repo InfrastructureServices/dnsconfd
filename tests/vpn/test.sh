@@ -44,8 +44,11 @@ rlJournalStart
         rlRun "podman exec $dnsconfd_cid nmcli connection add type vpn vpn-type openvpn ipv4.method auto ipv4.never-default yes vpn.data '$VPN_SETTINGS'" 0 "Creating vpn connection"
         rlRun "podman exec $dnsconfd_cid nmcli connection up vpn" 0 "Connecting to vpn"
         sleep 2
-        rlRun "podman exec $dnsconfd_cid dnsconfd --dbus-name=$DBUS_NAME status --json > status2" 0 "Getting status of dnsconfd"
-        rlAssertNotDiffer status2 $ORIG_DIR/expected_status2.json
+        # we will have to improve status difference testing, before this can be used,
+        # we will have to match only certain fields and do not bother with their order when
+        # it is irrelevant
+        # rlRun "podman exec $dnsconfd_cid dnsconfd --dbus-name=$DBUS_NAME status --json > status2" 0 "Getting status of dnsconfd"
+        # rlAssertNotDiffer status2 $ORIG_DIR/expected_status2.json
         rlRun "podman exec $dnsconfd_cid getent hosts dummy | grep 192.168.6.5" 0 "Verifying correct address resolution"
         rlRun "podman exec $dnsconfd_cid getent hosts second-address | grep 192.168.6.4" 0 "Verifying correct address resolution"
     rlPhaseEnd

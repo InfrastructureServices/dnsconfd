@@ -19,12 +19,14 @@ prepare:
       - python3-rpm-macros
       - python3-pip
       - python3-pyyaml
+      - python3-systemd
       - systemd
       - systemd-rpm-macros
       - selinux-policy-devel
       - selinux-policy-targeted
       - audit
       - dbus-tools
+      - rsyslog
   - name: build-package
     order: 2
     how: shell
