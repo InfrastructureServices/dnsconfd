@@ -1,6 +1,7 @@
 #!/bin/bash
 # vim: dict+=/usr/share/beakerlib/dictionary.vim cpt=.,w,b,u,t,i,k
 . /usr/share/beakerlib/beakerlib.sh || exit 1
+. ../dnsconfd_helper_functions.sh || exit 1
 ORIG_DIR=$(pwd)
 
 rlJournalStart
@@ -24,7 +25,7 @@ rlJournalStart
         interface_num=$(podman exec $dnsconfd_cid ip -json a s eth0 | jq '.[] | .ifindex')
         rlRun "podman exec $dnsconfd_cid dnsconfd update '[{\"address\":\"192.168.6.3\"}, {\"address\":\"192.168.6.4\", \"interface\": $interface_num, \"routing_domains\": [\".\", \"subdomain.example.com\"], \"search_domains\": [\"subdomain.example.com\"]}, {\"address\":\"192.168.6.5\", \"interface\": $interface_num}]' 0" 0 "submit update"
         sleep 2
-        rlRun "podman exec $dnsconfd_cid dnsconfd status --json > status1" 0 "Getting status of dnsconfd"
+        rlRun "podman exec $dnsconfd_cid dnsconfd status --json | jq_filter_general > status1" 0 "Getting status of dnsconfd"
         rlAssertNotDiffer status1 $ORIG_DIR/expected_status1.json
         rlRun "podman exec $dnsconfd_cid getent hosts address.example.com | grep 192.168.6.3" 0 "Verifying correct address resolution"
         rlRun "podman exec $dnsconfd_cid getent hosts address.subdomain.example.com | grep 192.168.6.4" 0 "Verifying correct address resolution"
@@ -32,7 +33,7 @@ rlJournalStart
         rlRun "podman exec $dnsconfd_cid getent hosts address2.example.com | grep 192.168.6.5" 0 "Verifying correct address resolution"
         rlRun "podman exec $dnsconfd_cid dnsconfd update '[{\"address\":\"192.168.6.3\"}, {\"address\":\"192.168.6.4\", \"interface\": $interface_num, \"routing_domains\": [\".\", \"subdomain.example.com\"], \"search_domains\": [\"subdomain.example.com\"]}, {\"address\":\"192.168.6.5\", \"interface\": $interface_num}]' 1" 0 "submit update"
         sleep 2
-        rlRun "podman exec $dnsconfd_cid dnsconfd status --json > status2" 0 "Getting status of dnsconfd"
+        rlRun "podman exec $dnsconfd_cid dnsconfd status --json | jq_filter_general > status2" 0 "Getting status of dnsconfd"
         rlAssertNotDiffer status2 $ORIG_DIR/expected_status2.json
         rlRun "podman exec $dnsconfd_cid getent hosts address.example.com | grep 192.168.6.3" 0 "Verifying correct address resolution"
         rlRun "podman exec $dnsconfd_cid getent hosts address.subdomain.example.com | grep 192.168.6.4" 0 "Verifying correct address resolution"
@@ -40,7 +41,7 @@ rlJournalStart
         rlRun "podman exec $dnsconfd_cid getent hosts address2.example.com | grep 192.168.6.5" 1 "Verifying correct address resolution"
         rlRun "podman exec $dnsconfd_cid dnsconfd update '[{\"address\":\"192.168.6.3\"}, {\"address\":\"192.168.6.4\", \"interface\": $interface_num, \"routing_domains\": [\".\", \"subdomain.example.com\"], \"search_domains\": [\"subdomain.example.com\"]}, {\"address\":\"192.168.6.5\", \"interface\": $interface_num}]' 2" 0 "submit update"
         sleep 2
-        rlRun "podman exec $dnsconfd_cid dnsconfd status --json > status3" 0 "Getting status of dnsconfd"
+        rlRun "podman exec $dnsconfd_cid dnsconfd status --json | jq_filter_general > status3" 0 "Getting status of dnsconfd"
         rlAssertNotDiffer status3 $ORIG_DIR/expected_status3.json
         rlRun "podman exec $dnsconfd_cid getent hosts address.example.com | grep 192.168.6.3" 0 "Verifying correct address resolution"
         rlRun "podman exec $dnsconfd_cid getent hosts address.subdomain.example.com | grep 192.168.6.4" 1 "Verifying correct address resolution"

@@ -21,6 +21,7 @@ prepare:
       - python3-pip
       - systemd
       - systemd-rpm-macros
+      - jq
   - name: build-package
     order: 2
     how: shell

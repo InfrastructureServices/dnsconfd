@@ -1,6 +1,7 @@
 #!/bin/bash
 # vim: dict+=/usr/share/beakerlib/dictionary.vim cpt=.,w,b,u,t,i,k
 . /usr/share/beakerlib/beakerlib.sh || exit 1
+. ../dnsconfd_helper_functions.sh || exit 1
 ORIG_DIR=$(pwd)
 
 rlJournalStart
@@ -24,7 +25,7 @@ rlJournalStart
         sleep 2
         rlRun "podman exec $dnsconfd_cid dnsconfd update '[{\"address\":\"192.168.6.3\", \"networks\": [\"8.0.0.0/8\"]}, {\"address\":\"192.168.6.4\", \"networks\": [\"192.168.7.0/24\"]}, {\"address\":\"192.168.6.5\", \"networks\": [\"192.168.8.0/24\", \"8.8.4.0/24\"]}]' 0" 0 "submit update"
         sleep 2
-        rlRun "podman exec $dnsconfd_cid dnsconfd status --json > status1" 0 "Getting status of dnsconfd"
+        rlRun "podman exec $dnsconfd_cid dnsconfd status --json | jq_filter_general > status1" 0 "Getting status of dnsconfd"
         rlAssertNotDiffer status1 $ORIG_DIR/expected_status.json
         rlRun "podman exec $dnsconfd_cid host 8.8.8.8 | grep address-one.example.com" 0 "Verifying correct address resolution"
         rlRun "podman exec $dnsconfd_cid host 8.8.4.4 | grep address-four.example.com" 0 "Verifying correct address resolution"
