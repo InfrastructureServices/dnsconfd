@@ -1,6 +1,7 @@
 #!/bin/bash
 # vim: dict+=/usr/share/beakerlib/dictionary.vim cpt=.,w,b,u,t,i,k
 . /usr/share/beakerlib/beakerlib.sh || exit 1
+. ../dnsconfd_helper_functions.sh || exit 1
 ORIG_DIR=$(pwd)
 
 rlJournalStart
@@ -31,7 +32,7 @@ rlJournalStart
         rlRun "podman exec $dnsconfd_cid nmcli con up eth0"
         rlRun "podman exec $dnsconfd_cid nmcli con up eth1"
         sleep 2
-        rlRun "podman exec $dnsconfd_cid dnsconfd status --json > status1" 0 "Getting status of dnsconfd"
+        rlRun "podman exec $dnsconfd_cid dnsconfd status --json | jq_filter_general > status1" 0 "Getting status of dnsconfd"
         rlAssertNotDiffer status1 $ORIG_DIR/expected_status.json
         rlRun "podman exec $dnsconfd_cid getent hosts address.test.com | grep 192.168.7.4" 0 "Verifying correct address resolution"
     rlPhaseEnd

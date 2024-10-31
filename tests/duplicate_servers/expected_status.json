@@ -1,1 +1,1 @@
-{"service": "unbound", "cache_config": {".": ["192.168.7.4"]}, "state": "RUNNING", "servers": [{"address": "192.168.7.4", "port": 53, "name": null, "routing_domains": ["."], "search_domains": [], "interface": "eth0", "protocol": "PLAIN", "dnssec": false, "networks": [], "firewall_zone": null}]}
+{"cache_config":{".":["192.168.7.4"]},"servers":[{"address":"192.168.7.4","dnssec":false,"firewall_zone":null,"interface":"eth0","name":null,"networks":[],"port":53,"protocol":"PLAIN","routing_domains":["."],"search_domains":[]}],"service":"unbound"}

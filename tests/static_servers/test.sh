@@ -1,7 +1,7 @@
 #!/bin/bash
 # vim: dict+=/usr/share/beakerlib/dictionary.vim cpt=.,w,b,u,t,i,k
 . /usr/share/beakerlib/beakerlib.sh || exit 1
-DBUS_NAME=org.freedesktop.resolve1
+. ../dnsconfd_helper_functions.sh || exit 1
 ORIG_DIR=$(pwd)
 
 rlJournalStart
@@ -35,7 +35,7 @@ rlJournalStart
         # and we need new configuration
         rlRun "podman exec $dnsconfd_cid systemctl restart dnsconfd"
         sleep 5
-        rlRun "podman exec $dnsconfd_cid dnsconfd --dbus-name=$DBUS_NAME status --json > status1" 0 "Getting status of dnsconfd"
+        rlRun "podman exec $dnsconfd_cid dnsconfd status --json | jq_filter_general > status1" 0 "Getting status of dnsconfd"
         rlAssertNotDiffer status1 $ORIG_DIR/expected_status.json
         rlRun "podman exec $dnsconfd_cid getent hosts server.example.com | grep 192.168.6.5" 0 "Verifying correct address resolution"
         rlRun "podman cp dnsconfd-wrong.conf $dnsconfd_cid://etc/dnsconfd.conf"

@@ -1,7 +1,7 @@
 #!/bin/bash
 # vim: dict+=/usr/share/beakerlib/dictionary.vim cpt=.,w,b,u,t,i,k
 . /usr/share/beakerlib/beakerlib.sh || exit 1
-DBUS_NAME=org.freedesktop.resolve1
+. ../dnsconfd_helper_functions.sh || exit 1
 ORIG_DIR=$(pwd)
 
 rlJournalStart
@@ -25,7 +25,7 @@ rlJournalStart
         sleep 2
         # in this test we are verifying that the DNS of non-wireless interface has higher priority
         # than the wireless one
-        rlRun "podman exec $dnsconfd_cid dnsconfd status --json > status1" 0 "Getting status of dnsconfd"
+        rlRun "podman exec $dnsconfd_cid dnsconfd status --json | jq_filter_general > status1" 0 "Getting status of dnsconfd"
         rlAssertNotDiffer status1 $ORIG_DIR/expected_status.json
         rlRun "podman exec $dnsconfd_cid getent hosts first-address.test.com | grep 192.168.7.3" 0 "Verifying correct address resolution"
         rlRun "podman exec $dnsconfd_cid getent hosts second-address.test.com | grep 192.168.8.3" 0 "Verifying correct address resolution"

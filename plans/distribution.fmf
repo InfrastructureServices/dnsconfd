@@ -27,6 +27,7 @@ prepare:
       - audit
       - dbus-tools
       - rsyslog
+      - jq
   - name: build-package
     order: 2
     how: shell
