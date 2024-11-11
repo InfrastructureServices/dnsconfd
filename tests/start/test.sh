@@ -13,14 +13,11 @@ rlJournalStart
         rlServiceStart dnsconfd
         sleep 2
         rlRun "dnsconfd status | grep unbound" 0 "Verifying status of dnsconfd"
-
         # test also new api
         rlRun "echo 'api_choice: dnsconfd' >> /etc/dnsconfd.conf"
-        interface_num=$(ip -json a s eth0 | jq '.[] | .ifindex')
-
         rlServiceStart dnsconfd
         sleep 5
-        rlRun "dnsconfd update '[{\"address\":\"192.168.6.3\", \"interface\": $interface_num}]' 0"
+        rlRun "dnsconfd update --json '[{\"address\":\"192.168.6.3\", \"interface\": \"eth0\"}]'"
         sleep 2
         rlRun "dnsconfd status | grep unbound" 0 "Verifying status of dnsconfd"
         # we can not simply check for a AVC until chrony issue is fixed

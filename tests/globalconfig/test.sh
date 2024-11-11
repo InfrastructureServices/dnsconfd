@@ -28,7 +28,7 @@ rlJournalStart
         # server certificate fails
         sleep 3
         rlRun "podman exec $dnsconfd_cid getent hosts server.example.com | grep 192.168.6.5" 1 "Verifying no result"
-        rlRun "podman exec $dnsconfd_cid dnsconfd update '[{\"address\":\"192.168.6.3\", \"protocol\": \"DoT\", \"sni\": \"named\"}]' 0" 0 "submit update"
+        rlRun "podman exec $dnsconfd_cid dnsconfd update --json '[{\"address\":\"192.168.6.3\", \"protocol\": \"DoT\", \"sni\": \"named\"}]'" 0 "submit update"
         sleep 1
         rlRun "podman exec $dnsconfd_cid getent hosts server.example.com | grep 192.168.6.5" 0 "Verifying correct resolution"
         sleep 5

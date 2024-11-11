@@ -195,7 +195,7 @@ class UnboundManager(DnsManager):
             servers_str.append(srv.to_unbound_string())
             if self.dnssec and not insecure and not srv.dnssec:
                 insecure = True
-        tls = used_protocol == DnsProtocol.DNS_OVER_TLS
+        tls = used_protocol == DnsProtocol.DNS_PLUS_TLS
         flags = None
         if tls or insecure:
             flags = "+"

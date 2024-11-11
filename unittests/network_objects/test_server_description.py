@@ -1,6 +1,7 @@
 import ipaddress
+import socket
 
-from dnsconfd.network_objects import ServerDescription
+from dnsconfd.network_objects import ServerDescription, DnsProtocol
 
 import pytest
 
@@ -45,3 +46,80 @@ import pytest
 def test_get_rev_zones(value):
     nets = ipaddress.ip_network(value[0])
     assert ServerDescription(4, b"\x00\x00\x00\x00", networks=[nets]).get_rev_zones() == value[1]
+
+
+@pytest.mark.parametrize("value", [
+    ("dns+tls://192.168.6.3?interface=eth0#named",
+     ServerDescription(socket.AF_INET,
+                       ipaddress.ip_address("192.168.6.3").packed,
+                       name="named",
+                       interface="eth0",
+                       protocol=DnsProtocol.DNS_PLUS_TLS)
+     ),
+    ("dns+tls://192.168.6.3#named",
+     ServerDescription(socket.AF_INET,
+                       ipaddress.ip_address("192.168.6.3").packed,
+                       name="named",
+                       protocol=DnsProtocol.DNS_PLUS_TLS)
+     ),
+    ("dns+udp://192.168.6.3",
+     ServerDescription(socket.AF_INET,
+                       ipaddress.ip_address("192.168.6.3").packed)
+     ),
+    ("dns+tls://[::1]:900?interface=eth0#named",
+     ServerDescription(socket.AF_INET,
+                       ipaddress.ip_address("::1").packed,
+                       name="named",
+                       interface="eth0",
+                       protocol=DnsProtocol.DNS_PLUS_TLS,
+                       port=900)
+     ),
+    ("dns+tls://[::1]:900?interface=eth0&validation=yes#named",
+     ServerDescription(socket.AF_INET,
+                       ipaddress.ip_address("::1").packed,
+                       name="named",
+                       interface="eth0",
+                       protocol=DnsProtocol.DNS_PLUS_TLS,
+                       port=900,
+                       dnssec=True)
+     ),
+    ("dns+tls://[::1]:900?interface=eth0&validation=yes&domain=example.com&domain=example.org#named",
+     ServerDescription(socket.AF_INET,
+                       ipaddress.ip_address("::1").packed,
+                       name="named",
+                       interface="eth0",
+                       protocol=DnsProtocol.DNS_PLUS_TLS,
+                       port=900,
+                       dnssec=True,
+                       routing_domains=["example.com", "example.org"])
+     )
+])
+def test_uri_parsing(value):
+    assert ServerDescription.from_uri(value[0]) == value[1]
+
+
+@pytest.mark.parametrize("value", [
+    (ServerDescription(socket.AF_INET,
+                       ipaddress.ip_address("192.168.6.3").packed,
+                       name="named",
+                       protocol=DnsProtocol.DNS_PLUS_TLS),
+     "dns+tls://192.168.6.3#named"),
+    (ServerDescription(socket.AF_INET,
+                       ipaddress.ip_address("192.168.6.3").packed),
+     "dns+udp://192.168.6.3"),
+    (ServerDescription(socket.AF_INET,
+                       ipaddress.ip_address("192.168.6.3").packed,
+                       protocol=DnsProtocol.DNS_PLUS_TLS),
+     "dns+tls://192.168.6.3"),
+    (ServerDescription(socket.AF_INET6,
+                       ipaddress.ip_address("::1").packed,
+                       name="named",
+                       interface="eth0",
+                       protocol=DnsProtocol.DNS_PLUS_TLS,
+                       port=900,
+                       dnssec=True,
+                       routing_domains=["example.com", "example.org"]),
+     "dns+tls://[::1]:900#named")
+])
+def test_uri_serialization(value: tuple):
+    assert str(value[0]) == value[1]

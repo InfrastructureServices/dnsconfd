@@ -6,7 +6,7 @@ dnsconfd-update - Change Dnsconfd configuration
 
 .SH SYNOPSIS
 
-dnsconfd update <server_list> <mode>
+dnsconfd update [--json] <servers> [--mode] [--search]
 
 .SH DESCRIPTION
 
@@ -14,20 +14,17 @@ Update command changes dnsconfd configuration of forwarders.
 
 .SH OPTIONS
 
-.IP "server_list"
-JSON formatted List of forwarders that should be used by dnsconfd and
-underlying cache service.
-.IP "mode"
-Integer representing resolving mode Dnsconfd should work in.
-Valid values are:
- \(bu \fB0\fP - Free, all available server can be used for resolving of all names
- \(bu \fB1\fP - Global restrictive, only global servers (not bound to interface) can be used for resolving of all names. Bound servers can resolve only subdomains
- \(bu \fB2\fP - Full restrictive, only global servers will be used for resolving
+.IP "--json"
 
-Available fields of servers are:
+The servers will be JSON formatted array
+.IP "servers"
+
+Either JSON formatted array or URIs describing DNS servers.
+
+Available fields of JSON servers are:
 
  \(bu \fBaddress\fP required, string of servers ip address
- \(bu \fBprotocol\fP optional, DoT or plain
+ \(bu \fBprotocol\fP optional, dns+udp, dns+tcp or dns+tls
  \(bu \fBname\fP optional, name that should be present in server's TLS certificate
  \(bu \fBport\fP optional, port on which server is listening. If not given then 53 is used for plain protocol and 853 for DoT
  \(bu \fBrouting_domains\fP optional, list of strings with the domain name whose members will be resolved only by this or other servers with the same domain entry
@@ -38,8 +35,31 @@ Available fields of servers are:
  \(bu \fBconnection-uuid\fP optional, string uuid of the connection associated with server in NetworkManager
  \(bu \fBconnection-name\fP optional, string name of the connection associated with server in NetworkManager
  \(bu \fBconnection-object\fP optional, string path of the connection object associated with server in NetworkManager
- \(bu \fBpriority\fP optional, integer indicating priority of this server, lower means higher priority
+ \(bu \fBpriority\fP optional, integer indicating priority of this server, higher number means higher priority
  \(bu \fBfirewall_zone\fP optional, string indicating name of firewall zone that this server should be associated with
+
+URI consists of scheme, authority, path, query, fragment where:
+     \(bu \fBscheme\fP required, protocol for communication with server. Supported values are dns+udp, dns+tcp, dns+tls
+     \(bu \fBauthority\fP required, IP address of server and optionally port where it is listening
+     \(bu \fBpath\fP currently not used
+     \(bu \fBquery\fP optional values specifying additional parameters
+     \(bu \fBfragment\fP optional name that should be present in server's TLS certificate
+
+Allowed query key/value pairs are:
+     \(bu \fBdomain\fP domains that should be resolved by this server, can be specified multiple times, default is '.'
+     \(bu \fBvalidation\fP indicates whether responses from this server should be validated by dnssec, allowed values are yes/no, default is no
+     \(bu \fBinterface\fP indicates whether the server should be contacted by specific network interface, this value is unset by default
+
+See examples section for further description.
+
+.IP "--mode"
+
+Integer representing resolving mode Dnsconfd should work in.
+
+Valid values are:
+ \(bu \fB0\fP - Free, all available server can be used for resolving of all names
+ \(bu \fB1\fP - Global restrictive, only global servers (not bound to interface) can be used for resolving of all names. Bound servers can resolve only subdomains
+ \(bu \fB2\fP - Full restrictive, only global servers will be used for resolving
 
 .IP "-h, --help"
 Show help message and exit
@@ -54,26 +74,37 @@ Error occurred.
 Bad arguments.
 
 .SH EXAMPLES
-# dnsconfd update '[{"address":"192.168.6.3", "interface": 3}]' 0
 
-Use only one server for all queries and only through interface with index 3.
+.IP "\(bu Use only one server for all queries and only through interface with name eth0"
 
-# dnsconfd update '[{"address":"192.168.6.3", "protocol": "dot", "name": "named"}]' 0
+# dnsconfd update --json '[{"address":"192.168.6.3", "interface": "eth0"}]'
+.br
+or
+.br
+# dnsconfd update 'dns+udp://192.168.6.3?interface=eth0'
 
-Use only one server for all queries, enable dns over tls and verify that server
-presents certificate containing hostname 'named'.
+.IP "\(bu Use only one server for all queries, enable dns over tls and verify that server presents certificate containing hostname 'named'."
 
-# dnsconfd update '[{"address":"192.168.6.3", "routing_domains": ["example.com"], "interface": 3}, {"address":"2001:db8::103"}]' 0
+# dnsconfd update --json '[{"address":"192.168.6.3", "protocol": "dns+tls", "name": "named"}]'
+.br
+or
+.br
+# dnsconfd update 'dns+tls://192.168.6.3#named'
 
-Use server 192.168.6.3 for resolving names under domain example.com, but do not use the domain for
-host-name lookup and use 2001:db8::103 for resolving of any other name.
+.IP "\(bu Use server 192.168.6.3 for resolving names under domain example.com, and use 2001:db8::103 for resolving of any other name."
+
+# dnsconfd update --json '[{"address":"192.168.6.3", "routing_domains": ["example.com"], "interface": "eth0"}, {"address":"2001:db8::103"}]'
+.br
+or
+.br
+# dnsconfd update 'dns+udp://192.168.6.3?domain=example.org&interface=eth0' 'dns+udp://[2001:db8::103]'
 
 This would have the same effect with Global restrictive mode, but with full restrictive mode,
 even names belonging to example.com would be resolved through 2001:db8::103. To achieve the
 same effect with all modes, server 192.168.6.3 must not be bound to any interface (be global).
 
 .SH "LIMITATIONS"
-This command only supports dnsconfd API. See api_choice option for further information.
+This command only supports dnsconfd API. See api_choice configuration option for further information.
 
 .SH "REPORTING BUGS"
 Please for reporting bugs use Github repository https://github.com/InfrastructureServices/dnsconfd

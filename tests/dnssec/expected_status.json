@@ -1,1 +1,1 @@
-{"cache_config":{".":["192.168.6.3"]},"servers":[{"address":"192.168.6.3","dnssec":true,"firewall_zone":null,"interface":"eth0","name":null,"networks":[],"port":53,"protocol":"PLAIN","routing_domains":["."],"search_domains":[]}],"service":"unbound"}
+{"cache_config":{".":["dns+udp://192.168.6.3"]},"servers":[{"address":"192.168.6.3","dnssec":true,"firewall_zone":null,"interface":"eth0","name":null,"networks":[],"port":53,"protocol":"dns+udp","routing_domains":["."],"search_domains":[]}],"service":"unbound"}

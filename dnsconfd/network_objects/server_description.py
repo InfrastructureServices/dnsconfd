@@ -1,6 +1,7 @@
 import socket
 import ipaddress
 from typing import Optional
+from urllib.parse import urlsplit, urlunsplit, parse_qs, urlencode
 
 from dnsconfd.network_objects import DnsProtocol
 
@@ -14,8 +15,8 @@ class ServerDescription:
                  priority: int = 100,
                  routing_domains: list[str] = None,
                  search_domains: list[str] = None,
-                 interface: int | None = None,
-                 protocol: DnsProtocol = DnsProtocol.PLAIN,
+                 interface: str | None = None,
+                 protocol: DnsProtocol = DnsProtocol.DNS_PLUS_UDP,
                  dnssec: bool = False,
                  networks: list[ipaddress.IPv4Network]
                            | list[ipaddress.IPv6Network] = None,
@@ -35,7 +36,7 @@ class ServerDescription:
         :param search_domains: domains that should be used for host-name
                                lookup
         :param interface: indicating if server can be used only through
-                          interface with this interface index
+                          interface with this name
         :param protocol: protocol that should be used for communication with
                          this server
         :param dnssec: indicating whether this server supports dnssec or not
@@ -56,7 +57,10 @@ class ServerDescription:
             self.routing_domains = ["."]
         self.search_domains = search_domains if search_domains else []
         self.interface = interface
-        self.protocol = protocol if protocol is not None else DnsProtocol.PLAIN
+        if protocol is not None:
+            self.protocol = protocol
+        else:
+            self.protocol = DnsProtocol.DNS_PLUS_UDP
         self.dnssec = dnssec
         self.firewall_zone = firewall_zone
 
@@ -71,7 +75,7 @@ class ServerDescription:
         srv_string = socket.inet_ntop(self.address_family, self.address)
         if self.port:
             srv_string += f"@{self.port}"
-        elif self.protocol == DnsProtocol.DNS_OVER_TLS:
+        elif self.protocol == DnsProtocol.DNS_PLUS_TLS:
             srv_string += "@853"
         if self.name:
             srv_string += f"#{self.name}"
@@ -84,7 +88,7 @@ class ServerDescription:
                     name: str | None = None,
                     routing_domains: list[str] | None = None,
                     search_domains: list[str] | None = None,
-                    interface: int = None,
+                    interface: str = None,
                     dnssec: bool = False,
                     nets: list[str] = None) -> Optional["ServerDescription"]:
         """ Create instance of ServerDescription
@@ -110,8 +114,7 @@ class ServerDescription:
         networks = [ipaddress.ip_network(x) for x in nets] if nets else None
 
         srv = ServerDescription(address_family,
-                                socket.inet_pton(address_family,
-                                                 str(address_parsed)),
+                                address_parsed.packed,
                                 port,
                                 name,
                                 routing_domains=routing_domains,
@@ -149,10 +152,10 @@ class ServerDescription:
     def __str__(self) -> str:
         """ Get string with info about server
 
-        :return: unbound formatted string
+        :return: URI of server
         :rtype: str
         """
-        return self.to_unbound_string()
+        return self.to_uri()
 
     def is_family(self, family: int) -> bool:
         """ Get whether this server is of specified IP family
@@ -165,27 +168,36 @@ class ServerDescription:
             return True
         return False
 
-    def to_dict(self):
+    def to_dict(self, strip: bool = False):
         """ Get dictionary representing values held by this object
 
+        :param strip: Set if None values should be stripped
         :return: dictionary representation of this object
         """
         if self.port:
             port = self.port
-        elif self.protocol == DnsProtocol.DNS_OVER_TLS:
+        elif strip:
+            port = None
+        elif self.protocol == DnsProtocol.DNS_PLUS_TLS:
             port = 853
         else:
             port = 53
-        return {"address": self.get_server_string(),
-                "port": port,
-                "name": self.name,
-                "routing_domains": self.routing_domains,
-                "search_domains": self.search_domains,
-                "interface": self.interface,
-                "protocol": self.protocol.name,
-                "dnssec": self.dnssec,
-                "networks": [str(x) for x in self.networks],
-                "firewall_zone": self.firewall_zone}
+        result = {"address": self.get_server_string(),
+                  "port": port,
+                  "name": self.name,
+                  "routing_domains": self.routing_domains,
+                  "search_domains": self.search_domains,
+                  "interface": self.interface,
+                  "protocol": str(self.protocol),
+                  "dnssec": self.dnssec,
+                  "networks": [str(x) for x in self.networks],
+                  "firewall_zone": self.firewall_zone}
+        if strip:
+            for key in list(result):
+                if result[key] is None or result[key] == []:
+                    result.pop(key)
+
+        return result
 
     def get_rev_zones(self) -> list[str]:
         """ Get domains that this server should handle according to its
@@ -207,3 +219,78 @@ class ServerDescription:
                 zones.append(".".join(splitted[cut_index:]))
 
         return zones
+
+    def to_uri(self) -> str:
+        ip_str = str(ipaddress.ip_address(self.address))
+        if self.address_family == socket.AF_INET:
+            netloc = f"{ip_str}"
+        else:
+            netloc = f"[{ip_str}]"
+        if self.port:
+            netloc = f"{netloc}:{self.port}"
+
+        return str(urlunsplit([str(self.protocol),
+                               netloc,
+                               "",
+                               "",
+                               self.name]))
+
+    @staticmethod
+    def from_uri(uri: str,
+                 opt_search_domains: list[str] | None = None
+                 ) -> "ServerDescription":
+        """ Create ServerDescription instance by parsing uri and options
+
+        :raises: ValueError when unacceptable value is present
+        :param uri: Uri describing DNS server
+        :param opt_search_domains: list of search domains presented
+        :return: ServerDescription instance
+        """
+        parsed_url = urlsplit(uri, scheme="dns+udp")
+        protocol = DnsProtocol.from_str(parsed_url.scheme)
+        if protocol is None:
+            raise ValueError(f"Scheme {parsed_url.scheme} is not supported")
+
+        if not parsed_url.hostname:
+            raise ValueError("URI has to contain address")
+        address_parsed = ipaddress.ip_address(parsed_url.hostname)
+        if address_parsed.version == 4:
+            address_family = socket.AF_INET
+        else:
+            address_family = socket.AF_INET6
+
+        parsed_qs = parse_qs(parsed_url.query)
+
+        domains = {}
+        for domain in parsed_qs.get("domain", []):
+            domains[domain] = True
+
+        domains = list(domains) if domains else None
+
+        interface = None
+        if parsed_qs.get("interface", None):
+            interface = parsed_qs["interface"][-1]
+
+        dnssec = False
+        if parsed_qs.get("validation", False):
+            dnssec = parsed_qs["validation"][-1] == "yes"
+
+        networks = []
+        for network in parsed_qs.get("network", []):
+            try:
+                networks.append(ipaddress.ip_network(network))
+            except ValueError:
+                raise ValueError(f"Specified invalid network {network}")
+
+        name = parsed_url.fragment if parsed_url.fragment else None
+
+        return ServerDescription(address_family,
+                                 address_parsed.packed,
+                                 parsed_url.port,
+                                 name,
+                                 routing_domains=domains,
+                                 search_domains=opt_search_domains,
+                                 interface=interface,
+                                 protocol=protocol,
+                                 dnssec=dnssec,
+                                 networks=networks)

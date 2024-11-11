@@ -5,6 +5,7 @@ from dbus import DBusException
 import dbus
 
 from dnsconfd import NetworkManager, SystemManager
+from dnsconfd.network_objects import ServerDescription
 
 
 class CLICommands:
@@ -135,21 +136,42 @@ class CLICommands:
 
     @staticmethod
     def update(dbus_name: str,
+               is_json: bool,
                servers: str,
+               search: list[str],
                mode: int,
                api_choice: str) -> typing.NoReturn:
         """ Call Update DBUS method of Dnsconfd
 
         :param dbus_name: DBUS name Dnsconfd listens on
+        :param is_json: Indicates whether the servers string is JSON
         :param servers: JSON string with servers that should be set in place
+        :param search: list of search domains that should be appended
         :param mode: Resolving mode that should be set
         :param api_choice: dnsconfd or resolve1
         """
-        try:
-            server_list = json.loads(servers)
-        except json.JSONDecodeError as e:
-            print(f"Servers are not valid JSON string: {e}")
-            sys.exit(1)
+        if servers is None:
+            server_list = []
+        elif is_json:
+            try:
+                print(f"servers are {servers}")
+                server_list = json.loads(servers[0])
+            except json.JSONDecodeError as e:
+                print(f"Servers are not valid JSON string: {e}")
+                sys.exit(1)
+        else:
+            try:
+                server_list = []
+                for srv in servers:
+                    server_list.append(
+                        ServerDescription.from_uri(srv).to_dict(strip=True))
+            except ValueError as e:
+                print(f"Server uri is not valid {e}")
+                sys.exit(1)
+        if search:
+            for server in server_list:
+                server.setdefault("search_domains", []).extend(search)
+
         bus = dbus.SystemBus()
 
         try:

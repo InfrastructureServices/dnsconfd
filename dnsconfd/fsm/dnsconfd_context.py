@@ -98,15 +98,6 @@ class DnsconfdContext:
         """
         self.lgr.debug("Handling request for status")
         servers = [a.to_dict() for a in self.server_manager.get_all_servers()]
-        found_interfaces = {}
-        for srv in servers:
-            if srv["interface"] is not None:
-                found_interfaces[srv["interface"]] = True
-        for key in found_interfaces:
-            found_interfaces[key] = InterfaceConfiguration.get_if_name(key)
-        for srv in servers:
-            if srv["interface"] is not None:
-                srv["interface"] = found_interfaces[srv["interface"]]
 
         if json_format:
             status = {"service": self.dns_mgr.service_name,

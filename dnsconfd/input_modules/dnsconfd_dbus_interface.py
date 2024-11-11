@@ -80,16 +80,18 @@ class DnsconfdDbusInterface(dbus.service.Object):
                     return False, msg
                 port = int(server["port"])
 
-            protocol = DnsProtocol.PLAIN
+            protocol = DnsProtocol.DNS_PLUS_UDP
             if server.get("protocol", None) is not None:
-                if (not isinstance(server["protocol"], str)
-                        or server["protocol"].lower() not in ["plain", "dot"]):
-                    msg = f"{index + 1}. server has unknown protocol " \
-                          f"{server["protocol"]}, only plain or DoT allowed"
+                if not isinstance(server["protocol"], str):
+                    msg = f"{index + 1}. server is not a string protocol"
                     self.lgr.error(msg)
                     return False, msg
-                if server["protocol"].lower() == "dot":
-                    protocol = DnsProtocol.DNS_OVER_TLS
+                protocol = DnsProtocol.from_str(server["protocol"])
+                if protocol is None:
+                    msg = f"{index + 1}. server has unsupported protocol " \
+                          f"{server["protocol"]}"
+                    self.lgr.error(msg)
+                    return False, msg
 
             name = None
             if server.get("name", None) is not None:
@@ -144,12 +146,12 @@ class DnsconfdDbusInterface(dbus.service.Object):
             interface = None
             is_wireless = False
             if server.get("interface", None) is not None:
-                if not isinstance(server["interface"], int):
+                if not isinstance(server["interface"], str):
                     msg = (f"{index + 1}. server has bad interface "
                            f"{server["interface"]}")
                     self.lgr.error(msg)
                     return False, msg
-                interface = int(server["interface"])
+                interface = str(server["interface"])
                 is_wireless = (self.prio_wire
                                and (InterfaceConfiguration.
                                     is_interface_wireless(interface)))
@@ -168,7 +170,9 @@ class DnsconfdDbusInterface(dbus.service.Object):
 
             dnssec = False
             if server.get("dnssec", None) is not None:
-                if not isinstance(server["dnssec"], bool):
+                # here we have to check for dbus.Boolean as it does not
+                # inherit from bool but from int
+                if not isinstance(server["dnssec"], dbus.Boolean):
                     msg = f"{index + 1}. dnssec is not bool"
                     self.lgr.error(msg)
                     return False, msg
