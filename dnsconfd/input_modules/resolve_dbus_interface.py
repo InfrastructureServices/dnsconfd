@@ -187,6 +187,12 @@ class ResolveDbusInterface(dbus.service.Object):
             servers: list[ServerDescription] = []
             for cur_interface in self.interfaces.values():
                 if_index = int(cur_interface)
+                if_name = InterfaceConfiguration.get_if_name(if_index,
+                                                             strict=True)
+                if if_name is None:
+                    self.lgr.error("Interface with index %s does not have "
+                                   "a name, refusing this update", if_index)
+                    return
                 for server in cur_interface.servers:
                     routing_domains = []
                     search_domains = []
@@ -197,9 +203,9 @@ class ResolveDbusInterface(dbus.service.Object):
                     if cur_interface.is_default:
                         routing_domains.append(".")
                     if cur_interface.dns_over_tls:
-                        protocol = DnsProtocol.DNS_OVER_TLS
+                        protocol = DnsProtocol.DNS_PLUS_TLS
                     else:
-                        protocol = DnsProtocol.PLAIN
+                        protocol = DnsProtocol.DNS_PLUS_UDP
                     if server.address in ips_to_interface:
                         if ips_to_interface[server.address] != if_index:
                             self.lgr.warning("2 servers with the same "
@@ -222,7 +228,7 @@ class ResolveDbusInterface(dbus.service.Object):
                                                 server.priority,
                                                 routing_domains,
                                                 search_domains,
-                                                cur_interface.index,
+                                                if_name,
                                                 protocol,
                                                 self.dnssec_enabled)
 

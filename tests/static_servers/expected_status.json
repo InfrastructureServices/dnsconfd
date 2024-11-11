@@ -1,1 +1,1 @@
-{"cache_config":{".":["192.168.6.3@853"]},"servers":[{"address":"192.168.6.3","dnssec":false,"firewall_zone":null,"interface":null,"name":null,"networks":[],"port":853,"protocol":"DNS_OVER_TLS","routing_domains":["."],"search_domains":[]}],"service":"unbound"}
+{"cache_config":{".":["dns+tls://192.168.6.3"]},"servers":[{"address":"192.168.6.3","dnssec":false,"firewall_zone":null,"interface":null,"name":null,"networks":[],"port":853,"protocol":"dns+tls","routing_domains":["."],"search_domains":[]}],"service":"unbound"}

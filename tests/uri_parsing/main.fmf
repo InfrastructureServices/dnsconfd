@@ -1,0 +1,7 @@
+summary: Test parsing of URIs
+test: ./test.sh
+framework: beakerlib
+recommend:
+  - podman
+tag:
+  - integration

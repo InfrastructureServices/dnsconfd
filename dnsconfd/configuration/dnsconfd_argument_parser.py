@@ -183,14 +183,25 @@ class DnsconfdArgumentParser(ArgumentParser):
                                        help="update dnsconfd forwarders list")
 
         update.add_argument("server_list",
-                            default="[]",
-                            help="JSON formatted list of servers")
-        update.add_argument("mode",
+                            default=None,
+                            help="list of servers",
+                            nargs="*")
+        update.add_argument("--mode",
                             default=0,
                             help="Mode of resolution",
                             type=int)
+        update.add_argument("--json",
+                            default=False,
+                            action="store_true",
+                            help="Servers will be formatted as JSON array")
+        update.add_argument("--search",
+                            default=[],
+                            nargs="*",
+                            help="Domains for hostname resolution")
         update.set_defaults(func=lambda: Cmds.update(self._parsed.dbus_name,
+                                                     self._parsed.json,
                                                      self._parsed.server_list,
+                                                     self._parsed.search,
                                                      self._parsed.mode,
                                                      self._parsed.api_choice))
 

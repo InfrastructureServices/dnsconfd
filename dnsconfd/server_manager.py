@@ -19,10 +19,7 @@ class ServerManager:
         for resolver in config["static_servers"]:
             prot = resolver.get("protocol", None)
             if prot is not None:
-                if prot == "plain":
-                    prot = DnsProtocol.PLAIN
-                elif prot == "DoT":
-                    prot = DnsProtocol.DNS_OVER_TLS
+                prot = DnsProtocol.from_str(resolver["protocol"].lower())
             port = resolver.get("port", None)
             name = resolver.get("name", None)
             routing_domains = resolver.get("routing_domains", None)

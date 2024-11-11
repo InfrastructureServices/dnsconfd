@@ -35,9 +35,7 @@ rlJournalStart
         rlRun "podman exec $dnsconfd_cid /bin/bash -c 'echo api_choice: dnsconfd >> /etc/dnsconfd.conf'" 0 "switching API"
         rlRun "podman exec $dnsconfd_cid systemctl restart dnsconfd" 0 "restarting dnsconfd"
         sleep 2
-        interface0_num=$(podman exec $dnsconfd_cid ip -json a s eth0 | jq '.[] | .ifindex')
-        interface1_num=$(podman exec $dnsconfd_cid ip -json a s eth1 | jq '.[] | .ifindex')
-        rlRun "podman exec $dnsconfd_cid dnsconfd update '[{\"address\":\"192.168.6.3\", \"interface\": $interface0_num},{\"address\":\"192.168.7.3\", \"interface\": $interface1_num}]' 0" 0 "submit update"
+        rlRun "podman exec $dnsconfd_cid dnsconfd update --json '[{\"address\":\"192.168.6.3\", \"interface\": \"eth0\"},{\"address\":\"192.168.7.3\", \"interface\": \"eth1\"}]'" 0 "submit update"
         sleep 2
         rlRun "podman exec $dnsconfd_cid dnsconfd status --json | jq_filter_general > status1" 0 "Getting status of dnsconfd"
         rlAssertNotDiffer status1 $ORIG_DIR/expected_status.json

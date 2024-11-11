@@ -6,7 +6,7 @@ from typing import Any, Callable
 import dbus
 
 from dnsconfd.fsm import ContextEvent
-from dnsconfd.network_objects import ServerDescription, InterfaceConfiguration
+from dnsconfd.network_objects import ServerDescription
 
 
 class RoutingManager:
@@ -295,21 +295,15 @@ class RoutingManager:
                 fam = 4 if srv.is_family(4) else 6
                 needed.setdefault(srv.interface, {})[fam] = True
 
-        for interface, need_dict in needed.items():
-            int_name = InterfaceConfiguration.get_if_name(interface,
-                                                          strict=True)
-            if int_name is None:
-                self.lgr.debug("Could not get interface name in "
-                               "subscribe_to_device_state_change")
-                return False
+        for int_name, need_dict in needed.items():
             try:
                 dev_obj, dev_props = self._get_device_object_props(int_name)
                 if need_dict.get(4, False):
                     self._subscribe_ip_family_obj(dev_props,
-                                                  4, interface)
+                                                  4, int_name)
                 if need_dict.get(6, False):
                     self._subscribe_ip_family_obj(dev_props,
-                                                  6, interface)
+                                                  6, int_name)
             except dbus.DBusException as e:
                 self.lgr.debug("exception encountered during "
                                "subscribe_to_ip_objs_change %s", e)
@@ -334,14 +328,8 @@ class RoutingManager:
             interfaces[server.interface] = True
 
         for interface in interfaces:
-            int_name = InterfaceConfiguration.get_if_name(interface,
-                                                          strict=True)
-            if int_name is None:
-                self.lgr.debug("Could not get interface "
-                               "name in subscribe_to_device_state_change")
-                return False
             try:
-                dev_obj, dev_props = self._get_device_object_props(int_name)
+                dev_obj, dev_props = self._get_device_object_props(interface)
                 self.interfaces_up[interface] = dev_props["State"] == 100
                 device_interface = (
                     dbus.Interface(dev_obj,
@@ -423,10 +411,6 @@ class RoutingManager:
 
         self.lgr.debug("interface and connections %s",
                        interface_to_connection)
-        interface_names = {}
-
-        for x in found_interfaces:
-            interface_names[x] = InterfaceConfiguration.get_if_name(x)
 
         interfaces_to_servers = {}
         for server in self.current_transaction_servers:
@@ -439,7 +423,7 @@ class RoutingManager:
         for int_index in found_interfaces:
             valid_routes = {}
             reapply_needed = False
-            ifname = interface_names[int_index]
+            ifname = int_index
 
             connection = interface_to_connection[int_index][0]
             self._reset_bin_routes(connection)
@@ -461,7 +445,7 @@ class RoutingManager:
                 if ip_dict is None:
                     self.lgr.debug("There is no ip data for family %s of "
                                    "interface %s, continuing",
-                                   family, interface_names[int_index])
+                                   family, ifname)
                     continue
                 if "RouteData" not in ip_dict:
                     self.lgr.debug("There is no route data in ip_dict "
@@ -633,32 +617,29 @@ class RoutingManager:
         # walk them, remove bogus routes and then delete them from
         # self.routes
         downed_interfaces = []
-        for route, interface in list(self.routes.values()):
-            if (interface not in self.interface_to_connection
-                    and interface not in downed_interfaces):
-                downed_interfaces.append(interface)
-                int_name = InterfaceConfiguration.get_if_name(interface,
-                                                              strict=True)
-                if int_name is not None:
-                    self.lgr.debug("Will remove old routes from "
-                                   "interface %s", int_name)
-                    try:
-                        dev_obj, dev_props = self._get_device_object_props(
-                            int_name)
-                        if dev_props["State"] == 100:
-                            applied = self._get_nm_device_config(interface)
-                            if self._remove_checked_routes(applied[0], None):
-                                self._reapply_routes(int_name,
-                                                     applied[0],
-                                                     applied[1])
-                    except dbus.DBusException:
-                        # this is just a debug message, bec
-                        self.lgr.info("Failed to clean interface %s "
-                                      "will try again",
-                                      int_name)
-                        return False
+        for route, int_name in list(self.routes.values()):
+            if (int_name not in self.interface_to_connection
+                    and int_name not in downed_interfaces):
+                downed_interfaces.append(int_name)
+                self.lgr.debug("Will remove old routes from "
+                               "interface %s", int_name)
+                try:
+                    dev_obj, dev_props = self._get_device_object_props(
+                        int_name)
+                    if dev_props["State"] == 100:
+                        applied = self._get_nm_device_config(int_name)
+                        if self._remove_checked_routes(applied[0], None):
+                            self._reapply_routes(int_name,
+                                                 applied[0],
+                                                 applied[1])
+                except dbus.DBusException:
+                    # this is just a debug message, bec
+                    self.lgr.info("Failed to clean interface %s "
+                                  "will try again",
+                                  int_name)
+                    return False
                 for destination in list(self.routes):
-                    if self.routes[destination][1] == interface:
+                    if self.routes[destination][1] == int_name:
                         self.routes.pop(destination)
         return True
 
@@ -720,12 +701,7 @@ class RoutingManager:
         connection["ipv4"].pop("routes", None)
         connection["ipv6"].pop("routes", None)
 
-    def _get_nm_device_config(self, index):
-        int_name = InterfaceConfiguration.get_if_name(index, strict=True)
-        if int_name is None:
-            self.lgr.info("interface %s has no name and thus "
-                          "we will not handle its routing now", index)
-            return None
+    def _get_nm_device_config(self, int_name):
         self.lgr.debug("Getting NetworkManager info about %s", int_name)
         try:
             dev_obj, dev_props = self._get_device_object_props(int_name)
@@ -754,9 +730,8 @@ class RoutingManager:
         for destination in self.routes.values():
             found_interfaces[destination[1]] = True
 
-        for int_index in found_interfaces:
+        for ifname in found_interfaces:
             reapply_needed = False
-            ifname = InterfaceConfiguration.get_if_name(int_index)
             try:
                 dev_int = self._get_nm_device_interface(ifname)
                 connection, cver = dev_int.GetAppliedConnection(0)

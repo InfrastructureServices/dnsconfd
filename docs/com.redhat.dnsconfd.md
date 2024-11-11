@@ -14,12 +14,12 @@ version: **1.5.1**
   - **servers**: array of dictionaries, each representing server that should
   be set as a forwarder. Allowed keys are:
     - address: string or bytes containing server's ip address. Only this entry is required.
-    - port: optional, integer indicating port number that should be used. Defaulting to `53` or `853` when `DoT` is used as protocol.
-    - protocol: optional, string either `plain` or `DoT`. Defaulting to `plain`.
+    - port: optional, integer indicating port number that should be used. Defaulting to `53` or `853` when `dns+tls` is used as protocol.
+    - protocol: optional, string either `dns+udp`, `dns+tcp` or `dns+tls`. Defaulting to `dns+udp`.
     - name: optional, server name indication. Used when `DoT` is used to verify, presence of a right certificate. Defaulting to None.
     - routing_domains: optional, list of strings with the domain name whose members will be resolved only by this or other servers with the same domain entry
     - search_domains: optional, list of strings with the domains that should be used for host-name lookup
-    - interface: optional, integer indicating if server can be used only through interface with this interface index.
+    - interface: optional, string indicating if server can be used only through interface with this interface name.
     - dnssec: optional, boolean indicating whether this server supports dnssec or not. Defaulting to `False`.
     - networks: optional, list of strings representing networks whose reverse dns records must be resolved by this server
     - connection-uuid: optional, string uuid of the connection associated with server in NetworkManager

@@ -70,14 +70,19 @@ class InterfaceConfiguration:
         return self.index
 
     @staticmethod
-    def is_interface_wireless(index: int) -> bool:
-        """ Get whether this interface is wireless or not
+    def is_interface_wireless(identity: int | str) -> bool:
+        """ Get whether the interface is wireless or not
 
+        :param identity: integer with interface id or string with interface
+                         name
         :return: True if interface is wireless, otherwise False
         :rtype: bool
         """
         try:
-            name = socket.if_indextoname(index)
+            if isinstance(identity, int):
+                name = socket.if_indextoname(identity)
+            else:
+                name = identity
             return os.path.isdir(f"/sys/class/net/{name}/wireless")
         except OSError:
             return False

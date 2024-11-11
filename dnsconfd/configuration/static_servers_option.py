@@ -1,6 +1,7 @@
 import ipaddress
 
 from dnsconfd.configuration import Option
+from dnsconfd.network_objects.dns_protocol import DnsProtocol
 
 
 class StaticServersOption(Option):
@@ -50,8 +51,7 @@ class StaticServersOption(Option):
             if not isinstance(server["protocol"], str):
                 self.lgr.error("protocol has to be a string")
                 return True
-            if (server["protocol"].lower() != "dot"
-                    and server["protocol"].lower() != "plain"):
+            if DnsProtocol.from_str(server["protocol"]) is None:
                 self.lgr.error("protocol contains invalid value")
                 return True
         return False

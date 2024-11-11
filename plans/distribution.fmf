@@ -4,6 +4,7 @@ discover:
   filter: tag:distribution
 provision:
     how: virtual
+    image: fedora-40
 execute:
     how: tmt
 prepare:
