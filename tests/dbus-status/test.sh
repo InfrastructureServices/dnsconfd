@@ -1,7 +1,6 @@
 #!/bin/bash
 # vim: dict+=/usr/share/beakerlib/dictionary.vim cpt=.,w,b,u,t,i,k
 . /usr/share/beakerlib/beakerlib.sh || exit 1
-DBUS_NAME=org.freedesktop.resolve1
 
 rlJournalStart
     rlPhaseStartSetup
@@ -13,7 +12,7 @@ rlJournalStart
         rlRun "dnsconfd config install" 0 "Installing dnsconfd"
         rlServiceStart dnsconfd
         sleep 5
-        rlRun "sudo -u dummy dnsconfd --dbus-name=$DBUS_NAME status | grep unbound" 0 "Verifying status of dnsconfd as dummy user"
+        rlRun "sudo -u dummy dnsconfd status | grep unbound" 0 "Verifying status of dnsconfd as dummy user"
         # we can not simply check for a AVC until chrony issue is fixed
         rlRun "sudo -u dummy dbus-send --system --dest=org.freedesktop.resolve1 --print-reply\
          --type=method_call /org/freedesktop/resolve1 \
