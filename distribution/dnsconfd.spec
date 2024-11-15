@@ -25,6 +25,7 @@ Requires:  (%{name}-selinux if selinux-policy-%{selinuxtype})
 Requires:  python3-gobject-base
 Requires:  python3-pyyaml
 Requires:  python3-systemd
+Recommends: python3-idna
 Requires:  dbus-common
 Requires:  %{name}-cache
 Suggests:  %{name}-unbound

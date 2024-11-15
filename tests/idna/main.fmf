@@ -1,0 +1,7 @@
+summary: Test idna encoding handling in Dnsconfd
+test: ./test.sh
+framework: beakerlib
+recommend:
+  - podman
+tag:
+  - integration

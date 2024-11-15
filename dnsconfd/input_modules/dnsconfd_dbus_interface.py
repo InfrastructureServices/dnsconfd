@@ -2,7 +2,6 @@ import ipaddress
 from socket import AF_INET, AF_INET6
 import typing
 import logging
-import re
 import dbus.service
 from dbus.service import BusName
 
@@ -27,12 +26,6 @@ class DnsconfdDbusInterface(dbus.service.Object):
         self.ignore_api = config["ignore_api"]
         self.dnssec_enabled = config["dnssec_enabled"]
         self.lgr = logging.getLogger(self.__class__.__name__)
-        domain_re = r"((?!-)([A-Za-z0-9-]){1,63}(?<!-)\.?)+|\."
-        search_re = r"((?!-)([A-Za-z0-9-]){1,63}(?<!-)\.?)+"
-        name_re = r"((?!-)([A-Za-z0-9-]){1,63}(?<!-)\.?)+"
-        self.domain_pattern = re.compile(domain_re)
-        self.search_pattern = re.compile(search_re)
-        self.name_pattern = re.compile(name_re)
 
     @dbus.service.method(dbus_interface='com.redhat.dnsconfd.Manager',
                          in_signature='aa{sv}u', out_signature='bs')
@@ -95,10 +88,9 @@ class DnsconfdDbusInterface(dbus.service.Object):
 
             name = None
             if server.get("name", None) is not None:
-                if (not isinstance(server["name"], str)
-                        or not self.name_pattern.fullmatch(server["name"])):
+                if not isinstance(server["name"], str):
                     msg = f"{index + 1}. server name is not " \
-                          f"allowed {server["name"]}"
+                          f"a string"
                     self.lgr.error(msg)
                     return False, msg
                 name = str(server["name"])
@@ -116,11 +108,6 @@ class DnsconfdDbusInterface(dbus.service.Object):
                                f"server routing domain is not string")
                         self.lgr.error(msg)
                         return False, msg
-                    if not self.domain_pattern.fullmatch(domain):
-                        msg = (f"{index + 1}."
-                               f"server routing domain is not domain {domain}")
-                        self.lgr.error(msg)
-                        return False, msg
                 routing_domains = server["routing_domains"]
 
             search_domains = None
@@ -134,11 +121,6 @@ class DnsconfdDbusInterface(dbus.service.Object):
                     if not isinstance(domain, str):
                         msg = (f"{index + 1}."
                                f"server search domain is not string")
-                        self.lgr.error(msg)
-                        return False, msg
-                    if not self.search_pattern.fullmatch(domain):
-                        msg = (f"{index + 1}."
-                               f"server search domain is not domain {domain}")
                         self.lgr.error(msg)
                         return False, msg
                 search_domains = server["search_domains"]

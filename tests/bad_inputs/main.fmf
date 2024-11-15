@@ -1,0 +1,7 @@
+summary: Test various potentially problematic inputs
+test: ./test.sh
+framework: beakerlib
+recommend:
+  - podman
+tag:
+  - integration
