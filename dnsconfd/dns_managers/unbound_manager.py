@@ -5,6 +5,12 @@ from copy import deepcopy
 from dnsconfd.dns_managers import DnsManager
 from dnsconfd.network_objects import ServerDescription, DnsProtocol
 
+try:
+    import idna
+    HAVE_IDNA = True
+except ImportError:
+    HAVE_IDNA = False
+
 
 class UnboundManager(DnsManager):
     service_name = "unbound"
@@ -138,6 +144,11 @@ class UnboundManager(DnsManager):
             used_srvs = self._get_used_servers(zones_to_servers[zone])
             add_cmd = self._get_forward_add_command(zone,
                                                     used_srvs)
+            if add_cmd is None:
+                self.lgr.error("Was not able to construct unbound "
+                               "forward_add command for zone %s, it will be "
+                               "ignored", zone)
+                continue
             if (not self._execute_cmd(add_cmd)
                     or not self._execute_cmd(f"flush_zone {zone}")):
                 return False
@@ -152,6 +163,8 @@ class UnboundManager(DnsManager):
             used_srvs = self._get_used_servers(zones_to_servers[zone])
             add_cmd = self._get_forward_add_command(zone,
                                                     used_srvs)
+            # here we do not have to check add_cmd because the zone was
+            # already put into unbound, and thus it passed the check
             if (not self._execute_cmd(f"forward_remove +i {zone}")
                     or not self._execute_cmd(add_cmd)
                     or not self._execute_cmd(f"flush_zone {zone}")):
@@ -186,7 +199,8 @@ class UnboundManager(DnsManager):
 
     def _get_forward_add_command(self,
                                  zone: str,
-                                 servers: list[ServerDescription]):
+                                 servers: list[ServerDescription]
+                                 ) -> str | None:
         used_protocol = servers[0].protocol
         servers_str = []
         # this will remove duplicate servers
@@ -203,9 +217,22 @@ class UnboundManager(DnsManager):
                 if check:
                     flags += flag
             flags += " "
-
+        if zone != "." and HAVE_IDNA:
+            encoded_zone = self._idna_encode(zone)
+            if encoded_zone is None:
+                return None
+        else:
+            encoded_zone = zone
         return (f"forward_add {flags if flags else ''}"
-                f"{zone} {' '.join(servers_str)}")
+                f"{encoded_zone} {' '.join(servers_str)}")
+
+    def _idna_encode(self, domain: str) -> str | None:
+        try:
+            return idna.encode(domain).decode("utf-8")
+        except idna.IDNAError as e:
+            self.lgr.warning("Zone %s will not be set, because it can "
+                             "not be encoded with IDNA: %s", domain, e)
+            return None
 
     def get_status(self) -> dict[str, list[str]]:
         """ Get current forwarders' network_objects that this instance holds

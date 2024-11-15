@@ -104,13 +104,18 @@ class DnsconfdContext:
                       "cache_config": self.dns_mgr.get_status(),
                       "state": self.state.name,
                       "servers": servers}
-            return json.dumps(status)
+            return json.dumps(status,
+                              ensure_ascii=False).encode("utf-8").decode()
         return (f"Running cache service:\n{self.dns_mgr.service_name}\n"
                 "Config present in service:\n"
-                f"{json.dumps(self.dns_mgr.get_status(), indent=4)}\n"
+                f"{json.dumps(self.dns_mgr.get_status(),
+                              indent=4,
+                              ensure_ascii=False).encode("utf-8").decode()}\n"
                 f"State of Dnsconfd:\n{self.state.name}\n"
                 "Info about servers: "
-                f"{json.dumps(servers, indent=4)}")
+                f"{json.dumps(servers,
+                              indent=4,
+                              ensure_ascii=False).encode("utf-8").decode()}")
 
     def reload_service(self) -> tuple[bool, str]:
         """ Perform reload of cache service if possible
