@@ -101,12 +101,14 @@ class DnsconfdContext:
 
         if json_format:
             status = {"service": self.dns_mgr.service_name,
+                      "mode": str(self.server_manager.mode),
                       "cache_config": self.dns_mgr.get_status(),
                       "state": self.state.name,
                       "servers": servers}
             return json.dumps(status,
                               ensure_ascii=False).encode("utf-8").decode()
         return (f"Running cache service:\n{self.dns_mgr.service_name}\n"
+                f"Resolving mode: {str(self.server_manager.mode)}\n"
                 "Config present in service:\n"
                 f"{json.dumps(self.dns_mgr.get_status(),
                               indent=4,
