@@ -616,6 +616,10 @@ class RoutingManager:
         # bogus routes or those interfaces were downed thus
         # walk them, remove bogus routes and then delete them from
         # self.routes
+        if not self._get_nm_interface("Failed to contact NetworkManager "
+                                      "through dbus, will attempt to remove"
+                                      "redundant routes later"):
+            return False
         downed_interfaces = []
         for route, int_name in list(self.routes.values()):
             if (int_name not in self.interface_to_connection
@@ -632,12 +636,11 @@ class RoutingManager:
                             self._reapply_routes(int_name,
                                                  applied[0],
                                                  applied[1])
-                except dbus.DBusException:
-                    # this is just a debug message, bec
+                except dbus.DBusException as e:
+                    # this happens when interface is removed from the system
                     self.lgr.info("Failed to clean interface %s "
-                                  "will try again",
-                                  int_name)
-                    return False
+                                  ", %s, considering it cleaned",
+                                  e, int_name)
                 for destination in list(self.routes):
                     if self.routes[destination][1] == int_name:
                         self.routes.pop(destination)

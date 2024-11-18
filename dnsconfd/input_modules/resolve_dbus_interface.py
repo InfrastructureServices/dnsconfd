@@ -191,8 +191,9 @@ class ResolveDbusInterface(dbus.service.Object):
                                                              strict=True)
                 if if_name is None:
                     self.lgr.error("Interface with index %s does not have "
-                                   "a name, refusing this update", if_index)
-                    return
+                                   "a name, its servers will not be used",
+                                   if_index)
+                    continue
                 for server in cur_interface.servers:
                     routing_domains = []
                     search_domains = []
