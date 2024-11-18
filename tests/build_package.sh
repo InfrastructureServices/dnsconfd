@@ -3,14 +3,14 @@
 set -e
 
 tempdir=$(mktemp -d)
-mkdir "$tempdir"/dnsconfd-1.5.0
-cp -r ./* "$tempdir"/dnsconfd-1.5.0
+mkdir "$tempdir"/dnsconfd-1.6.0
+cp -r ./* "$tempdir"/dnsconfd-1.6.0
 pushd "$tempdir"
-tar -czvf "$tempdir"/dnsconfd-1.5.0.tar.gz dnsconfd-1.5.0
+tar -czvf "$tempdir"/dnsconfd-1.6.0.tar.gz dnsconfd-1.6.0
 popd
-mv "$tempdir"/dnsconfd-1.5.0.tar.gz ./distribution
+mv "$tempdir"/dnsconfd-1.6.0.tar.gz ./distribution
 pushd distribution
 fedpkg --release=f40 mockbuild
-mv ./results_dnsconfd/1.5.0/1.fc40/*.noarch.rpm ../tests
+mv ./results_dnsconfd/1.6.0/1.fc40/*.noarch.rpm ../tests
 popd
 rm -rf "$tempdir"
