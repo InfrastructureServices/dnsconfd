@@ -75,7 +75,7 @@ class ServerManager:
                        new_zones_to_servers)
         self.lgr.debug("New search domains prepared: %s",
                        search_domains.keys())
-        return new_zones_to_servers, list(search_domains.keys())
+        return new_zones_to_servers, list(search_domains)
 
     def get_all_servers(self) -> list[ServerDescription]:
         """ Get all forwarders
