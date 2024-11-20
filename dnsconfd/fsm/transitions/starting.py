@@ -73,8 +73,7 @@ class Starting(TransitionImplementations):
         }
 
     def _starting_kickoff_transition(self, event: ContextEvent):
-        address = self.config["listen_address"]
-        if self.dns_mgr.configure(address):
+        if self.dns_mgr.configure():
             self.lgr.info("Successfully configured DNS manager")
             return ContextEvent("SUCCESS")
 
@@ -111,7 +110,7 @@ class Starting(TransitionImplementations):
 
     def _job_finished_success_transition(self, event: ContextEvent) \
             -> ContextEvent | None:
-        self.lgr.info("Start job finished successfully, starting polling")
+        self.lgr.info("Starting polling")
         timer = ContextEvent("TIMER_UP", 0)
         GLib.timeout_add_seconds(1,
                                  lambda: self.transition_function(timer))

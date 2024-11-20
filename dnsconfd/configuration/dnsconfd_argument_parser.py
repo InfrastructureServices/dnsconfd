@@ -3,9 +3,20 @@ import logging
 import sys
 from argparse import ArgumentParser, BooleanOptionalAction
 
-import yaml
-import yaml.scanner
-import systemd.journal
+try:
+    import yaml
+    import yaml.scanner
+
+    HAS_YAML = True
+except ImportError:
+    HAS_YAML = False
+
+try:
+    import systemd.journal
+
+    HAS_SYSTEMD_JOURNAL = True
+except ImportError:
+    HAS_SYSTEMD_JOURNAL = False
 
 from dnsconfd import CLICommands as Cmds
 from dnsconfd.configuration import Option, StaticServersOption, StringOption
@@ -31,7 +42,7 @@ class DnsconfdArgumentParser(ArgumentParser):
                          "INFO",
                          validation=r"DEBUG|INFO|WARNING|ERROR|CRITICAL"),
             BoolOption("stderr_log",
-                       "Log to stdout",
+                       "Log to stderr",
                        True),
             BoolOption("journal_log",
                        "Log to journal",
@@ -198,12 +209,8 @@ class DnsconfdArgumentParser(ArgumentParser):
                             default=[],
                             nargs="*",
                             help="Domains for hostname resolution")
-        update.set_defaults(func=lambda: Cmds.update(self._parsed.dbus_name,
-                                                     self._parsed.json,
-                                                     self._parsed.server_list,
-                                                     self._parsed.search,
-                                                     self._parsed.mode,
-                                                     self._parsed.api_choice))
+
+        update.set_defaults(func=lambda: Cmds.update(vars(self._parsed)))
 
     def _config_log(self, config):
         handlers = []
@@ -212,8 +219,12 @@ class DnsconfdArgumentParser(ArgumentParser):
             handlers.append(logging.StreamHandler())
 
         if self._get_option_value(config, self._config_values[2]):
-            handlers.append(systemd.journal.JournalHandler(
-                SYSLOG_IDENTIFIER="dnsconfd"))
+            if HAS_SYSTEMD_JOURNAL:
+                handlers.append(systemd.journal.JournalHandler(
+                    SYSLOG_IDENTIFIER="dnsconfd"))
+            else:
+                self.lgr.warning("Journal log was enabled but there is no "
+                                 "Journal module, so ignoring")
 
         syslog_log = self._get_option_value(config, self._config_values[3])
         if syslog_log:
@@ -287,6 +298,10 @@ class DnsconfdArgumentParser(ArgumentParser):
 
     def _read_config(self, path: str) -> dict:
         config = {}
+        if not HAS_YAML:
+            self.lgr.warning("Yaml module not present, will not parse "
+                             "configuration")
+            return {}
         try:
             with self._open_config_file(path) as config_file:
                 temp_config = yaml.safe_load(config_file)
