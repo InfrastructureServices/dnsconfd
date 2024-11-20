@@ -48,7 +48,7 @@ class SystemManager:
             return False
         return True
 
-    def _get_resolvconf_string(self, search_domains=None):
+    def get_resolvconf_string(self, search_domains=None):
         if search_domains is None:
             search_domains = []
         conf = self.HEADER
@@ -96,7 +96,7 @@ class SystemManager:
         try:
             with open(self._resolv_conf_path, "w",
                       encoding="utf-8") as new_resolv:
-                new_resolv.write(self._get_resolvconf_string(search_domains))
+                new_resolv.write(self.get_resolvconf_string(search_domains))
         except OSError as e:
             self.lgr.error("OSError encountered while writing "
                            "resolv.conf: %s", e)

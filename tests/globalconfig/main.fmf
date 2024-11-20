@@ -4,4 +4,4 @@ framework: beakerlib
 recommend:
   - podman
 tag:
-  - disabled
+  - integration

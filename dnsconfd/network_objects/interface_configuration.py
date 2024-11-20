@@ -1,5 +1,6 @@
 import socket
 import os.path
+from typing import Union, Optional
 
 from dnsconfd.network_objects import ServerDescription
 
@@ -70,7 +71,7 @@ class InterfaceConfiguration:
         return self.index
 
     @staticmethod
-    def is_interface_wireless(identity: int | str) -> bool:
+    def is_interface_wireless(identity: Union[int, str]) -> bool:
         """ Get whether the interface is wireless or not
 
         :param identity: integer with interface id or string with interface
@@ -88,12 +89,11 @@ class InterfaceConfiguration:
             return False
 
     @staticmethod
-    def get_if_name(index: int, strict=False) -> str | None:
+    def get_if_name(index: int, strict=False) -> Optional[str]:
         """ Get interface name
 
         :return: Name of the interface, if socket is unable
                  to translate it, then string of index will be returned
-        :rtype: str | None
         """
         try:
             return socket.if_indextoname(index)

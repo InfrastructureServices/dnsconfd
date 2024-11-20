@@ -5,14 +5,16 @@ Requires=dbus.service
 Conflicts=systemd-resolved.service
 
 [Service]
-Type=dbus
+Type=notify
 User=dnsconfd
 Group=dnsconfd
 SupplementaryGroups=unbound
-EnvironmentFile=/etc/sysconfig/dnsconfd
-BusName=org.freedesktop.resolve1
-ExecStart=/usr/sbin/dnsconfd $OPTIONS
+BusName=com.redhat.dnsconfd
+ExecStartPre=+/usr/libexec/dnsconfd-prepare
+ExecStart=/usr/bin/dnsconfd $OPTIONS
+ExecStopPost=+/usr/libexec/dnsconfd-cleanup
 EnvironmentFile=/etc/sysconfig/dnsconfd
 
 [Install]
 WantedBy=multi-user.target
+Alias=dbus-com.redhat.dnsconfd.service

@@ -2,31 +2,65 @@ summary: Run integration tests with tmt
 discover:
   how: fmf
   filter: tag:integration
-provision:
-    how: local
 execute:
     how: tmt
 prepare:
   - name: packages
-    order: 1
+    order: 3
     how: install
     package:
       - podman
-      - fedpkg
       - beakerlib
       - python3-devel
       - python3-setuptools
-      - python3-setuptools
       - python3-rpm-macros
       - python3-pip
+      - python3-pyyaml
+      - python3-systemd
+      - python3-idna
       - systemd
+      - rpm-build
       - systemd-rpm-macros
+      - selinux-policy-devel
+      - selinux-policy-targeted
+      - audit
+      - dbus-tools
+      - rsyslog
       - jq
+      - pkgconfig(glib-2.0)
+      - pkgconfig(gio-2.0)
+      - pkgconfig(libcurl)
+      - pkgconfig(check)
+      - pkgconfig(libsystemd)
+      - gcc
+      - cmake
   - name: build-package
-    order: 2
+    order: 5
     how: shell
     script: ./tests/build_package.sh
-  - name: build-images
-    order: 3
+  - name: build-base-container
+    order: 6
     how: shell
-    script: ./tests/build_images.sh -q
+    script: ./tests/build_ostree.sh
+  - name: build-containers
+    order: 7
+    how: shell
+    script: ./tests/build_images.sh
+adjust:
+  - when: trigger is not defined or trigger == human
+    provision:
+        how: virtual
+        image: fedora-rawhide
+  - when: distro == centos-stream or distro == rhel
+    prepare+:
+     - how: shell
+       name: enable CRB
+       order: 1
+       script: 'dnf config-manager --set-enabled crb'
+  - when: distro == centos-stream or distro == rhel
+    prepare+:
+     - how: install
+       name: install epel
+       order: 1
+       package:
+         - https://dl.fedoraproject.org/pub/epel/epel-release-latest-9.noarch.rpm

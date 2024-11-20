@@ -1,0 +1,18 @@
+[Unit]
+Description=Minimized native implementation of Dnsconfd
+After=network.target dbus.service
+Before=network-online.target unbound.service
+Requires=dbus.service
+Conflicts=systemd-resolved.service dnsconfd.service
+
+[Service]
+Type=oneshot
+Group=dnsconfd
+ExecStart=/usr/bin/micro-dnsconfd $OPTIONS
+RemainAfterExit=yes
+EnvironmentFile=/etc/sysconfig/micro-dnsconfd
+
+[Install]
+WantedBy=multi-user.target
+WantedBy=network-online.target
+RequiredBy=unbound.service

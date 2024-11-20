@@ -12,5 +12,5 @@ $TTL 86400
 dns1    IN      A       192.168.6.3
 server  IN      A       192.168.6.5
 not-working IN  A       192.168.6.6
-$INCLUDE "Kexample.com.+007+27199.key"
-$INCLUDE "Kexample.com.+007+45692.key"
+$INCLUDE "Kexample.com.+008+42430.key"
+$INCLUDE "Kexample.com.+008+64519.key"

@@ -1,0 +1,149 @@
+summary: Run multihost tests with tmt
+discover:
+  how: fmf
+  filter: tag:multihost
+provision:
+- name: server
+- name: client
+execute:
+    how: tmt
+prepare:
+  - name: packages
+    order: 2
+    how: install
+    package:
+      - beakerlib
+      - python3-devel
+      - python3-setuptools
+      - python3-rpm-macros
+      - python3-pip
+      - python3-pyyaml
+      - python3-systemd
+      - python3-idna
+      - systemd
+      - rpm-build
+      - systemd-rpm-macros
+      - selinux-policy-devel
+      - selinux-policy-targeted
+      - audit
+      - dbus-tools
+      - rsyslog
+      - jq
+      - pkgconfig(glib-2.0)
+      - pkgconfig(gio-2.0)
+      - pkgconfig(libcurl)
+      - pkgconfig(check)
+      - pkgconfig(libsystemd)
+      - gcc
+      - cmake
+      - bind-utils
+      - nmap-ncat
+    where: client
+  - name: build-package
+    order: 3
+    how: shell
+    script: ./tests/build_package.sh
+    where: client
+  - name: remove-systemd-resolved
+    order: 4
+    how: shell
+    script: dnf remove -y systemd-resolved
+    where: client
+  - name: restart-network-manager
+    order: 5
+    how: shell
+    script: systemctl restart NetworkManager
+    where: client
+  - name: install-package
+    order: 6
+    how: shell
+    script: dnf install -y ./tests/*.rpm
+    where: client
+  - name: increase-verbosity
+    order: 7
+    how: shell
+    script: "echo 'LOG_LEVEL=DEBUG' >> /etc/sysconfig/dnsconfd && sed -i 's/verbosity.*/verbosity: 5/g' /etc/unbound/unbound.conf"
+    where: client
+  - name: set-up-bind-1
+    order: 3
+    how: shell
+    script: "cp tests/named.conf /etc/named.conf; cp tests/bind_zones/* /etc/named/"
+    where: server
+  - name: set-up-bind-2
+    order: 4
+    how: shell
+    script: "cp tests/named_certs/my_signed_cert.pem tests/named_certs/my_private_key.pem /etc/named/"
+    where: server
+  - name: set-up-bind-3
+    order: 5
+    how: shell
+    script: "chown named /etc/named/my_signed_cert.pem; chown named /etc/named/my_private_key.pem"
+    where: server
+  - name: start-bind
+    order: 6
+    how: shell
+    script: "systemctl start named"
+    where: server
+adjust:
+  - when: trigger is not defined or trigger == human
+    provision:
+        - name: server
+          how: virtual
+          image: fedora-rawhide
+          connection: system
+        - name: client
+          how: virtual
+          image: fedora-rawhide
+          connection: system
+  - when: distro == centos-stream or distro == rhel
+    prepare+:
+     - how: shell
+       name: enable CRB
+       order: 1
+       script: 'dnf config-manager --set-enabled crb'
+  - when: distro == centos-stream or distro == rhel
+    prepare+:
+     - how: install
+       name: install epel
+       order: 1
+       package:
+         - https://dl.fedoraproject.org/pub/epel/epel-release-latest-9.noarch.rpm
+  - when: distro == centos-stream-9 or distro == rhel-9
+    prepare+:
+    - name: server-packages
+      order: 2
+      how: install
+      package:
+        - bind9.18
+        - nmap-ncat
+      where: server
+  - when: distro == fedora
+    prepare+:
+     - how: shell
+       name: install latest nm
+       order: 1
+       script: "dnf -y copr enable bengal/NetworkManager-dns && dnf install -y NetworkManager-1.53.0*"
+       where: client
+  - when: distro == centos-stream-10 or distro == rhel-10
+    prepare+:
+     - how: shell
+       name: install latest unbound
+       order: 1
+       script: "dnf -y copr enable tkorbar/unbound-latest-centos centos-stream-10 && dnf install -y unbound-1.20.0-9* && dnf -y copr enable bengal/NetworkManager-dns centos-stream-10 && dnf install -y NetworkManager-1.53.0*"
+       where: client
+  - when: distro == centos-stream-9 or distro == rhel-9
+    prepare+:
+     - how: shell
+       name: install latest unbound
+       order: 1
+       script: "dnf -y copr enable tkorbar/unbound-latest-centos centos-stream-9 && dnf install -y unbound-1.16.2-17* && dnf -y copr enable bengal/NetworkManager-dns centos-stream-9 && dnf install -y NetworkManager-1.53.0*"
+       where: client
+  - when: distro != centos-stream-9 and distro != rhel-9
+    prepare+:
+    - name: server-packages
+      order: 2
+      how: install
+      package:
+        - bind
+        - nmap-ncat
+      where: server

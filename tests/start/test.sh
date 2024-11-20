@@ -9,14 +9,13 @@ rlJournalStart
     rlPhaseEnd
 
     rlPhaseStartTest
-        rlRun "dnsconfd config install" 0 "Installing dnsconfd"
+        rlRun "dnsconfd config nm_enable" 0 "Installing dnsconfd"
         rlServiceStart dnsconfd
         sleep 2
         rlRun "dnsconfd status | grep unbound" 0 "Verifying status of dnsconfd"
         # test also new api
         rlRun "echo 'api_choice: dnsconfd' >> /etc/dnsconfd.conf"
         rlServiceStart dnsconfd
-        sleep 5
         rlRun "dnsconfd update --json '[{\"address\":\"192.168.6.3\", \"interface\": \"eth0\"}]'"
         sleep 2
         rlRun "dnsconfd status | grep unbound" 0 "Verifying status of dnsconfd"

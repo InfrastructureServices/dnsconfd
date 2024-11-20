@@ -6,7 +6,6 @@ class ContextState(Enum):
     """ State the Dnsconfd FSM can be in """
     STARTING = 1  # interrupt
     WAITING_FOR_START_JOB = 2  # interrupt
-    POLLING = 3  # interrupt
     RUNNING = 4  # interrupt
     STOPPING = 5
     CONNECTING_DBUS = 7

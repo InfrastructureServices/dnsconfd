@@ -1,0 +1,5 @@
+summary: Test initramfs support of dnsconfd
+test: ./test.sh
+framework: beakerlib
+tag:
+  - multihost

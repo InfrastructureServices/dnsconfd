@@ -7,7 +7,9 @@ Use this script to generate graph of Dnsconfd FSM
 """
 if __name__ == "__main__":
     ctx = DnsconfdContext({"listen_address": "0.0.0.0",
-                           "resolv_conf_path": "/", "resolver_options": "edns0", "dnssec_enabled": True, "prioritize_wire": True, "handle_routing": True, "static_servers": {}}, None)
+                           "resolv_conf_path": "/", "resolver_options": "edns0", "dnssec_enabled": True,
+                           "prioritize_wire": True, "handle_routing": True, "static_servers": {},
+                           "certification_authority": "whatever"}, None)
 
     g = graphviz.Digraph('G', filename='fsm.gv')
 

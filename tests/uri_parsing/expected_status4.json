@@ -1,1 +1,1 @@
-{"cache_config":{},"mode":"FREE","servers":[],"service":"unbound"}
+{"cache_config":{},"mode":"backup","servers":[],"service":"unbound"}

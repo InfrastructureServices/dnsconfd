@@ -17,7 +17,7 @@ rlJournalStart
         # mounted by podman as read-only
         rlRun "dhcp_cid=\$(podman run -d --cap-add=NET_RAW --network dnsconfd_network:ip=192.168.6.20 localhost/dnsconfd_utilities:latest dhcp_entry.sh /etc/dhcp/dhcpd-common.conf)" 0 "Starting dhcpd container"
         rlRun "vpn_cid=\$(podman run -d --cap-add=NET_ADMIN --cap-add=NET_RAW --privileged --security-opt label=disable --device=/dev/net/tun --network dnsconfd_network:ip=192.168.6.30 --network dnsconfd_network2:ip=192.168.7.3 localhost/dnsconfd_utilities:latest vpn_entry.sh)"
-        rlRun "dnsconfd_cid=\$(podman run -d --cap-add=NET_ADMIN --cap-add=NET_RAW --security-opt label=disable --device=/dev/net/tun --dns='none' --network dnsconfd_network:ip=192.168.6.2 dnsconfd_testing:latest)" 0 "Starting dnsconfd container"
+        rlRun "dnsconfd_cid=\$(podman run -d --privileged --security-opt label=disable --device=/dev/net/tun --dns='none' --network dnsconfd_network:ip=192.168.6.2 dnsconfd_testing:latest)" 0 "Starting dnsconfd container"
         rlRun "dnsmasq1_cid=\$(podman run -d --dns='none' --network dnsconfd_network:ip=192.168.6.3 localhost/dnsconfd_utilities:latest dnsmasq_entry.sh --listen-address=192.168.6.3 --address=/first-address.test.com/192.168.6.3)" 0 "Starting first dnsmasq container"
         rlRun "dnsmasq2_cid=\$(podman run -d --dns='none' --network dnsconfd_network:ip=192.168.6.4 localhost/dnsconfd_utilities:latest dnsmasq_entry.sh --listen-address=192.168.6.4 --address=/second-address.test.com/192.168.6.4)" 0 "Starting second dnsmasq container"
         rlRun "dnsmasq3_cid=\$(podman run -d --dns='none' --network dnsconfd_network2:ip=192.168.7.2 localhost/dnsconfd_utilities:latest dnsmasq_entry.sh --listen-address=192.168.7.2 --address=/dummy.vpndomain.com/192.168.6.5)" 0 "Starting third dnsmasq container"
@@ -26,11 +26,16 @@ rlJournalStart
     rlPhaseStartTest
         rlRun "podman exec $vpn_cid /bin/bash -c 'echo 1 > /proc/sys/net/ipv4/ip_forward'" 0 "enable ip forwarding on vpn server"
         # easier to enable this on both than to find out which one is correct
-        rlRun "podman exec $vpn_cid iptables -t nat -I POSTROUTING -o eth0 -j MASQUERADE" 0 "enable masquerade on vpn server eth0"
-        rlRun "podman exec $vpn_cid iptables -t nat -I POSTROUTING -o eth1 -j MASQUERADE" 0 "enable masquerade on vpn server eth1"
-        sleep 2
-        rlRun "podman exec $dnsconfd_cid nmcli connection mod eth0 connection.autoconnect yes ipv4.gateway '' ipv4.addr '' ipv4.method auto" 0 "Setting eth0 to autoconfiguration"
-        sleep 2
+        rlRun "podman exec $vpn_cid nft add table nat" 0 "enable masquerade on eth0 of routing server"
+        rlRun "podman exec $vpn_cid nft -- add chain nat prerouting { type nat hook prerouting priority -100 \; }" 0 "enable masquerade on eth0 of routing server"
+        rlRun "podman exec $vpn_cid nft add chain nat postrouting { type nat hook postrouting priority 100 \; }" 0 "enable masquerade on eth1 of routing server"
+        rlRun "podman exec $vpn_cid nft add rule nat postrouting oifname 'eth0' masquerade" 0 "enable masquerade on eth2 of routing server"
+        rlRun "podman exec $vpn_cid nft add rule nat postrouting oifname 'eth1' masquerade" 0 "enable masquerade on eth2 of routing server"
+        rlRun "podman exec $dnsconfd_cid systemctl start network-online.target"
+        rlRun "podman exec $dnsconfd_cid nmcli connection mod eth0 connection.autoconnect yes ipv4.gateway '' ipv4.addr '' ipv4.method auto ipv6.method disabled" 0 "Setting eth0 to autoconfiguration"
+        rlRun "podman exec $dnsconfd_cid nmcli con up eth0"
+        # FIXME workaround of NM DAD issue
+        rlRun "podman exec $dnsconfd_cid nmcli g reload"
         rlRun "podman exec $dnsconfd_cid dnsconfd status --json | jq_filter_general > status1" 0 "Getting status of dnsconfd"
         rlAssertNotDiffer status1 $ORIG_DIR/expected_status1.json
         rlRun "podman exec $dnsconfd_cid getent hosts first-address.test.com | grep 192.168.6.3" 0 "Verifying correct address resolution"
@@ -43,7 +48,8 @@ rlJournalStart
         rlRun "podman cp $vpn_cid:/etc/openvpn/easy-rsa/pki/ca.crt $dnsconfd_cid:/etc/openvpn/client/ca.crt"
         rlRun "podman exec $dnsconfd_cid nmcli connection add type vpn vpn-type openvpn ipv4.method auto ipv4.never-default yes vpn.data '$VPN_SETTINGS'" 0 "Creating vpn connection"
         rlRun "podman exec $dnsconfd_cid nmcli connection up vpn" 0 "Connecting to vpn"
-        sleep 2
+        # FIXME workaround of NM DAD issue
+        rlRun "podman exec $dnsconfd_cid nmcli g reload"
         rlRun "podman exec $dnsconfd_cid dnsconfd status --json | jq_filter_general > status2" 0 "Getting status of dnsconfd"
         rlAssertNotDiffer status2 $ORIG_DIR/expected_status2.json
         rlRun "podman exec $dnsconfd_cid getent hosts dummy | grep 192.168.6.5" 0 "Verifying correct address resolution"
@@ -53,6 +59,7 @@ rlJournalStart
     rlPhaseStartCleanup
         rlRun "podman exec $dnsconfd_cid journalctl -u dnsconfd" 0 "Saving dnsconfd logs"
         rlRun "podman exec $dnsconfd_cid journalctl -u unbound" 0 "Saving unbound logs"
+        rlRun "podman exec $dnsconfd_cid journalctl -u NetworkManager" 0 "Saving nm logs"
         rlRun "podman exec $dnsconfd_cid ip route" 0 "Saving present routes"
         rlRun "popd"
         rlRun "podman stop -t 0 $dnsconfd_cid $dnsmasq1_cid $dnsmasq2_cid $dnsmasq3_cid $dhcp_cid $vpn_cid" 0 "Stopping containers"

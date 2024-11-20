@@ -6,7 +6,9 @@ import socket
 
 
 def create_instance():
-    ins = UnboundManager(False)
+    ins = UnboundManager({"dnssec_enabled": False,
+                          "listen_address": "127.0.0.1",
+                          "certification_authority": "whatever"})
     ins.lgr.disabled = True
     setattr(ins, "_executed_commands", [])
 

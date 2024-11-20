@@ -34,7 +34,7 @@ class Option:
     def validate(self, value) -> bool:
         """ Validate that the value is allowed
 
-        :param value: checked value
+        :param value: Value that should be validated
         :return: True if value is correct, otherwise False
         :rtype: bool
         """

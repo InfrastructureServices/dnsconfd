@@ -1,4 +1,4 @@
-.TH "dnsconfd-config" "8" "18 Nov 2024" "dnsconfd-1.6.0" ""
+.TH "dnsconfd-config" "8" "18 Jan 2025" "dnsconfd-1.7.0" ""
 
 .SH NAME
 
@@ -18,6 +18,10 @@ Config command allows you to change configuration of service or host.
 Config network manager to use dnsconfd
 .IP nm_disable
 Config network manager to not use dnsconfd
+.IP take_resolvconf
+Change ownership of resolv conf, so dnsconfd does not need root privileges
+.IP return_resolvconf
+Return ownership of resolv conf, so root is again the owner
 .IP install
 Perform all installation steps
 .IP uninstall

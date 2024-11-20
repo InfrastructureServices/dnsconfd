@@ -1,6 +1,7 @@
 import re
 import socket
 from logging.handlers import SysLogHandler
+from typing import Optional
 
 from dnsconfd.configuration import Option
 
@@ -48,7 +49,7 @@ class SyslogOption(Option):
         port = int(match_object.group(3))
         return {"socket_type": socket_type, "host": host, "port": port}
 
-    def construct_handler(self, value: str) -> SysLogHandler | None:
+    def construct_handler(self, value: str) -> Optional[SysLogHandler]:
         """ Construct SysLog handler connected to specified destination
 
         :param value: string with specified syslog daemon destination

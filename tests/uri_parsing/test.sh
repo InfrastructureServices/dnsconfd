@@ -19,7 +19,7 @@ rlJournalStart
     rlPhaseStartTest
         rlRun "podman exec $dnsconfd_cid /bin/bash -c 'echo api_choice: dnsconfd >> /etc/dnsconfd.conf'" 0 "switching API"
         rlRun "podman exec $dnsconfd_cid systemctl restart dnsconfd" 0 "restarting dnsconfd"
-        sleep 2
+        rlRun "podman exec $dnsconfd_cid systemctl start network-online.target"
         rlRun "podman exec $dnsconfd_cid dnsconfd update 'dns+udp://192.168.6.3?interface=eth0'" 0 "submit update"
         sleep 2
         rlRun "podman exec $dnsconfd_cid dnsconfd status --json | jq_filter_general > status" 0 "Getting status of dnsconfd"

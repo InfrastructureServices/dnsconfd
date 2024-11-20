@@ -13,7 +13,7 @@ rlJournalStart
     rlPhaseEnd
 
     rlPhaseStartTest
-        rlRun "dnsconfd config install" 0 "Installing dnsconfd"
+        rlRun "dnsconfd config nm_enable" 0 "Installing dnsconfd"
         rlServiceStop rsyslog
         rlRun "echo '' > /var/log/messages"
         # now we will test syslog logging

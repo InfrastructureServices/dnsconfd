@@ -36,9 +36,12 @@ require {
 
 type dnsconfd_t;
 type dnsconfd_exec_t;
+type dnsconfd_init_t;
+type dnsconfd_init_exec_t;
 type dnsconfd_var_run_t;
 
 init_daemon_domain(dnsconfd_t, dnsconfd_exec_t)
+init_daemon_domain(dnsconfd_init_t, dnsconfd_init_exec_t)
 
 files_pid_file(dnsconfd_var_run_t)
 files_mountpoint(dnsconfd_var_run_t)
@@ -59,10 +62,10 @@ allow dnsconfd_t named_exec_t:file { execute execute_no_trans open read map};
 # Required by unbound-control
 allow dnsconfd_t named_conf_t:dir { getattr open read search};
 allow dnsconfd_t named_conf_t:file { getattr ioctl open read };
+allow dnsconfd_t named_conf_t:lnk_file read;
 allow dnsconfd_t named_var_run_t:dir { search };
 allow dnsconfd_t named_var_run_t:sock_file { write };
 allow dnsconfd_t named_t:unix_stream_socket { connectto };
-
 allow dnsconfd_t net_conf_t:lnk_file { getattr read write unlink };
 allow dnsconfd_t net_conf_t:file { getattr open read write create ioctl };
 allow dnsconfd_t node_t:tcp_socket node_bind;
@@ -116,3 +119,6 @@ allow dnsconfd_t dnsconfd_t:dbus send_msg;
 allow dnsconfd_t NetworkManager_t:dbus send_msg;
 
 logging_send_syslog_msg(dnsconfd_t)
+
+#============= dnsconfd_init_t ==============
+allow dnsconfd_init_t etc_t:dir write;

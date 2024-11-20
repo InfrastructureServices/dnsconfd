@@ -1,4 +1,4 @@
-.TH "dnsconfd.conf" "5" "18 Nov 2024" "dnsconfd-1.6.0" ""
+.TH "dnsconfd.conf" "5" "18 Jan 2025" "dnsconfd-1.7.0" ""
 
 .SH NAME
 
@@ -39,6 +39,9 @@ by default disabled. See command line option for destination specification
 syntax.
 .IP file_log
 Dnsconfd will write logs into specified file, not used by default
+.IP certification_authority
+Absolute path to a bundle of certification authorities that will be used
+when no custom were specified.
 .IP "static_servers"
 List of servers that should be configured, default is empty
 

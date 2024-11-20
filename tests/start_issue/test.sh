@@ -1,8 +1,6 @@
 #!/bin/bash
 # vim: dict+=/usr/share/beakerlib/dictionary.vim cpt=.,w,b,u,t,i,k
 . /usr/share/beakerlib/beakerlib.sh || exit 1
-DBUS_NAME=org.freedesktop.resolve1
-ORIG_DIR=$(pwd)
 
 rlJournalStart
     rlPhaseStartSetup
@@ -14,13 +12,12 @@ rlJournalStart
     rlPhaseEnd
 
     rlPhaseStartTest
-        sleep 2
+        rlRun "podman exec $dnsconfd_cid systemctl start network-online.target"
         rlRun "podman exec $dnsconfd_cid systemctl stop dnsconfd" 0 "stop dnsconfd"
         rlRun "podman exec $dnsconfd_cid sed -i 's/ExecStart=.*/ExecStart=false/g' /usr/lib/systemd/system/unbound.service" 0 "breaking unbound"
         rlRun "podman exec $dnsconfd_cid systemctl daemon-reload" 0 "reload systemd units"
-        rlRun "podman exec $dnsconfd_cid systemctl start dnsconfd" 0 "start dnsconfd"
-        sleep 6
-        rlRun "podman exec $dnsconfd_cid journalctl -u dnsconfd | grep 'unbound did not respond in time'" 0 "Checking dnsconfd logs"
+        rlRun "podman exec $dnsconfd_cid systemctl start dnsconfd" 1 "start dnsconfd"
+        rlRun "podman exec $dnsconfd_cid journalctl -u dnsconfd | grep -e 'TIMEOUT' -e 'START_FAIL'" 0 "Checking dnsconfd logs"
         rlRun "podman exec $dnsconfd_cid systemctl status dnsconfd" 3 "Verify that dnsconfd is stopped"
     rlPhaseEnd
 

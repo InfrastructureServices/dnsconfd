@@ -1,5 +1,6 @@
-from typing import Callable
+from typing import Callable, Optional
 from gi.repository import GLib
+import systemd.daemon
 
 from dnsconfd import SystemManager, ExitCode
 from dnsconfd.dns_managers import UnboundManager
@@ -21,7 +22,8 @@ class Running(TransitionImplementations):
                  systemd_manager: SystemdManager,
                  server_mgr: ServerManager,
                  route_mgr: RoutingManager,
-                 transition_function: Callable):
+                 transition_function: Callable,
+                 signal_serial: Callable):
         """ Object responsible for performing running stage of Dnsconfd
 
         :param config: dictionary with configuration
@@ -42,6 +44,7 @@ class Running(TransitionImplementations):
         self.transition_function = transition_function
         self.routed_servers = []
         self.zones_to_servers = {}
+        self._signal_serial = signal_serial
         self.transitions = {
             ContextState.SUBSCRIBING_NM_CONNECTIONS: {
                 "SUCCESS": (ContextState.CHECK_ALL_CONNECTIONS_UP,
@@ -120,7 +123,9 @@ class Running(TransitionImplementations):
                          self._unsub_and_wait)
             },
             ContextState.UPDATING_DNS_MANAGER: {
-                "SUCCESS": (ContextState.RUNNING, lambda y: None)
+                "SUCCESS": (ContextState.RUNNING, self._notify_ready),
+                "RELOAD_REQUIRED": (ContextState.SUBMITTING_RESTART_JOB,
+                                    self._running_reload_transition)
             },
             ContextState.RUNNING: {
                 "UPDATE": (ContextState.UNSUBSCRIBE_IMMEDIATE,
@@ -140,10 +145,6 @@ class Running(TransitionImplementations):
                 "SUCCESS": (ContextState.WAITING_RESTART_JOB,
                             lambda y: None)
             },
-            ContextState.POLLING: {
-                "SERVICE_UP": (ContextState.SETTING_RESOLV_CONF,
-                               self._set_resolv_conf)
-            },
             ContextState.SETTING_RESOLV_CONF: {
                 "SUCCESS": (ContextState.SUBSCRIBING_NM_CONNECTIONS,
                             self._subscribe_to_devices_connections)
@@ -151,10 +152,22 @@ class Running(TransitionImplementations):
             ContextState.UPDATING_RESOLV_CONF: {
                 "SUCCESS": (ContextState.UPDATING_DNS_MANAGER,
                             self._updating_routes_success_transition)
-            }
+            },
+            ContextState.WAITING_FOR_START_JOB: {
+                "START_OK": (ContextState.SETTING_RESOLV_CONF,
+                             self._set_resolv_conf),
+            },
+            ContextState.WAITING_RESTART_JOB: {
+                "RESTART_SUCCESS": (ContextState.SETTING_RESOLV_CONF,
+                                    self._set_resolv_conf),
+            },
         }
 
-    def _remove_redundant(self, event: ContextEvent) -> ContextEvent | None:
+    def _notify_ready(self, event: ContextEvent) -> Optional[ContextEvent]:
+        systemd.daemon.notify("READY=1\n")
+        return None
+
+    def _remove_redundant(self, event: ContextEvent) -> Optional[ContextEvent]:
         self.lgr.info("Removing redundant routes")
         if self.route_mgr.remove_redundant():
             self.lgr.info("Removed redundant routes, will proceed")
@@ -163,7 +176,7 @@ class Running(TransitionImplementations):
         return ContextEvent("FAIL")
 
     def _gather_conn_config(self, event: ContextEvent) \
-            -> ContextEvent | None:
+            -> Optional[ContextEvent]:
         if self.route_mgr.gather_connections():
             self.lgr.info("Successfully gathered connections")
             return ContextEvent("SUCCESS")
@@ -171,7 +184,7 @@ class Running(TransitionImplementations):
                       "will wait")
         return ContextEvent("FAIL")
 
-    def _check_ip_objs(self, event: ContextEvent) -> ContextEvent | None:
+    def _check_ip_objs(self, event: ContextEvent) -> Optional[ContextEvent]:
         if self.route_mgr.is_any_ip_object_ready():
             self.lgr.info("At least one ip object is ready for routing, "
                           "proceeding")
@@ -180,26 +193,27 @@ class Running(TransitionImplementations):
         return ContextEvent("FAIL")
 
     def _subscribe_ip_changes(self, event: ContextEvent) \
-            -> ContextEvent | None:
+            -> Optional[ContextEvent]:
         if self.route_mgr.subscribe_to_ip_objs_change():
             self.lgr.info("Successfully subscribed to ip changes")
             return ContextEvent("SUCCESS")
         self.lgr.info("Was not able to subscribe to ip changes, will wait")
         return ContextEvent("FAIL")
 
-    def _unsubscribe_now(self, event: ContextEvent) -> ContextEvent | None:
+    def _unsubscribe_now(self, event: ContextEvent) -> Optional[ContextEvent]:
         self.route_mgr.clear_transaction()
         self.lgr.info("Successfully unsubscribed from NM events")
         return ContextEvent("SUCCESS")
 
     def _save_update_and_unsubscribe(self, event: ContextEvent) \
-            -> ContextEvent | None:
+            -> Optional[ContextEvent]:
+        systemd.daemon.notify("RELOADING=1\n")
         self.server_manager.set_dynamic_servers(event.data[0], event.data[1])
         self.route_mgr.clear_transaction()
         self.lgr.info("Successfully saved update and unsubscribed NM events")
         return ContextEvent("SUCCESS")
 
-    def _modify_connections(self, event: ContextEvent) -> ContextEvent | None:
+    def _modify_connections(self, event: ContextEvent) -> Optional[ContextEvent]:
         routed_servers, change = self.route_mgr.handle_routes_process()
         if change == 0:
             self.lgr.info("No change of routing was needed, proceeding")
@@ -212,12 +226,12 @@ class Running(TransitionImplementations):
         self.lgr.info("Issue was encountered when changing routing, will wait")
         return ContextEvent("FAIL")
 
-    def _save_update_noop(self, event: ContextEvent) -> ContextEvent | None:
+    def _save_update_noop(self, event: ContextEvent) -> Optional[ContextEvent]:
         self.server_manager.set_dynamic_servers(event.data[0], event.data[1])
         self.lgr.info("Successfully saved update")
         return None
 
-    def _unsub_and_wait(self, event: ContextEvent) -> ContextEvent | None:
+    def _unsub_and_wait(self, event: ContextEvent) -> Optional[ContextEvent]:
         self.route_mgr.clear_transaction()
         timer = ContextEvent("TIMER_UP", 0)
         GLib.timeout_add_seconds(1,
@@ -227,7 +241,7 @@ class Running(TransitionImplementations):
         return ContextEvent("SUCCESS")
 
     def _check_all_connections_up(self, event: ContextEvent) \
-            -> ContextEvent | None:
+            -> Optional[ContextEvent]:
         if self.route_mgr.are_all_up():
             self.lgr.debug("All connections are up, proceeding")
             return ContextEvent("SUCCESS")
@@ -235,7 +249,8 @@ class Running(TransitionImplementations):
         return ContextEvent("FAIL")
 
     def _subscribe_to_devices_connections(self, event: ContextEvent) \
-            -> ContextEvent | None:
+            -> Optional[ContextEvent]:
+        systemd.daemon.notify("RELOADING=1\n")
         servers = self.server_manager.get_used_servers()
         if not self.config["handle_routing"]:
             self.lgr.info("Configuration says we should not handle routing,"
@@ -251,17 +266,26 @@ class Running(TransitionImplementations):
         return ContextEvent("FAIL")
 
     def _updating_routes_success_transition(self, event: ContextEvent) \
-            -> ContextEvent | None:
+            -> Optional[ContextEvent]:
+        if self.dns_mgr.set_static_options(self.zones_to_servers):
+            return ContextEvent("RELOAD_REQUIRED")
         if not self.dns_mgr.update(self.zones_to_servers):
             self.lgr.error("Failed to send update into DNS cache service")
             self.exit_code_handler.set_exit_code(ExitCode.SERVICE_FAILURE)
             return ContextEvent("FAIL")
+        # signal serial change
+        self._signal_serial()
         return ContextEvent("SUCCESS")
 
     def _running_reload_transition(self, event: ContextEvent) \
-            -> ContextEvent | None:
+            -> Optional[ContextEvent]:
+        systemd.daemon.notify("RELOADING=1\n")
         self.lgr.info("Reloading DNS cache service")
         self.dns_mgr.clear_state()
+        if not self.dns_mgr.configure():
+            self.lgr.error("Failed to write configuration cache service")
+            self.exit_code_handler.set_exit_code(ExitCode.SERVICE_FAILURE)
+            return ContextEvent("FAIL")
         if not self.systemd_mgr.subscribe_systemd_signals():
             self.lgr.error("Failed to subscribe to systemd signals")
             self.exit_code_handler.set_exit_code(ExitCode.DBUS_FAILURE)
@@ -278,7 +302,7 @@ class Running(TransitionImplementations):
         return ContextEvent("SUCCESS")
 
     def _update_resolv_conf(self, event: ContextEvent) \
-            -> ContextEvent | None:
+            -> Optional[ContextEvent]:
         self.zones_to_servers, search_domains = (
             self.server_manager.get_zones_to_servers(self.routed_servers))
         if not self.sys_mgr.update_resolvconf(search_domains):
@@ -288,7 +312,7 @@ class Running(TransitionImplementations):
         self.lgr.info("Resolv.conf successfully updated")
         return ContextEvent("SUCCESS")
 
-    def _set_resolv_conf(self, event: ContextEvent) -> ContextEvent | None:
+    def _set_resolv_conf(self, event: ContextEvent) -> Optional[ContextEvent]:
         if not self.sys_mgr.set_resolvconf():
             self.lgr.error("Failed to set resolv.conf")
             self.exit_code_handler.set_exit_code(ExitCode.RESOLV_CONF_FAILURE)

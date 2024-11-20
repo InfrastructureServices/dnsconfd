@@ -18,23 +18,66 @@ actions:
     get-current-version: "sed -n 's|^Version: *||p' distribution/dnsconfd.spec"
 
 jobs:
+# pr jobs
   - job: copr_build
     trigger: pull_request
     identifier: pr_copr_build
     targets:
       - fedora-all
+      - centos-stream-10
+      - centos-stream-9
   - job: tests
     trigger: pull_request
-    identifier: pr_tests
+    identifier: pr_tests_multihost
     targets:
-    - fedora-40
+      - fedora-all
+      - centos-stream-10
+      - centos-stream-9
+    tmt_plan: multihost
+    skip_build: True
+    tf_extra_params:
+      settings:
+        pipeline:
+          type: tmt-multihost
+    use_internal_tf: True
+  - job: tests
+    trigger: pull_request
+    identifier: pr_tests_singlehost
+    targets:
+      - fedora-all
+      - centos-stream-10
+      - centos-stream-9
+    tmt_plan: "(integration|distribution|unit)"
+    skip_build: True
+# commit jobs (executed on main branch)
   - job: copr_build
     trigger: commit
     identifier: commit_copr_build
     targets:
       - fedora-all
+      - centos-stream-10
+      - centos-stream-9
   - job: tests
     trigger: commit
-    identifier: commit_tests
+    identifier: pr_tests_multihost
     targets:
-      - fedora-40
+      - fedora-all
+      - centos-stream-10
+      - centos-stream-9
+    tmt_plan: multihost
+    skip_build: True
+    tf_extra_params:
+      settings:
+        pipeline:
+          type: tmt-multihost
+    use_internal_tf: True
+  - job: tests
+    trigger: commit
+    identifier: pr_tests_singlehost
+    targets:
+      - fedora-all
+      - centos-stream-10
+      - centos-stream-9
+    tmt_plan: "(integration|distribution|unit)"
+    skip_build: True
+
