@@ -21,8 +21,7 @@ class NetworkManager:
                 # TODO: have own plugin in NM
                 f.writelines([self.HEADER,
                               "[main]\n",
-                              "dns=systemd-resolved\n",
-                              "rc-manager=unmanaged\n"])
+                              "dns=dnsconfd\n"])
         except OSError as e:
             print(f"Unable to configure network manager: {e}")
             return False

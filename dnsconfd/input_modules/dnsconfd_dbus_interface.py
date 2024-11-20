@@ -1,13 +1,12 @@
-import ipaddress
-from socket import AF_INET, AF_INET6
 import typing
 import logging
 import dbus.service
 from dbus.service import BusName
+from dbus import PROPERTIES_IFACE
 
 from dnsconfd.network_objects import ServerDescription, InterfaceConfiguration
 from dnsconfd.network_objects import DnsProtocol
-from dnsconfd.input_modules import ResolvingMode
+from dnsconfd import ResolvingMode
 from dnsconfd.fsm import DnsconfdContext, ContextEvent
 
 
@@ -27,10 +26,10 @@ class DnsconfdDbusInterface(dbus.service.Object):
         self.dnssec_enabled = config["dnssec_enabled"]
         self.lgr = logging.getLogger(self.__class__.__name__)
 
-    @dbus.service.method(dbus_interface='com.redhat.dnsconfd.Manager',
-                         in_signature='aa{sv}u', out_signature='bs')
+    @dbus.service.method(dbus_interface="com.redhat.dnsconfd.Manager",
+                         in_signature="aa{sv}u", out_signature="us")
     def Update(self, servers: list[dict[str, typing.Any]], mode: int) \
-            -> tuple[bool, str]:
+            -> tuple[int, str]:
         """ Update forwarders that should be used
 
         :param servers: list of dictionaries describing servers.
@@ -42,183 +41,65 @@ class DnsconfdDbusInterface(dbus.service.Object):
         new_servers = []
         self.lgr.info("Update dbus method called with args: %s", servers)
         if self.ignore_api:
-            return True, "Configured to ignore"
-        ips_to_interface = {}
+            return 0, "Configured to ignore"
+        ip_to_interface = {}
+        entered_ca = None
 
         if mode not in [0, 1, 2]:
             msg = f"Mode {mode} not in allowed range 0-2"
             self.lgr.error(msg)
-            return False, msg
+            return 0, msg
 
         for index, server in enumerate(servers):
             self.lgr.debug("processing server: %s", server)
-            if server.get("address", None) is None:
-                msg = f"{index + 1}. server in update has no address"
-                self.lgr.error(msg)
-                return False, msg
+
             try:
-                parsed_address = ipaddress.ip_address(server["address"])
-            except ValueError:
-                msg = f"{index + 1}. server has incorrect " \
-                      f"ip address {server["address"]}"
+                serv_desc = ServerDescription.from_dict(server,
+                                                        self.dnssec_enabled)
+            except ValueError as e:
+                msg = f"{index + 1}. Server not valid {e}"
                 self.lgr.error(msg)
-                return False, msg
+                return 0, msg
 
-            port = None
-            if server.get("port", None) is not None:
-                if (not isinstance(server["port"], int)
-                        or not 0 < server["port"] < 65536):
-                    msg = f"{index + 1}. server has bad port {server["port"]}"
-                    self.lgr.error(msg)
-                    return False, msg
-                port = int(server["port"])
-
-            protocol = DnsProtocol.DNS_PLUS_UDP
-            if server.get("protocol", None) is not None:
-                if not isinstance(server["protocol"], str):
-                    msg = f"{index + 1}. server is not a string protocol"
-                    self.lgr.error(msg)
-                    return False, msg
-                protocol = DnsProtocol.from_str(server["protocol"])
-                if protocol is None:
-                    msg = f"{index + 1}. server has unsupported protocol " \
-                          f"{server["protocol"]}"
-                    self.lgr.error(msg)
-                    return False, msg
-
-            name = None
-            if server.get("name", None) is not None:
-                if not isinstance(server["name"], str):
-                    msg = f"{index + 1}. server name is not " \
-                          f"a string"
-                    self.lgr.error(msg)
-                    return False, msg
-                name = str(server["name"])
-
-            routing_domains = None
-            if server.get("routing_domains", None) is not None:
-                if not isinstance(server["routing_domains"], list):
-                    msg = f"{index + 1}. server routing domains is not " \
-                          f"list {server["domains"]}"
-                    self.lgr.error(msg)
-                    return False, msg
-                for domain in server["routing_domains"]:
-                    if not isinstance(domain, str):
-                        msg = (f"{index + 1}."
-                               f"server routing domain is not string")
-                        self.lgr.error(msg)
-                        return False, msg
-                routing_domains = server["routing_domains"]
-
-            search_domains = None
-            if server.get("search_domains", None) is not None:
-                if not isinstance(server["search_domains"], list):
-                    msg = f"{index + 1}. server search domains is not " \
-                          f"list {server["domains"]}"
-                    self.lgr.error(msg)
-                    return False, msg
-                for domain in server["search_domains"]:
-                    if not isinstance(domain, str):
-                        msg = (f"{index + 1}."
-                               f"server search domain is not string")
-                        self.lgr.error(msg)
-                        return False, msg
-                search_domains = server["search_domains"]
-
-            interface = None
+            serv_int = serv_desc.interface
             is_wireless = False
-            if server.get("interface", None) is not None:
-                if not isinstance(server["interface"], str):
-                    msg = (f"{index + 1}. server has bad interface "
-                           f"{server["interface"]}")
-                    self.lgr.error(msg)
-                    return False, msg
-                interface = str(server["interface"])
-                is_wireless = (self.prio_wire
-                               and (InterfaceConfiguration.
-                                    is_interface_wireless(interface)))
-
-            if interface:
-                parsed_addr_str = str(parsed_address)
-                if (parsed_addr_str in ips_to_interface
-                        and ips_to_interface[parsed_addr_str] != interface):
+            if serv_int:
+                if (serv_desc.address in ip_to_interface
+                        and ip_to_interface[serv_desc.address] != serv_int):
                     self.lgr.warning("2 servers with the same IP can not "
                                      "be bound to 2 different interfaces, "
                                      "ignoring server with interface %s",
-                                     interface)
+                                     serv_int)
                     continue
                 else:
-                    ips_to_interface[parsed_addr_str] = interface
+                    ip_to_interface[serv_desc.address] = serv_int
+                    is_wireless = (self.prio_wire
+                                   and (InterfaceConfiguration.
+                                        is_interface_wireless(serv_int)))
 
-            dnssec = False
-            if server.get("dnssec", None) is not None:
-                # here we have to check for dbus.Boolean as it does not
-                # inherit from bool but from int
-                if not isinstance(server["dnssec"], dbus.Boolean):
-                    msg = f"{index + 1}. dnssec is not bool"
+            if is_wireless:
+                serv_desc.priority = 50
+
+            if serv_desc.ca is not None and entered_ca is None:
+                entered_ca = serv_desc.ca
+
+            if serv_desc.protocol == DnsProtocol.DNS_PLUS_TLS:
+                if serv_desc.ca != entered_ca:
+                    msg = ("if CA is used, then it has to be set and"
+                           "same for all servers using encryption")
                     self.lgr.error(msg)
-                    return False, msg
-                dnssec = bool(server["dnssec"])
+                    return 0, msg
 
-            if (self.dnssec_enabled and not dnssec
-                    and (not routing_domains
-                         or [x for x in routing_domains if x == '.'])):
-                msg = ("Server used for . domain can not have disabled "
-                       "dnssec when it is enabled by configuration")
-                self.lgr.error(msg)
-                return False, msg
-
-            networks = None
-            if server.get("networks", None) is not None:
-                if not isinstance(server["networks"], list):
-                    msg = f"{index + 1}. server networks is not " \
-                          f"list {server["networks"]}"
-                    self.lgr.error(msg)
-                    return False, msg
-                networks = []
-                for net in server["networks"]:
-                    try:
-                        networks.append(ipaddress.ip_network(net))
-                    except ValueError:
-                        msg = f"{index + 1}. server network is not " \
-                              f"valid network {net}"
-                        self.lgr.error(msg)
-                        return False, msg
-
-            firewall_zone = None
-            if server.get("firewall_zone", None) is not None:
-                if not isinstance(server["firewall_zone"], str):
-                    msg = (f"{index + 1}."
-                           f"server search domain is not string")
-                    self.lgr.error(msg)
-                    return False, msg
-                firewall_zone = server["firewall_zone"]
-
-            # you may notice the type conversions throughout this method,
-            # these are present to get rid of dbus types and prevent
-            # unexpected problems in further processing
-
-            addr_family = AF_INET if parsed_address.version == 4 else AF_INET6
-            serv_desc = ServerDescription(addr_family,
-                                          parsed_address.packed,
-                                          port,
-                                          name,
-                                          priority=50 if is_wireless else 100,
-                                          routing_domains=routing_domains,
-                                          search_domains=search_domains,
-                                          interface=interface,
-                                          protocol=protocol,
-                                          dnssec=dnssec,
-                                          networks=networks,
-                                          firewall_zone=firewall_zone)
             new_servers.append(serv_desc)
         event = ContextEvent("UPDATE",
                              (new_servers, ResolvingMode(mode)))
+        # serial has to be retrieved before context has chance to emit signal
+        new_serial = self.runtime_context.bump_configuration_serial()
         self.runtime_context.transition_function(event)
-        return True, "Done"
+        return new_serial, "Done"
 
-    @dbus.service.method(dbus_interface='com.redhat.dnsconfd.Manager',
-                         in_signature='b', out_signature='s')
+    @dbus.service.method(dbus_interface="com.redhat.dnsconfd.Manager",
+                         in_signature="b", out_signature="s")
     def Status(self, json_format: bool):
         """ Get status of Dnsconfd
 
@@ -227,8 +108,8 @@ class DnsconfdDbusInterface(dbus.service.Object):
         """
         return self.runtime_context.get_status(json_format)
 
-    @dbus.service.method(dbus_interface='com.redhat.dnsconfd.Manager',
-                         in_signature='', out_signature='bs')
+    @dbus.service.method(dbus_interface="com.redhat.dnsconfd.Manager",
+                         in_signature="", out_signature="bs")
     def Reload(self) -> tuple[bool, str]:
         """ Reload configuration of underlying cache service
 
@@ -236,3 +117,35 @@ class DnsconfdDbusInterface(dbus.service.Object):
         """
         self.lgr.info("Received request for reload of plugin")
         return self.runtime_context.reload_service()
+
+    @dbus.service.method(dbus_interface=PROPERTIES_IFACE,
+                         in_signature="ss", out_signature="v")
+    def Get(self, interface_name, property_name):
+        properties = self.GetAll(interface_name)
+        if property_name not in properties:
+            raise dbus.exceptions.DBusException("Unknown property")
+        return properties[property_name]
+
+    @dbus.service.method(dbus_interface=PROPERTIES_IFACE,
+                         in_signature="s", out_signature="a{sv}")
+    def GetAll(self, interface_name):
+        if interface_name == "com.redhat.dnsconfd.Manager":
+            return {"configuration_serial":
+                    dbus.UInt32(self.runtime_context.get_configuration_serial())}
+        raise dbus.exceptions.DBusException(
+            "com.redhat.UnknownInterface",
+            "The com.redhat.dnsconfd object does "
+            f"not implement the {interface_name} interface")
+
+    @dbus.service.signal(dbus_interface=PROPERTIES_IFACE,
+                         signature="sa{sv}as")
+    def PropertiesChanged(self, interface_name, changed_properties,
+                          invalidated_properties):
+        pass
+
+    def emit_serial_signal(self):
+        new_properties = {"configuration_serial":
+                          dbus.UInt32(self.runtime_context.get_configuration_serial())}
+        self.PropertiesChanged("com.redhat.dnsconfd.Manager",
+                               new_properties,
+                               [])

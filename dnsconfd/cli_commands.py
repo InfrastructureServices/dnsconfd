@@ -135,59 +135,51 @@ class CLICommands:
         sys.exit(0)
 
     @staticmethod
-    def update(dbus_name: str,
-               is_json: bool,
-               servers: str,
-               search: list[str],
-               mode: int,
-               api_choice: str) -> typing.NoReturn:
+    def update(config: dict) -> typing.NoReturn:
         """ Call Update DBUS method of Dnsconfd
 
-        :param dbus_name: DBUS name Dnsconfd listens on
-        :param is_json: Indicates whether the servers string is JSON
-        :param servers: JSON string with servers that should be set in place
-        :param search: list of search domains that should be appended
-        :param mode: Resolving mode that should be set
-        :param api_choice: dnsconfd or resolve1
+        :param config: dictionary with configuration
         """
-        if servers is None:
+        if config["server_list"] is None:
             server_list = []
-        elif is_json:
+        elif config["json"]:
             try:
-                print(f"servers are {servers}")
-                server_list = json.loads(servers[0])
+                print(f"servers are {config['server_list']}")
+                server_list = json.loads(config["server_list"][0])
             except json.JSONDecodeError as e:
                 print(f"Servers are not valid JSON string: {e}")
                 sys.exit(1)
         else:
             try:
                 server_list = []
-                for srv in servers:
+                for srv in config["server_list"]:
                     server_list.append(
                         ServerDescription.from_uri(srv).to_dict(strip=True))
             except ValueError as e:
                 print(f"Server uri is not valid {e}")
                 sys.exit(1)
-        if search:
+        if config["search"]:
             for server in server_list:
-                server.setdefault("search_domains", []).extend(search)
+                server.setdefault("search_domains", []).extend(
+                    config["search"])
 
         bus = dbus.SystemBus()
 
         try:
-            if api_choice != "dnsconfd":
+            if config["api_choice"] != "dnsconfd":
                 print("This command does not support resolve1")
                 sys.exit(1)
-            dnsconfd_object = bus.get_object(dbus_name,
+            dnsconfd_object = bus.get_object(config["dbus_name"],
                                              "/com/redhat/dnsconfd")
             dnsconfd_interface = dbus.Interface(dnsconfd_object,
                                                 "com.redhat.dnsconfd.Manager")
         except DBusException as e:
-            print(f"Dnsconfd is not listening on name {dbus_name}, {e}")
+            print(f"Dnsconfd is not listening on name {config['dbus_name']}, "
+                  f"{e}")
             sys.exit(1)
         try:
             all_ok, message = dnsconfd_interface.Update(server_list,
-                                                        mode,
+                                                        config["mode"],
                                                         signature="aa{sv}u")
             print(f"{message}")
         except DBusException as e:

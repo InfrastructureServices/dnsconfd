@@ -13,7 +13,7 @@ rlJournalStart
         rlRun "podman network create dnsconfd_network --internal -d=bridge --gateway=192.168.6.1 --subnet=192.168.6.0/24"
         # dns=none is neccessary, because otherwise resolv.conf is created and
         # mounted by podman as read-only
-        rlRun "dnsconfd_cid=\$(podman run -d --dns='none' --network dnsconfd_network:ip=192.168.6.2 dnsconfd_testing:latest)" 0 "Starting dnsconfd container"
+        rlRun "dnsconfd_cid=\$(podman run -d --privileged --dns='none' --network dnsconfd_network:ip=192.168.6.2 dnsconfd_testing:latest)" 0 "Starting dnsconfd container"
         rlRun "bind_cid=\$(podman run -d --dns='none' --network dnsconfd_network:ip=192.168.6.3 localhost/dnsconfd_utilities:latest bind_entry.sh)" 0 "Starting dnsmasq container"
     rlPhaseEnd
 
@@ -23,24 +23,27 @@ rlJournalStart
         # this is necessary, because if ca trust is not in place before unbound start then verification of
         # server certificate fails
         rlRun "podman exec $dnsconfd_cid systemctl restart unbound"
+        #FIXME once unbound calls notify properly we can remove this
         sleep 5
-        rlRun "podman exec $dnsconfd_cid nmcli connection mod eth0 connection.dns-over-tls 2" 0 "Enabling dns over tls"
-        rlRun "podman exec $dnsconfd_cid nmcli connection mod eth0 ipv4.dns 192.168.6.3#named" 0 "Adding dns server to NM active profile"
+        rlRun "podman exec $dnsconfd_cid nmcli connection mod eth0 ipv4.dns dns+tls://192.168.6.3#named" 0 "Adding dns server to NM active profile"
         # we have to restart, otherwise NM will attempt to change ipv6 and because it has no permissions, it will fail
-        rlRun "podman exec $dnsconfd_cid systemctl restart NetworkManager" 0 "Reactivating connection"
-        sleep 5
+        rlRun "podman exec $dnsconfd_cid nmcli connection up eth0" 0 "Bringing the connection up"
+        # FIXME workaround of NM DAD issue
+        rlRun "podman exec $dnsconfd_cid nmcli g reload"
         rlRun "podman exec $dnsconfd_cid dnsconfd status --json | jq_filter_general > status1" 0 "Getting status of dnsconfd"
         rlAssertNotDiffer status1 $ORIG_DIR/expected_status.json
         rlRun "podman exec $dnsconfd_cid getent hosts server.example.com | grep 192.168.6.5" 0 "Verifying correct address resolution"
-
-        # new api testing
-        rlRun "podman exec $dnsconfd_cid /bin/bash -c 'echo api_choice: dnsconfd >> /etc/dnsconfd.conf'" 0 "switching API"
-        rlRun "podman exec $dnsconfd_cid systemctl restart dnsconfd" 0 "restarting dnsconfd"
-        sleep 2
-        rlRun "podman exec $dnsconfd_cid dnsconfd update 'dns+tls://192.168.6.3/?interface=eth0#named'" 0 "submit update"
-        sleep 2
-        rlRun "podman exec $dnsconfd_cid dnsconfd status --json | jq_filter_general > status1" 0 "Getting status of dnsconfd"
-        rlAssertNotDiffer status1 $ORIG_DIR/expected_status.json
+        # custom CA testing
+        rlRun "podman exec $dnsconfd_cid mkdir -p /etc/pki/dns/extracted/pem" 0 "Create dns CA directory"
+        rlRun "podman exec $dnsconfd_cid mv /etc/pki/ca-trust/source/anchors/ca_cert.pem /etc/pki/dns/extracted/pem/" 0 "Move certificate"
+        rlRun "podman exec $dnsconfd_cid update-ca-trust extract" 0 "Rebuild global store without custom certificate"
+        rlRun "podman exec $dnsconfd_cid /bin/bash -c 'printf \"[global-dns]\\ncertification-authority=/etc/pki/dns/extracted/pem/ca_cert.pem\\n[global-dns-domain-*]\\nservers=dns+tls://192.168.6.3#named\\n\" >> /etc/NetworkManager/conf.d/dnsconfd.conf'"
+        rlRun "podman exec $dnsconfd_cid nmcli g reload" 0 "Reloading NetworkManager"
+        rlRun "podman exec $dnsconfd_cid systemctl restart dnsconfd" 0 "Flush cache with restart to ensure we do not get false negative"
+        rlRun "podman exec $dnsconfd_cid nmcli connection mod eth0 ipv4.dns ''" 0 "Removing dns server from NM active profile"
+        rlRun "podman exec $dnsconfd_cid nmcli connection up eth0" 0 "Bringing the connection up"
+        # FIXME workaround of NM DAD issue
+        rlRun "podman exec $dnsconfd_cid nmcli g reload" 0 "Reloading NetworkManager"
         rlRun "podman exec $dnsconfd_cid getent hosts server.example.com | grep 192.168.6.5" 0 "Verifying correct address resolution"
     rlPhaseEnd
 

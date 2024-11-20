@@ -1,3 +1,7 @@
+from typing import Optional
+
+import systemd.daemon
+
 from dnsconfd import SystemManager, ExitCode
 from dnsconfd.dns_managers import UnboundManager
 from dnsconfd.fsm import ContextEvent, ContextState
@@ -63,12 +67,6 @@ class Stopping(TransitionImplementations):
                 "STOP": (ContextState.WAITING_TO_SUBMIT_STOP_JOB,
                          lambda y: None)
             },
-            ContextState.POLLING: {
-                "TIMEOUT": (ContextState.STOPPING,
-                            self._exit_transition),
-                "STOP": (ContextState.REVERTING_RESOLV_CONF,
-                         self._running_stop_transition)
-            },
             ContextState.SETTING_RESOLV_CONF: {
                 "FAIL": (ContextState.SUBMITTING_STOP_JOB,
                          self._submit_stop_job)
@@ -112,7 +110,9 @@ class Stopping(TransitionImplementations):
             ContextState.SUBMITTING_STOP_JOB: {
                 "SUCCESS": (ContextState.WAITING_STOP_JOB, lambda y: None),
                 "FAIL": (ContextState.REMOVING_ROUTES,
-                         self._to_removing_routes_transition)
+                         self._to_removing_routes_transition),
+                "SKIP": (ContextState.WAITING_STOP_JOB,
+                         lambda y: ContextEvent("STOP_SUCCESS"))
             },
             ContextState.WAITING_STOP_JOB: {
                 "STOP_SUCCESS": (ContextState.REMOVING_ROUTES,
@@ -153,7 +153,7 @@ class Stopping(TransitionImplementations):
         }
 
     def _to_removing_routes_transition(self, event: ContextEvent) \
-            -> ContextEvent | None:
+            -> Optional[ContextEvent]:
         # we have to react
         if event.name == "STOP_FAILURE":
             self.exit_code_handler.set_exit_code(ExitCode.SERVICE_FAILURE)
@@ -164,7 +164,7 @@ class Stopping(TransitionImplementations):
         self.route_mgr.remove_routes()
         return ContextEvent("SUCCESS")
 
-    def _submit_stop_job(self, event: ContextEvent) -> ContextEvent | None:
+    def _submit_stop_job(self, event: ContextEvent) -> Optional[ContextEvent]:
         jobid = self.systemd_manager.change_unit_state(
             2,
             self.dns_mgr.service_name,
@@ -176,7 +176,7 @@ class Stopping(TransitionImplementations):
         return ContextEvent("SUCCESS")
 
     def _reverting_resolv_conf_transition(self, event: ContextEvent) \
-            -> ContextEvent | None:
+            -> Optional[ContextEvent]:
         if not self.systemd_manager.subscribe_systemd_signals():
             self.exit_code_handler.set_exit_code(ExitCode.DBUS_FAILURE)
             return ContextEvent("FAIL")
@@ -191,7 +191,7 @@ class Stopping(TransitionImplementations):
         return ContextEvent("SUCCESS")
 
     def _running_stop_transition(self, event: ContextEvent) \
-            -> ContextEvent | None:
+            -> Optional[ContextEvent]:
         if event.name == "RESTART_FAIL":
             self.exit_code_handler.set_exit_code(ExitCode.SERVICE_FAILURE)
         self.lgr.info("Stopping dnsconfd")
@@ -203,6 +203,7 @@ class Stopping(TransitionImplementations):
         return ContextEvent("SUCCESS")
 
     def _exit_transition(self, event: ContextEvent):
+        systemd.daemon.notify("STOPPING=1\n")
         if event.name == "START_FAIL":
             self.exit_code_handler.set_exit_code(ExitCode.SERVICE_FAILURE)
         self.lgr.info("Stopping event loop and FSM")

@@ -2,7 +2,7 @@ import logging
 import dbus.service
 from dbus.service import BusName
 
-from dnsconfd.input_modules import ResolvingMode
+from dnsconfd import ResolvingMode
 from dnsconfd.network_objects import InterfaceConfiguration
 from dnsconfd.network_objects import ServerDescription
 from dnsconfd.fsm import DnsconfdContext
@@ -186,6 +186,8 @@ class ResolveDbusInterface(dbus.service.Object):
             self.lgr.info("API pushing update %s", interface)
             servers: list[ServerDescription] = []
             for cur_interface in self.interfaces.values():
+                if not cur_interface.servers:
+                    continue
                 if_index = int(cur_interface)
                 if_name = InterfaceConfiguration.get_if_name(if_index,
                                                              strict=True)
@@ -235,7 +237,7 @@ class ResolveDbusInterface(dbus.service.Object):
 
                     servers.append(new_srv)
 
-            event = ContextEvent("UPDATE", (servers, ResolvingMode.FREE))
+            event = ContextEvent("UPDATE", (servers, ResolvingMode.BACKUP))
             self.lgr.debug("UPDATE IS %s, %s", interface.index,
                            [a.to_dict() for a in servers])
             self.runtime_context.transition_function(event)

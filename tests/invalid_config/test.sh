@@ -13,15 +13,13 @@ rlJournalStart
     rlPhaseEnd
 
     rlPhaseStartTest
-        sleep 2
+        rlRun "podman exec $dnsconfd_cid systemctl start network-online.target"
         rlRun "podman exec $dnsconfd_cid /bin/bash -c 'echo nonsense > /etc/dnsconfd.conf' "
         rlRun "podman exec $dnsconfd_cid systemctl restart dnsconfd" 0 "restart dnsconfd"
-        sleep 6
         rlRun "podman exec $dnsconfd_cid journalctl -u dnsconfd | grep 'Configuration could not be parsed as YAML'" 0 "Checking dnsconfd logs"
         rlRun "podman exec $dnsconfd_cid systemctl status dnsconfd" 0 "Verify that dnsconfd is running"
         rlRun "podman exec $dnsconfd_cid /bin/bash -c 'echo listen_address: \"nonsense\" > /etc/dnsconfd.conf'"
         rlRun "podman exec $dnsconfd_cid systemctl restart dnsconfd" 1 "restart dnsconfd"
-        sleep 2
         rlRun "podman exec $dnsconfd_cid systemctl status dnsconfd | grep 'status=13'" 0 "Verify that dnsconfd refused bad option"
     rlPhaseEnd
 

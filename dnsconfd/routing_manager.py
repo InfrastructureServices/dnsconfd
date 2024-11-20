@@ -2,7 +2,7 @@ import functools
 import ipaddress
 import logging
 from copy import deepcopy
-from typing import Any, Callable
+from typing import Any, Callable, Optional
 import dbus
 
 from dnsconfd.fsm import ContextEvent
@@ -166,7 +166,7 @@ class RoutingManager:
                 parsed_srv = ipaddress.ip_address(srv.address)
                 for address in ip_object["AddressData"]:
                     parsed_net = ipaddress.ip_network(
-                        f"{address["address"]}/{address["prefix"]}",
+                        f"{address['address']}/{address['prefix']}",
                         strict=False)
                     if parsed_srv in parsed_net:
                         self.lgr.debug("server %s is in interface local "
@@ -183,7 +183,7 @@ class RoutingManager:
                     if "dest" not in route_obj or "prefix" not in route_obj:
                         continue
                     if parsed_srv in ipaddress.ip_network(
-                            f"{route_obj["dest"]}/{route_obj["prefix"]}",
+                            f"{route_obj['dest']}/{route_obj['prefix']}",
                             strict=False):
                         found = True
                         break
@@ -465,7 +465,7 @@ class RoutingManager:
                 for route_obj in ip_dict["RouteData"]:
                     max_prefix = parsed_server_str.max_prefixlen
                     if parsed_server_str not in ipaddress.ip_network(
-                            f"{route_obj["dest"]}/{route_obj["prefix"]}",
+                            f"{route_obj['dest']}/{route_obj['prefix']}",
                             strict=False):
                         continue
                     if route_obj["prefix"] == max_prefix:
@@ -497,7 +497,7 @@ class RoutingManager:
                 if "AddressData" in ip_dict and ip_dict["AddressData"]:
                     for address in ip_dict["AddressData"]:
                         net = ipaddress.ip_network(
-                            f"{address["address"]}/{address["prefix"]}",
+                            f"{address['address']}/{address['prefix']}",
                             strict=False)
                         if parsed_server_str in net:
                             same_network = True
@@ -648,7 +648,7 @@ class RoutingManager:
 
     def _remove_checked_routes(self,
                                connection: dict[str, dict[str, Any]],
-                               valid_routes: dict | None) -> bool:
+                               valid_routes: Optional[dict]) -> bool:
         modified = False
         for family in ["ipv4", "ipv6"]:
             for checked_route in list(connection[family]["route-data"]):

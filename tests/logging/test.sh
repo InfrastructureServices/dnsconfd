@@ -15,12 +15,12 @@ rlJournalStart
     rlPhaseEnd
 
     rlPhaseStartTest
-        sleep 2
+        rlRun "podman exec $dnsconfd_cid systemctl start network-online.target"
         rlRun "podman exec $dnsconfd_cid touch /var/run/dnsconfd/dnsconfd.log" 0 "Create log file"
         rlRun "podman exec $dnsconfd_cid chown dnsconfd /var/run/dnsconfd/dnsconfd.log" 0 "Set log file ownership"
         rlRun "podman exec $dnsconfd_cid /bin/bash -c 'printf \"file_log: /var/run/dnsconfd/dnsconfd.log\n\" >> /etc/dnsconfd.conf'" 0 "Enabling file logging"
         rlRun "podman exec $dnsconfd_cid systemctl restart dnsconfd"
-        sleep 3
+        rlRun "podman exec $dnsconfd_cid systemctl start network-online.target"
         rlRun "podman exec $dnsconfd_cid cat /var/run/dnsconfd/dnsconfd.log | grep 'ContextState.RUNNING'" 0 "verify logs are indeed in file"
         rlRun "podman exec $dnsconfd_cid systemctl stop rsyslog"
         rlRun "podman exec $dnsconfd_cid /bin/bash -c 'echo \"\" > /var/log/messages'"
@@ -29,7 +29,7 @@ rlJournalStart
         rlRun "podman exec $dnsconfd_cid systemctl start rsyslog"
         rlRun "podman exec $dnsconfd_cid /bin/bash -c 'printf \"syslog_log: unix:/dev/newlog\n\" >> /etc/dnsconfd.conf'" 0 "Enabling syslog logging"
         rlRun "podman exec $dnsconfd_cid systemctl restart dnsconfd"
-        sleep 3
+        rlRun "podman exec $dnsconfd_cid systemctl start network-online.target"
         rlRun "podman exec $dnsconfd_cid cat /var/log/messages | grep 'ContextState.RUNNING'" 0 "verify logs are indeed in syslog"
     rlPhaseEnd
 

@@ -1,0 +1,12 @@
+[Unit]
+Description=Try to resolve name
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/getent hosts server.example.com
+ExecStopPost=/bin/bash -c "cat /etc/resolv.conf; cat /run/dnsconfd/unbound.conf"
+
+[Install]
+WantedBy=sysinit.target

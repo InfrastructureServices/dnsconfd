@@ -38,6 +38,7 @@ if __name__ == "__main__":
             input_module = ResolveDbusInterface(ctx, config)
         else:
             input_module = DnsconfdDbusInterface(ctx, config)
+            ctx.set_signal_emitter(input_module.emit_serial_signal)
     except dbus.DBusException as e:
         lgr.critical("Failed to connect to DBUS, check your policy %s", e)
         sys.exit(ExitCode.DBUS_FAILURE.value)

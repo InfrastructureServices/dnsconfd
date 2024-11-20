@@ -13,7 +13,7 @@ rlJournalStart
         rlRun "podman network create dnsconfd_network2 --internal -d=bridge --gateway=192.168.7.1 --subnet=192.168.7.0/24"
         # dns=none is neccessary, because otherwise resolv.conf is created and
         # mounted by podman as read-only
-        rlRun "dnsconfd_cid=\$(podman run -d --dns='none' --network dnsconfd_network:interface_name=eth0,ip=192.168.6.2 --network dnsconfd_network2:interface_name=eth1,ip=192.168.7.2\
+        rlRun "dnsconfd_cid=\$(podman run --privileged -d --dns='none' --network dnsconfd_network:interface_name=eth0,ip=192.168.6.2 --network dnsconfd_network2:interface_name=eth1,ip=192.168.7.2\
                                dnsconfd_testing:latest)" 0 "Starting dnsconfd container"
         rlRun "dnsmasq1_cid=\$(podman run -d --dns='none' --network dnsconfd_network:ip=192.168.6.3 localhost/dnsconfd_utilities:latest\
                dnsmasq_entry.sh --listen-address=192.168.6.3 --address=/first-address.test.com/192.168.6.3)" 0 "Starting first dnsmasq container"
@@ -22,21 +22,13 @@ rlJournalStart
     rlPhaseEnd
 
     rlPhaseStartTest
-        sleep 2
+        rlRun "podman exec $dnsconfd_cid systemctl start network-online.target"
         rlRun "podman exec $dnsconfd_cid nmcli connection mod eth0 ipv4.dns 192.168.6.3" 0 "Adding dns server to the first NM active profile"
         rlRun "podman exec $dnsconfd_cid nmcli connection mod eth1 ipv4.dns 192.168.7.3" 0 "Adding dns server to the second NM active profile"
-        sleep 2
-        rlRun "podman exec $dnsconfd_cid dnsconfd status --json | jq_filter_general > status1" 0 "Getting status of dnsconfd"
-        rlAssertNotDiffer status1 $ORIG_DIR/expected_status.json
-        rlRun "podman exec $dnsconfd_cid getent hosts first-address.test.com | grep 192.168.6.3" 0 "Verifying correct address resolution"
-        rlRun "podman exec $dnsconfd_cid getent hosts second-address.test.com | grep 192.168.7.3" 0 "Verifying correct address resolution"
-
-        # new api testing
-        rlRun "podman exec $dnsconfd_cid /bin/bash -c 'echo api_choice: dnsconfd >> /etc/dnsconfd.conf'" 0 "switching API"
-        rlRun "podman exec $dnsconfd_cid systemctl restart dnsconfd" 0 "restarting dnsconfd"
-        sleep 2
-        rlRun "podman exec $dnsconfd_cid dnsconfd update --json '[{\"address\":\"192.168.6.3\", \"interface\": \"eth0\"},{\"address\":\"192.168.7.3\", \"interface\": \"eth1\"}]'" 0 "submit update"
-        sleep 2
+        rlRun "podman exec $dnsconfd_cid nmcli con up eth0"
+        rlRun "podman exec $dnsconfd_cid nmcli con up eth1"
+        # FIXME workaround of NM DAD issue
+        rlRun "podman exec $dnsconfd_cid nmcli g reload"
         rlRun "podman exec $dnsconfd_cid dnsconfd status --json | jq_filter_general > status1" 0 "Getting status of dnsconfd"
         rlAssertNotDiffer status1 $ORIG_DIR/expected_status.json
         rlRun "podman exec $dnsconfd_cid getent hosts first-address.test.com | grep 192.168.6.3" 0 "Verifying correct address resolution"

@@ -21,20 +21,22 @@ rlJournalStart
     rlPhaseEnd
 
     rlPhaseStartTest
-        sleep 2
-        rlRun "podman exec $dnsconfd_cid nmcli connection mod eth0 ipv4.gateway '' ipv4.addr '' ipv4.method auto ipv6.gateway '' ipv6.addresses '' ipv6.method auto" 0 "Setting eth0 to autoconfiguration"
+        rlRun "podman exec $dnsconfd_cid systemctl start network-online.target"
+        rlRun "podman exec $dnsconfd_cid nmcli connection mod eth0 ipv4.gateway '' ipv4.addr '' ipv4.method auto ipv4.may-fail no ipv6.gateway '' ipv6.addresses '' ipv6.method auto ipv6.dns-search test.com ipv6.may-fail no" 0 "Setting eth0 to autoconfiguration"
         # This elaborative change of eth0 connection causes that NetworkManager will receive
         # the exact same address from dhcp that podman assigned to the container. Without this,
         # routing tables that podman creates would not be correct and we would face error during
         # clean up after the container
-        sleep 3
+        rlRun "podman exec $dnsconfd_cid nmcli connection up eth0" 0 "Bringing the connection up"
+        # FIXME workaround of NM DAD issue
+        rlRun "podman exec $dnsconfd_cid nmcli g reload"
         rlRun "podman stop -t 0 $dhcp4_cid" 0 "Stopping containers"
         rlRun "podman container rm $dhcp4_cid" 0 "Removing containers"
         rlRun "dhcp4_cid=\$(podman run -d --cap-add=NET_RAW --network dnsconfd_network:ip=192.168.6.5,ip=2001:db8::a1 localhost/dnsconfd_utilities:latest dhcp_entry.sh /etc/dhcp/dhcpd-common.conf)" 0 "Starting dhcpd container with dns list"
         sleep 5
         rlRun "podman exec $dnsconfd_cid nmcli connection up eth0"
-        # restart of NetworkManager ensures new dhcp request
-        sleep 5
+        # FIXME workaround of NM DAD issue
+        rlRun "podman exec $dnsconfd_cid nmcli g reload"
         rlRun "podman exec $dnsconfd_cid dnsconfd status --json | jq_filter_general > status1" 0 "Getting status of dnsconfd"
         rlAssertNotDiffer status1 $ORIG_DIR/expected_status.json
         rlRun "podman exec $dnsconfd_cid getent hosts first-address.test.com | grep 192.168.6.3" 0 "Verifying correct address resolution"

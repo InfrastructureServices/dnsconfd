@@ -10,7 +10,7 @@ class IpOption(Option):
     def validate(self, value) -> bool:
         """ Validate that the value is an ip address
 
-        :param value:
+        :param value: Value that should be validated
         :return: True if value is a string of an ip address, otherwise False
         :rtype: bool
         """

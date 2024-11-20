@@ -1,12 +1,10 @@
 summary: Run unit tests
-provision:
-    how: virtual
 execute:
     how: tmt
     script: pytest -vv unittests/
 prepare:
   - name: packages
-    order: 1
+    order: 2
     how: install
     package:
       - python3-pytest
@@ -14,3 +12,21 @@ prepare:
       - python3-dbus
       - python3-gobject-base
       - python3-systemd
+adjust:
+  - when: trigger is not defined or trigger == human
+    provision:
+      how: virtual
+      image: fedora-rawhide
+  - when: distro == centos-stream or distro == rhel
+    prepare+:
+     - how: shell
+       name: enable CRB
+       order: 1
+       script: 'dnf config-manager --set-enabled crb'
+  - when: distro == centos-stream or distro == rhel
+    prepare+:
+     - how: install
+       name: install epel
+       order: 1
+       package:
+         - https://dl.fedoraproject.org/pub/epel/epel-release-latest-9.noarch.rpm

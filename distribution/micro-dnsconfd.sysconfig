@@ -1,0 +1,1 @@
+OPTIONS="-u /run/dnsconfd/unbound.conf -r /etc/resolv.conf"

@@ -9,7 +9,7 @@ class StringOption(Option):
     def validate(self, value) -> bool:
         """ Validate that the value conforms to validation regular expression
 
-        :param value: value given
+        :param value: Value that should be validated
         :return: True if the value conforms to validation regular expression,
         otherwise False
         :rtype: bool

@@ -18,17 +18,18 @@ rlJournalStart
     rlPhaseEnd
 
     rlPhaseStartTest
-        sleep 2
+        rlRun "podman exec $dnsconfd_cid systemctl start network-online.target" 0 "Waiting for network setup"
         rlRun "podman exec $dnsconfd_cid nmcli connection mod eth0 ipv4.dns 192.168.6.3" 0 "Adding dns server to NM active profile"
         rlRun "podman exec $dnsconfd_cid /bin/bash -c 'nmcli connection mod eth1 ipv4.dns 192.168.7.3 && nmcli connection mod eth1 ipv4.dns-search ..'" 0 "Adding dns server to NM active profile"
-        rlRun "podman exec $dnsconfd_cid systemctl restart NetworkManager"
-        sleep 2
+        rlRun "podman exec $dnsconfd_cid nmcli con up eth0"
+        rlRun "podman exec $dnsconfd_cid nmcli con up eth1"
+        # FIXME workaround of NM DAD issue
+        rlRun "podman exec $dnsconfd_cid nmcli g reload"
         rlRun "podman exec $dnsconfd_cid getent ahosts address.example.com | grep 192.168.6.3" 0 "Verifying correct address resolution"
         rlRun "podman exec $dnsconfd_cid getent ahosts address2.example.org | grep 192.168.7.3" 0 "Verifying correct address resolution"
         # new api testing
         rlRun "podman exec $dnsconfd_cid /bin/bash -c 'echo api_choice: dnsconfd >> /etc/dnsconfd.conf'" 0 "switching API"
         rlRun "podman exec $dnsconfd_cid systemctl restart dnsconfd" 0 "restarting dnsconfd"
-        sleep 2
         rlRun "podman exec $dnsconfd_cid dnsconfd update 'dns+udp://192.168.6.3' 'dns+udp://192.168.7.3?domain=..'" 0 "submit update"
         # we will verify that server with
         rlRun "podman exec $dnsconfd_cid getent ahosts address.example.com | grep 192.168.6.3" 0 "Verifying correct address resolution"

@@ -1,7 +1,7 @@
 import logging
 
 from dnsconfd.network_objects import ServerDescription, DnsProtocol
-from dnsconfd.input_modules import ResolvingMode
+from dnsconfd import ResolvingMode
 
 
 class ServerManager:
@@ -14,7 +14,7 @@ class ServerManager:
         self.dynamic_servers: list[ServerDescription] = []
         self.static_servers: list[ServerDescription] = []
 
-        self.mode = ResolvingMode.FREE
+        self.mode = ResolvingMode.BACKUP
 
         for resolver in config["static_servers"]:
             prot = resolver.get("protocol", None)
@@ -54,11 +54,11 @@ class ServerManager:
 
         for server in servers:
             if (server.interface is not None
-                    and self.mode == ResolvingMode.FULL_RESTRICTIVE):
+                    and self.mode == ResolvingMode.EXCLUSIVE):
                 continue
             for domain in server.routing_domains:
                 if server.interface is not None:
-                    if (self.mode == ResolvingMode.RESTRICT_GLOBAL
+                    if (self.mode == ResolvingMode.PREFER
                             and domain == "."):
                         continue
                 new_zones_to_servers.setdefault(domain, []).append(server)
@@ -75,7 +75,7 @@ class ServerManager:
                        new_zones_to_servers)
         self.lgr.debug("New search domains prepared: %s",
                        search_domains.keys())
-        return new_zones_to_servers, list(search_domains.keys())
+        return new_zones_to_servers, list(search_domains)
 
     def get_all_servers(self) -> list[ServerDescription]:
         """ Get all forwarders
@@ -93,9 +93,9 @@ class ServerManager:
         used_servers = []
         for server in all_servers:
             if server.interface is not None:
-                if self.mode == ResolvingMode.FULL_RESTRICTIVE:
+                if self.mode == ResolvingMode.EXCLUSIVE:
                     continue
-                elif self.mode == ResolvingMode.RESTRICT_GLOBAL:
+                elif self.mode == ResolvingMode.PREFER:
                     # if domains contain only . then omit this server
                     subdomain_present = False
                     for domain in server.routing_domains:

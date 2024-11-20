@@ -1,5 +1,5 @@
 import logging
-from typing import Callable
+from typing import Callable, Optional
 import dbus
 
 from dnsconfd.fsm import ContextEvent
@@ -59,7 +59,7 @@ class SystemdManager:
                           new_state: int,
                           unit: str,
                           success_event: ContextEvent,
-                          failure_event: ContextEvent) -> int | None:
+                          failure_event: ContextEvent) -> Optional[int]:
         """ Change state of systemd unit
 
         :param new_state: integer indicating what state should be set
