@@ -12,7 +12,6 @@ SupplementaryGroups=unbound
 EnvironmentFile=/etc/sysconfig/dnsconfd
 BusName=org.freedesktop.resolve1
 ExecStart=/usr/sbin/dnsconfd $OPTIONS
-EnvironmentFile=/etc/sysconfig/dnsconfd
 
 [Install]
 WantedBy=multi-user.target
