@@ -155,7 +155,7 @@ fi
 %{_unitdir}/dnsconfd.service
 %{_mandir}/man8/dnsconfd*.8*
 %{_mandir}/man5/dnsconfd.conf.5*
-%ghost %{_sysusersdir}/dnsconfd.conf
+%{_sysusersdir}/dnsconfd.conf
 %doc README.md docs/com.redhat.dnsconfd.md
 %{_datadir}/polkit-1/rules.d/dnsconfd.rules
 %dir %attr(755,dnsconfd,dnsconfd) %{_rundir}/dnsconfd
