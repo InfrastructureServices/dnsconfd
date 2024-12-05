@@ -46,7 +46,9 @@ class Starting(TransitionImplementations):
             },
             ContextState.CONNECTING_DBUS: {
                 "SUCCESS": (ContextState.SUBMITTING_START_JOB,
-                            self._connecting_dbus_success_transition)
+                            self._connecting_dbus_success_transition),
+                "SKIP": (ContextState.WAITING_FOR_START_JOB,
+                         lambda y: ContextEvent("START_OK"))
             },
             ContextState.SUBMITTING_START_JOB: {
                 "SUCCESS": (ContextState.WAITING_FOR_START_JOB,
@@ -73,8 +75,7 @@ class Starting(TransitionImplementations):
         }
 
     def _starting_kickoff_transition(self, event: ContextEvent):
-        address = self.config["listen_address"]
-        if self.dns_mgr.configure(address):
+        if self.dns_mgr.configure():
             self.lgr.info("Successfully configured DNS manager")
             return ContextEvent("SUCCESS")
 
@@ -84,6 +85,10 @@ class Starting(TransitionImplementations):
 
     def _conf_dns_mgr_success_transition(self, event: ContextEvent) \
             -> ContextEvent | None:
+        if not self.config["handle_service"]:
+            self.lgr.info("Dnsconfd is configured to not handle service "
+                          "lifecycle, will only verify start with polling")
+            return ContextEvent("SKIP")
         if (not self.systemd_manager.connect_systemd()
                 or not self.systemd_manager.subscribe_systemd_signals()):
             self.lgr.error("Failed to connect to systemd through DBUS")
@@ -111,7 +116,7 @@ class Starting(TransitionImplementations):
 
     def _job_finished_success_transition(self, event: ContextEvent) \
             -> ContextEvent | None:
-        self.lgr.info("Start job finished successfully, starting polling")
+        self.lgr.info("Starting polling")
         timer = ContextEvent("TIMER_UP", 0)
         GLib.timeout_add_seconds(1,
                                  lambda: self.transition_function(timer))

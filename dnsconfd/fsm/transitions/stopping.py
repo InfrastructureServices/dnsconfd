@@ -112,7 +112,9 @@ class Stopping(TransitionImplementations):
             ContextState.SUBMITTING_STOP_JOB: {
                 "SUCCESS": (ContextState.WAITING_STOP_JOB, lambda y: None),
                 "FAIL": (ContextState.REMOVING_ROUTES,
-                         self._to_removing_routes_transition)
+                         self._to_removing_routes_transition),
+                "SKIP": (ContextState.WAITING_STOP_JOB,
+                         lambda y: ContextEvent("STOP_SUCCESS"))
             },
             ContextState.WAITING_STOP_JOB: {
                 "STOP_SUCCESS": (ContextState.REMOVING_ROUTES,
@@ -165,6 +167,10 @@ class Stopping(TransitionImplementations):
         return ContextEvent("SUCCESS")
 
     def _submit_stop_job(self, event: ContextEvent) -> ContextEvent | None:
+        if not self.config["handle_service"]:
+            self.lgr.info("Dnsconfd is configured to not handle service "
+                          "lifecycle, will not stop unbound")
+            return ContextEvent("SKIP")
         jobid = self.systemd_manager.change_unit_state(
             2,
             self.dns_mgr.service_name,
@@ -177,6 +183,10 @@ class Stopping(TransitionImplementations):
 
     def _reverting_resolv_conf_transition(self, event: ContextEvent) \
             -> ContextEvent | None:
+        if not self.config["handle_service"]:
+            self.lgr.info("Dnsconfd is configured to not handle service "
+                          "lifecycle, will not stop unbound")
+            return ContextEvent("SKIP")
         if not self.systemd_manager.subscribe_systemd_signals():
             self.exit_code_handler.set_exit_code(ExitCode.DBUS_FAILURE)
             return ContextEvent("FAIL")

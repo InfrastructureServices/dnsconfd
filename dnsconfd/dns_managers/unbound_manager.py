@@ -7,6 +7,7 @@ from dnsconfd.network_objects import ServerDescription, DnsProtocol
 
 try:
     import idna
+
     HAVE_IDNA = True
 except ImportError:
     HAVE_IDNA = False
@@ -15,43 +16,68 @@ except ImportError:
 class UnboundManager(DnsManager):
     service_name = "unbound"
 
-    def __init__(self, dnssec: bool):
+    def __init__(self, config: dict):
         """ Object responsible for executing unbound configuration changes
-        :param dnssec: Indicating whether dnssec should be enabled
         """
         super().__init__()
         self.zones_to_servers = {}
         self.lgr = logging.getLogger(self.__class__.__name__)
-        self.dnssec = dnssec
+        self.dnssec = config["dnssec_enabled"]
+        self.address = config["listen_address"]
 
-    def configure(self, my_address: str) -> bool:
-        """ Configure this instance (Write to unbound config file)
-
-        :param my_address: address where unbound should listen
-        :type my_address: str
-        :return: True on success, otherwise False
-        :rtype: bool
-        """
+    def get_conf_string(self,
+                        zones_to_servers:
+                        dict[str, list[ServerDescription]] = None,
+                        ca: str = None) -> str:
         if self.dnssec:
             modules = "ipsecmod validator iterator"
         else:
             modules = "ipsecmod iterator"
+
+        base = ("server:\n"
+                f"\tmodule-config: \"{modules}\"\n"
+                f"\tinterface: {self.address}\n"
+                f"\tdo-not-query-address: 127.0.0.1/8\n")
+
+        if ca is None:
+            base += ("\ttls-cert-bundle: "
+                     "\"/etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem\"\n")
+        else:
+            base += f"\ttls-cert-bundle: {ca}\n"
+
+        if not zones_to_servers:
+            return base + ("forward-zone:\n"
+                           "\tname: \".\"\n"
+                           "\tforward-addr: \"127.0.0.1\"\n")
+
+        for zone in zones_to_servers:
+            base += ("forward-zone:\n"
+                     f"\tname: \"{zone}\"\n")
+            tls = False
+            for server in zones_to_servers[zone]:
+                if server.protocol == DnsProtocol.DNS_PLUS_TLS:
+                    tls = True
+                base += f"\tforward-addr: \"{server.to_unbound_string()}\"\n"
+            base += f"\tforward-tls-upstream: {"yes" if tls else "no"}\n"
+
+        return base
+
+    def configure(self) -> bool:
+        """ Configure this instance (Write to unbound config file)
+
+        :return: True on success, otherwise False
+        :rtype: bool
+        """
         try:
             with open("/run/dnsconfd/unbound.conf", "w",
                       encoding="utf-8") as conf_file:
-                conf_file.write("server:\n"
-                                f"\tmodule-config: \"{modules}\"\n"
-                                f"\tinterface: {my_address}\n"
-                                f"\tdo-not-query-address: 127.0.0.1/8\n"
-                                "forward-zone:\n"
-                                "\tname: \".\"\n"
-                                "\tforward-addr: \"127.0.0.1\"\n")
+                conf_file.write(self.get_conf_string())
         except OSError as e:
             self.lgr.critical("Could not write Unbound configuration, %s",
                               e)
             return False
 
-        self.lgr.debug("DNS cache should be listening on %s", my_address)
+        self.lgr.debug("DNS cache should be listening on %s", self.address)
         return True
 
     def clear_state(self):

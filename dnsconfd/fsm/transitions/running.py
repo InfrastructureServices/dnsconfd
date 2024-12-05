@@ -138,7 +138,9 @@ class Running(TransitionImplementations):
             },
             ContextState.SUBMITTING_RESTART_JOB: {
                 "SUCCESS": (ContextState.WAITING_RESTART_JOB,
-                            lambda y: None)
+                            lambda y: None),
+                "SKIP": (ContextState.WAITING_RESTART_JOB,
+                         lambda y: ContextEvent("RESTART_SUCCESS"))
             },
             ContextState.POLLING: {
                 "SERVICE_UP": (ContextState.SETTING_RESOLV_CONF,
@@ -262,6 +264,11 @@ class Running(TransitionImplementations):
             -> ContextEvent | None:
         self.lgr.info("Reloading DNS cache service")
         self.dns_mgr.clear_state()
+        if not self.config["handle_service"]:
+            self.lgr.info("Dnsconfd is configured to not handle service "
+                          "lifecycle, will only verify running state with "
+                          "polling")
+            return ContextEvent("SKIP")
         if not self.systemd_mgr.subscribe_systemd_signals():
             self.lgr.error("Failed to subscribe to systemd signals")
             self.exit_code_handler.set_exit_code(ExitCode.DBUS_FAILURE)

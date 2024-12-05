@@ -11,6 +11,7 @@ popd
 mv "$tempdir"/dnsconfd-1.6.0.tar.gz ./distribution
 pushd distribution
 fedpkg --release=f40 mockbuild
-mv ./results_dnsconfd/1.6.0/1.fc40/*.noarch.rpm ../tests
+rm -f ./results_dnsconfd/1.6.0/1.fc40/*.src.rpm
+mv ./results_dnsconfd/1.6.0/1.fc40/*.rpm ../tests
 popd
 rm -rf "$tempdir"
