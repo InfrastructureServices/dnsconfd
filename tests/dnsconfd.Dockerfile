@@ -1,6 +1,6 @@
 FROM quay.io/fedora/fedora:40
 
-COPY ./*.noarch.rpm ./
+COPY ./*.rpm ./
 RUN dnf install -y --setopt=install_weak_deps=False --setopt=tsflags=nodocs systemd \
     NetworkManager dhcp-client iproute ./*.rpm openvpn NetworkManager-openvpn sssd-client \
     polkit bind-utils bind-dnssec-utils iptables-nft dbus-tools net-tools rsyslog tcpdump procps-ng python3-idna
