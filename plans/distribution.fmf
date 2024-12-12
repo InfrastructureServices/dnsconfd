@@ -2,9 +2,6 @@ summary: Run distribution tests with tmt
 discover:
   how: fmf
   filter: tag:distribution
-provision:
-    how: virtual
-    image: fedora-40
 execute:
     how: tmt
 prepare:
@@ -12,10 +9,8 @@ prepare:
     order: 1
     how: install
     package:
-      - fedpkg
       - beakerlib
       - python3-devel
-      - python3-setuptools
       - python3-setuptools
       - python3-rpm-macros
       - python3-pip
@@ -23,6 +18,7 @@ prepare:
       - python3-systemd
       - python3-idna
       - systemd
+      - rpm-build
       - systemd-rpm-macros
       - selinux-policy-devel
       - selinux-policy-targeted
@@ -30,19 +26,31 @@ prepare:
       - dbus-tools
       - rsyslog
       - jq
+      - pkgconfig(glib-2.0)
+      - pkgconfig(gio-2.0)
+      - pkgconfig(libcurl)
+      - pkgconfig(check)
+      - pkgconfig(libsystemd)
+      - gcc
+      - cmake
   - name: build-package
     order: 2
     how: shell
     script: ./tests/build_package.sh
-  - name: remove-systemd-resolved
+  - name: install-package
     order: 3
     how: shell
-    script: dnf remove -y systemd-resolved
-  - name: install-package
+    script: dnf install -y ./tests/*.rpm
+  - name: remove-systemd-resolved
     order: 4
     how: shell
-    script: dnf install -y ./tests/*.rpm
+    script: dnf remove -y systemd-resolved
   - name: increase-verbosity
     order: 5
     how: shell
     script: "echo 'LOG_LEVEL=DEBUG' >> /etc/sysconfig/dnsconfd && sed -i 's/verbosity.*/verbosity: 5/g' /etc/unbound/unbound.conf"
+adjust:
+  when: trigger is not defined or trigger == human
+  provision:
+    how: virtual
+    image: fedora-rawhide

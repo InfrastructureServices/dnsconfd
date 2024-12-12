@@ -1,15 +1,18 @@
-FROM quay.io/fedora/fedora:40
+FROM scratch
 
+COPY ./baseroot /
+RUN rpm --setugids -a
+RUN rpm --setperms -a
 COPY ./*.rpm ./
 RUN dnf install -y --setopt=install_weak_deps=False --setopt=tsflags=nodocs systemd \
     NetworkManager dhcp-client iproute ./*.rpm openvpn NetworkManager-openvpn sssd-client \
-    polkit bind-utils bind-dnssec-utils iptables-nft dbus-tools net-tools rsyslog tcpdump procps-ng python3-idna
+    polkit bind-utils bind-dnssec-utils iptables-nft dbus-tools net-tools rsyslog tcpdump procps-ng python3-idna vim crypto-policies-scripts
 
 # we will replace the path in code only for testing purposes
 # accessing sysfs in the container could be dangerous for the host machine and would require
 # running container as privileged
 # this may be a bit of a hack but it is safer
-RUN sed -i "s#/sys/class/net/#/tmp/is_wireless/#" /usr/lib/python3.12/site-packages/dnsconfd/network_objects/interface_configuration.py \
+RUN sed -i "s#/sys/class/net/#/tmp/is_wireless/#" /usr/lib/python3*/site-packages/dnsconfd/network_objects/interface_configuration.py \
     && echo 'LOG_LEVEL=DEBUG' >> /etc/sysconfig/dnsconfd
 
 RUN echo 'Environment="DISABLE_UNBOUND_ANCHOR=yes"' >> /usr/lib/systemd/system/unbound-anchor.service.d/dnsconfd.conf

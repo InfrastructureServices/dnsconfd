@@ -26,6 +26,7 @@ Requires:  python3-systemd
 Recommends: python3-idna
 Requires:  dbus-common
 Requires:  %{name}-cache
+Requires:  polkit
 Suggests:  %{name}-unbound
 
 %?python_enable_dependency_generator

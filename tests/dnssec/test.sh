@@ -30,7 +30,6 @@ rlJournalStart
         rlRun "podman exec $dnsconfd_cid getent hosts server.example.com | grep 192.168.6.5" 0 "Verifying correct address resolution"
         rlRun "podman exec $dnsconfd_cid getent hosts not-working.example.com | grep 192.168.6.6" 1 "Verifying correct address resolution"
         rlRun "podman exec $dnsconfd_cid dig not-working.example.com | grep SERVFAIL" 0 "Verifying bad validation"
-        rlRun "podman exec $dnsconfd_cid journalctl -u unbound" 0 "getting unbound logs"
     rlPhaseEnd
 
     rlPhaseStartCleanup
