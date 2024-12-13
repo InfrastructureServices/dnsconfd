@@ -6,7 +6,7 @@ execute:
     how: tmt
 prepare:
   - name: packages
-    order: 1
+    order: 2
     how: install
     package:
       - beakerlib
@@ -34,23 +34,40 @@ prepare:
       - gcc
       - cmake
   - name: build-package
-    order: 2
-    how: shell
-    script: ./tests/build_package.sh
-  - name: install-package
     order: 3
     how: shell
-    script: dnf install -y ./tests/*.rpm
+    script: ./tests/build_package.sh
   - name: remove-systemd-resolved
     order: 4
     how: shell
     script: dnf remove -y systemd-resolved
-  - name: increase-verbosity
+  - name: restart-network-manager
     order: 5
+    how: shell
+    script: systemctl restart NetworkManager
+  - name: install-package
+    order: 6
+    how: shell
+    script: dnf install -y ./tests/*.rpm
+  - name: increase-verbosity
+    order: 7
     how: shell
     script: "echo 'LOG_LEVEL=DEBUG' >> /etc/sysconfig/dnsconfd && sed -i 's/verbosity.*/verbosity: 5/g' /etc/unbound/unbound.conf"
 adjust:
-  when: trigger is not defined or trigger == human
-  provision:
-    how: virtual
-    image: fedora-rawhide
+  - when: trigger is not defined or trigger == human
+    provision:
+        how: virtual
+        image: fedora-40
+  - when: distro == centos-stream or distro == rhel
+    prepare+:
+     - how: shell
+       name: enable CRB
+       order: 1
+       script: 'dnf config-manager --set-enabled crb'
+  - when: distro == centos-stream
+    prepare+:
+     - how: install
+       name: install beakerlib
+       order: 1
+       package:
+         - https://dl.fedoraproject.org/pub/epel/9/Everything/x86_64/Packages/b/beakerlib-1.31.3-1.el9.noarch.rpm

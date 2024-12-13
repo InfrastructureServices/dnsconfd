@@ -44,10 +44,17 @@ rlJournalStart
         rlRun "podman exec $routing2_cid /bin/bash -c 'echo 1 > /proc/sys/net/ipv4/ip_forward'" 0 "enable ip forwarding on routing server"
 
         # easier to enable masquerade on both interfaces than to find out which one is connected to the right network
-        rlRun "podman exec $routing1_cid iptables -t nat -I POSTROUTING -o eth0 -j MASQUERADE" 0 "enable masquerade on eth0 of routing server"
-        rlRun "podman exec $routing1_cid iptables -t nat -I POSTROUTING -o eth1 -j MASQUERADE" 0 "enable masquerade on eth1 of routing server"
-        rlRun "podman exec $routing2_cid iptables -t nat -I POSTROUTING -o eth0 -j MASQUERADE" 0 "enable masquerade on eth0 of routing server"
-        rlRun "podman exec $routing2_cid iptables -t nat -I POSTROUTING -o eth1 -j MASQUERADE" 0 "enable masquerade on eth1 of routing server"
+        rlRun "podman exec $routing1_cid nft add table nat" 0 "enable masquerade on eth0 of routing server"
+        rlRun "podman exec $routing1_cid nft -- add chain nat prerouting { type nat hook prerouting priority -100 \; }" 0 "enable masquerade on eth0 of routing server"
+        rlRun "podman exec $routing1_cid nft add chain nat postrouting { type nat hook postrouting priority 100 \; }" 0 "enable masquerade on eth1 of routing server"
+        rlRun "podman exec $routing1_cid nft add rule nat postrouting oifname 'eth0' masquerade" 0 "enable masquerade on eth2 of routing server"
+        rlRun "podman exec $routing1_cid nft add rule nat postrouting oifname 'eth1' masquerade" 0 "enable masquerade on eth2 of routing server"
+
+        rlRun "podman exec $routing2_cid nft add table nat" 0 "enable masquerade on eth0 of routing server"
+        rlRun "podman exec $routing2_cid nft -- add chain nat prerouting { type nat hook prerouting priority -100 \; }" 0 "enable masquerade on eth0 of routing server"
+        rlRun "podman exec $routing2_cid nft add chain nat postrouting { type nat hook postrouting priority 100 \; }" 0 "enable masquerade on eth1 of routing server"
+        rlRun "podman exec $routing2_cid nft add rule nat postrouting oifname 'eth0' masquerade" 0 "enable masquerade on eth2 of routing server"
+        rlRun "podman exec $routing2_cid nft add rule nat postrouting oifname 'eth1' masquerade" 0 "enable masquerade on eth2 of routing server"
 
         sleep 2
         rlRun "podman exec $dnsconfd_cid /bin/bash -c 'nmcli connection mod eth0 ipv4.dns 192.168.6.3 && nmcli connection mod eth0 ipv4.gateway 192.168.5.3'" 0 "Adding dns server to the first NM active profile"

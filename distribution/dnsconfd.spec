@@ -80,7 +80,7 @@ Dnsconfd management of unbound server
 %package dracut
 Summary:            dnsconfd dracut module
 BuildArch:          noarch
-Requires:           %{name} = %{version}-%{release}
+Requires:           %{name}-micro%{?_isa} = %{version}-%{release}
 Requires:           unbound
 Requires:           dracut
 Requires:           dracut-network

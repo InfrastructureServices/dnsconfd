@@ -35,6 +35,7 @@ class UnboundManager(DnsManager):
 
         base = ("server:\n"
                 f"\tmodule-config: \"{modules}\"\n"
+                f"tls-cert-bundle: \"/etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem\"\n"
                 f"\tinterface: {self.address}\n"
                 f"\tdo-not-query-address: 127.0.0.1/8\n")
 

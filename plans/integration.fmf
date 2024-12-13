@@ -6,7 +6,7 @@ execute:
     how: tmt
 prepare:
   - name: packages
-    order: 1
+    order: 2
     how: install
     package:
       - podman
@@ -35,19 +35,32 @@ prepare:
       - gcc
       - cmake
   - name: build-package
-    order: 2
+    order: 3
     how: shell
     script: ./tests/build_package.sh
   - name: build-base-container
-    order: 3
+    order: 4
     how: shell
     script: ./tests/build_ostree.sh
   - name: build-containers
-    order: 4
+    order: 5
     how: shell
     script: ./tests/build_images.sh
 adjust:
-  when: trigger is not defined or trigger == human
-  provision:
-    how: virtual
-    image: fedora-rawhide
+  - when: trigger is not defined or trigger == human
+    provision:
+        how: virtual
+        image: fedora-40
+  - when: distro == centos-stream or distro == rhel
+    prepare+:
+     - how: shell
+       name: enable CRB
+       order: 1
+       script: 'dnf config-manager --set-enabled crb'
+  - when: distro == centos-stream or distro == rhel
+    prepare+:
+     - how: install
+       name: install epel
+       order: 1
+       package:
+         - https://dl.fedoraproject.org/pub/epel/epel-release-latest-9.noarch.rpm

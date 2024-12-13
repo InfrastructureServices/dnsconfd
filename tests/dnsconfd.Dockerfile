@@ -5,8 +5,8 @@ RUN rpm --setugids -a
 RUN rpm --setperms -a
 COPY ./*.rpm ./
 RUN dnf install -y --setopt=install_weak_deps=False --setopt=tsflags=nodocs systemd \
-    NetworkManager dhcp-client iproute ./*.rpm openvpn NetworkManager-openvpn sssd-client \
-    polkit bind-utils bind-dnssec-utils iptables-nft dbus-tools net-tools rsyslog tcpdump procps-ng python3-idna vim crypto-policies-scripts
+    NetworkManager iproute ./*.rpm openvpn NetworkManager-openvpn sssd-client \
+    polkit bind-utils bind-dnssec-utils dbus-tools net-tools rsyslog tcpdump procps-ng python3-idna vim crypto-policies-scripts
 
 # we will replace the path in code only for testing purposes
 # accessing sysfs in the container could be dangerous for the host machine and would require

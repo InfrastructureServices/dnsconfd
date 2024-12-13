@@ -59,10 +59,10 @@ allow dnsconfd_t named_exec_t:file { execute execute_no_trans open read map};
 # Required by unbound-control
 allow dnsconfd_t named_conf_t:dir { getattr open read search};
 allow dnsconfd_t named_conf_t:file { getattr ioctl open read };
+allow dnsconfd_t named_conf_t:lnk_file read;
 allow dnsconfd_t named_var_run_t:dir { search };
 allow dnsconfd_t named_var_run_t:sock_file { write };
 allow dnsconfd_t named_t:unix_stream_socket { connectto };
-
 allow dnsconfd_t net_conf_t:lnk_file { getattr read write unlink };
 allow dnsconfd_t net_conf_t:file { getattr open read write create ioctl };
 allow dnsconfd_t node_t:tcp_socket node_bind;
