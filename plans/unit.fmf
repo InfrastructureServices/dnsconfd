@@ -1,6 +1,4 @@
 summary: Run unit tests
-provision:
-    how: virtual
 execute:
     how: tmt
     script: pytest -vv unittests/
@@ -14,3 +12,8 @@ prepare:
       - python3-dbus
       - python3-gobject-base
       - python3-systemd
+adjust:
+  when: trigger is not defined or trigger == human
+  provision:
+    how: virtual
+    image: fedora-rawhide

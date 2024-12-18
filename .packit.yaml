@@ -23,11 +23,14 @@ jobs:
     identifier: pr_copr_build
     targets:
       - fedora-all
+      - centos-stream-10
   - job: tests
     trigger: pull_request
     identifier: pr_tests
     targets:
-    - fedora-40
+    - fedora-all
+    - centos-stream-10
+    skip_build: True
   - job: copr_build
     trigger: commit
     identifier: commit_copr_build
@@ -37,4 +40,6 @@ jobs:
     trigger: commit
     identifier: commit_tests
     targets:
-      - fedora-40
+    - fedora-all
+    - centos-stream-10
+    skip_build: True

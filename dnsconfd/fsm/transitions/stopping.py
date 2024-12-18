@@ -112,7 +112,9 @@ class Stopping(TransitionImplementations):
             ContextState.SUBMITTING_STOP_JOB: {
                 "SUCCESS": (ContextState.WAITING_STOP_JOB, lambda y: None),
                 "FAIL": (ContextState.REMOVING_ROUTES,
-                         self._to_removing_routes_transition)
+                         self._to_removing_routes_transition),
+                "SKIP": (ContextState.WAITING_STOP_JOB,
+                         lambda y: ContextEvent("STOP_SUCCESS"))
             },
             ContextState.WAITING_STOP_JOB: {
                 "STOP_SUCCESS": (ContextState.REMOVING_ROUTES,

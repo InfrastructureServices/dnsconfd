@@ -1,7 +1,10 @@
 import socket
+from socket import AF_INET, AF_INET6
 import ipaddress
 from typing import Optional
-from urllib.parse import urlsplit, urlunsplit, parse_qs, urlencode
+from urllib.parse import urlsplit, urlunsplit, parse_qs
+
+import dbus
 
 from dnsconfd.network_objects import DnsProtocol
 
@@ -20,7 +23,8 @@ class ServerDescription:
                  dnssec: bool = False,
                  networks: list[ipaddress.IPv4Network]
                            | list[ipaddress.IPv6Network] = None,
-                 firewall_zone: str = None):
+                 firewall_zone: str = None,
+                 cert: str = None):
         """ Object holding information about DNS server
 
         :param address_family: Indicates whether this is IPV4 of IPV6
@@ -63,6 +67,7 @@ class ServerDescription:
             self.protocol = DnsProtocol.DNS_PLUS_UDP
         self.dnssec = dnssec
         self.firewall_zone = firewall_zone
+        self.cert = cert
 
     def to_unbound_string(self) -> str:
         """ Get string formatted in unbound format
@@ -107,9 +112,9 @@ class ServerDescription:
         """
         address_parsed = ipaddress.ip_address(address)
         if address_parsed.version == 4:
-            address_family = socket.AF_INET
+            address_family = AF_INET
         else:
-            address_family = socket.AF_INET6
+            address_family = AF_INET6
 
         networks = [ipaddress.ip_network(x) for x in nets] if nets else None
 
@@ -164,7 +169,7 @@ class ServerDescription:
         :return: True if this object is of the same family as specified,
                  otherwise False
         """
-        if self.address_family == socket.AF_INET and family == 4:
+        if self.address_family == AF_INET and family == 4:
             return True
         return False
 
@@ -222,7 +227,7 @@ class ServerDescription:
 
     def to_uri(self) -> str:
         ip_str = str(ipaddress.ip_address(self.address))
-        if self.address_family == socket.AF_INET:
+        if self.address_family == AF_INET:
             netloc = f"{ip_str}"
         else:
             netloc = f"[{ip_str}]"
@@ -234,6 +239,120 @@ class ServerDescription:
                                "",
                                "",
                                self.name]))
+
+    @staticmethod
+    def from_dict(server: dict,
+                  dnssec_enabled: bool = False) -> "ServerDescription":
+        if server.get("address", None) is None:
+            raise ValueError("server has no address")
+        try:
+            if isinstance(server["address"], dbus.Array):
+                converted_bytes = bytes(server["address"])
+                parsed_address = ipaddress.ip_address(converted_bytes)
+            else:
+                parsed_address = ipaddress.ip_address(server["address"])
+        except ValueError:
+            raise ValueError("server has incorrect ip address "
+                             f"{server["address"]}")
+
+        port = None
+        if server.get("port", None) is not None:
+            if (not isinstance(server["port"], int)
+                    or not 0 < server["port"] < 65536):
+                raise ValueError(f"server has bad port {server["port"]}")
+            port = int(server["port"])
+
+        protocol = DnsProtocol.DNS_PLUS_UDP
+        if server.get("protocol", None) is not None:
+            if not isinstance(server["protocol"], str):
+                raise ValueError("Protocol not a string")
+            protocol = DnsProtocol.from_str(server["protocol"])
+            if protocol is None:
+                raise ValueError(f"unsupported protocol {server["protocol"]}")
+
+        name = None
+        if server.get("name", None) is not None:
+            if not isinstance(server["name"], str):
+                raise ValueError("server name is not a string")
+            name = str(server["name"])
+
+        routing_domains = None
+        if server.get("routing_domains", None) is not None:
+            if not isinstance(server["routing_domains"], list):
+                raise ValueError("Server routing domains is not list "
+                                 f"{server["domains"]}")
+            for domain in server["routing_domains"]:
+                if not isinstance(domain, str):
+                    raise ValueError("server routing domain is not string")
+            routing_domains = server["routing_domains"]
+
+        search_domains = None
+        if server.get("search_domains", None) is not None:
+            if not isinstance(server["search_domains"], list):
+                raise ValueError("Server search domains is not list "
+                                 f"{server["domains"]}")
+            for domain in server["search_domains"]:
+                if not isinstance(domain, str):
+                    raise ValueError("Server search domain is not string")
+            search_domains = server["search_domains"]
+
+        interface = None
+        if server.get("interface", None) is not None:
+            if not isinstance(server["interface"], str):
+                raise ValueError("Server has bad interface "
+                                 f"{server["interface"]}")
+            interface = str(server["interface"])
+
+        dnssec = False
+        if server.get("dnssec", None) is not None:
+            # here we have to check for dbus.Boolean as it does not
+            # inherit from bool but from int
+            if not isinstance(server["dnssec"], dbus.Boolean):
+                raise ValueError("dnssec is not bool")
+            dnssec = bool(server["dnssec"])
+
+        if (dnssec_enabled and not dnssec
+                and (not routing_domains
+                     or [x for x in routing_domains if x == '.'])):
+            raise ValueError("Server used for . domain can not have disabled "
+                             "dnssec when it is enabled by configuration")
+
+        networks = None
+        if server.get("networks", None) is not None:
+            if not isinstance(server["networks"], list):
+                raise ValueError("Server networks is not "
+                                 f"list {server["networks"]}")
+            networks = []
+            for net in server["networks"]:
+                try:
+                    networks.append(ipaddress.ip_network(net))
+                except ValueError:
+                    raise ValueError("Server network is not "
+                                     f"valid network {net}")
+
+        firewall_zone = None
+        if server.get("firewall_zone", None) is not None:
+            if not isinstance(server["firewall_zone"], str):
+                raise ValueError("Server search domain is not string")
+            firewall_zone = server["firewall_zone"]
+
+        # you may notice the type conversions throughout this method,
+        # these are present to get rid of dbus types and prevent
+        # unexpected problems in further processing
+
+        addr_family = AF_INET if parsed_address.version == 4 else AF_INET6
+        return ServerDescription(addr_family,
+                                 parsed_address.packed,
+                                 port,
+                                 name,
+                                 priority=100,
+                                 routing_domains=routing_domains,
+                                 search_domains=search_domains,
+                                 interface=interface,
+                                 protocol=protocol,
+                                 dnssec=dnssec,
+                                 networks=networks,
+                                 firewall_zone=firewall_zone)
 
     @staticmethod
     def from_uri(uri: str,
@@ -254,10 +373,7 @@ class ServerDescription:
         if not parsed_url.hostname:
             raise ValueError("URI has to contain address")
         address_parsed = ipaddress.ip_address(parsed_url.hostname)
-        if address_parsed.version == 4:
-            address_family = socket.AF_INET
-        else:
-            address_family = socket.AF_INET6
+        address_family = AF_INET if address_parsed.version == 4 else AF_INET6
 
         parsed_qs = parse_qs(parsed_url.query)
 

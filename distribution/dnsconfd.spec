@@ -10,8 +10,6 @@ URL:            https://github.com/InfrastructureServices/dnsconfd
 Source0:        %{url}/archive/%{version}/%{name}-%{version}.tar.gz
 Source1:        dnsconfd.sysusers
 
-BuildArch:      noarch
-
 BuildRequires:  python3-devel
 BuildRequires:  python3-setuptools
 BuildRequires:  python3-setuptools
@@ -28,6 +26,7 @@ Requires:  python3-systemd
 Recommends: python3-idna
 Requires:  dbus-common
 Requires:  %{name}-cache
+Requires:  polkit
 Suggests:  %{name}-unbound
 
 %?python_enable_dependency_generator
@@ -48,6 +47,26 @@ BuildRequires:       selinux-policy-devel
 %description selinux
 Dnsconfd SELinux policy module.
 
+%package micro
+Summary:  Minimized native implementation of Dnsconfd
+Requires:  %{name} = %{version}-%{release}
+Requires:  (%{name}-selinux if selinux-policy-%{selinuxtype})
+Suggests:  %{name}-unbound = %{version}-%{release}
+BuildRequires: pkgconfig(glib-2.0)
+BuildRequires: pkgconfig(gio-2.0)
+BuildRequires: pkgconfig(libcurl)
+BuildRequires: pkgconfig(check)
+BuildRequires: pkgconfig(libsystemd)
+BuildRequires: gcc
+BuildRequires: cmake
+Requires: glib2
+Requires: libcurl
+Requires: systemd-libs
+
+%description micro
+Minimized native implementation of Dnsconfd. Able to configure
+Unbound according to NetworkManager global configuration.
+
 %package unbound
 Summary:             dnsconfd unbound module
 BuildArch:           noarch
@@ -57,6 +76,17 @@ Provides:            %{name}-cache = %{version}-%{release}
 
 %description unbound
 Dnsconfd management of unbound server
+
+%package dracut
+Summary:            dnsconfd dracut module
+BuildArch:          noarch
+Requires:           %{name}-micro%{?_isa} = %{version}-%{release}
+Requires:           unbound
+Requires:           dracut
+Requires:           dracut-network
+
+%description dracut
+Dnsconfd dracut module
 
 %prep
 %autosetup -n %{name}-%{version}
@@ -70,6 +100,13 @@ Dnsconfd management of unbound server
 
 make -f %{_datadir}/selinux/devel/Makefile %{modulename}.pp
 bzip2 -9 %{modulename}.pp
+
+### micro part
+
+pushd micro-dnsconfd
+%cmake
+%cmake_build
+popd
 
 %install
 %py3_install
@@ -85,14 +122,19 @@ mkdir   -m 0755 -p %{buildroot}/%{_mandir}/man5
 mkdir   -m 0755 -p %{buildroot}%{_datadir}/polkit-1/rules.d/
 mkdir   -m 0755 -p %{buildroot}%{_rundir}/dnsconfd
 mkdir   -m 0755 -p %{buildroot}%{_tmpfilesdir}
+mkdir   -m 0755 -p %{buildroot}%{_prefix}/lib/dracut/modules.d/99dnsconfd
 
 install -m 0644 -p distribution/com.redhat.dnsconfd.conf %{buildroot}%{_datadir}/dbus-1/system.d/com.redhat.dnsconfd.conf
 install -m 0644 -p distribution/dnsconfd.sysconfig %{buildroot}%{_sysconfdir}/sysconfig/dnsconfd
+install -m 0644 -p distribution/micro-dnsconfd.sysconfig %{buildroot}%{_sysconfdir}/sysconfig/micro-dnsconfd
 install -m 0644 -p distribution/dnsconfd.service %{buildroot}%{_unitdir}/dnsconfd.service
+install -m 0644 -p distribution/micro-dnsconfd.service %{buildroot}%{_unitdir}/micro-dnsconfd.service
 install -m 0644 -p distribution/dnsconfd.conf %{buildroot}%{_sysconfdir}/dnsconfd.conf
 install -m 0644 -p distribution/dnsconfd.rules %{buildroot}%{_datadir}/polkit-1/rules.d/dnsconfd.rules
 install -m 0644 -p distribution/dnsconfd-tmpfiles.conf %{buildroot}%{_tmpfilesdir}/%{name}.conf
 install -m 0644 -p distribution/dnsconfd-unbound-tmpfiles.conf %{buildroot}%{_tmpfilesdir}/%{name}-unbound.conf
+install -m 0755 -p distribution/dracut_module/module-setup.sh %{buildroot}%{_prefix}/lib/dracut/modules.d/99dnsconfd
+install -m 0644 -p distribution/dracut_module/*.conf %{buildroot}%{_prefix}/lib/dracut/modules.d/99dnsconfd
 
 touch %{buildroot}%{_rundir}/dnsconfd/unbound.conf
 chmod 0644 %{buildroot}%{_rundir}/dnsconfd/unbound.conf
@@ -114,6 +156,17 @@ install -m 0644 -p distribution/dnsconfd-status.8 %{buildroot}/%{_mandir}/man8/d
 install -m 0644 -p distribution/dnsconfd.conf.5 %{buildroot}/%{_mandir}/man5/dnsconfd.conf.5
 
 install -p -D -m 0644 distribution/dnsconfd.sysusers %{buildroot}%{_sysusersdir}/dnsconfd.conf
+
+### micro part
+
+pushd micro-dnsconfd
+%cmake_install
+popd
+
+%check
+pushd micro-dnsconfd
+%ctest
+popd
 
 %pre selinux
 %selinux_relabel_pre -s %{selinuxtype}
@@ -155,11 +208,16 @@ fi
 %{_unitdir}/dnsconfd.service
 %{_mandir}/man8/dnsconfd*.8*
 %{_mandir}/man5/dnsconfd.conf.5*
-%ghost %{_sysusersdir}/dnsconfd.conf
+%{_sysusersdir}/dnsconfd.conf
 %doc README.md docs/com.redhat.dnsconfd.md
 %{_datadir}/polkit-1/rules.d/dnsconfd.rules
 %dir %attr(755,dnsconfd,dnsconfd) %{_rundir}/dnsconfd
 %{_tmpfilesdir}/%{name}.conf
+
+%files micro
+%{_bindir}/micro-dnsconfd
+%{_unitdir}/micro-dnsconfd.service
+%config(noreplace) %{_sysconfdir}/sysconfig/micro-dnsconfd
 
 %files selinux
 %{_datadir}/selinux/packages/%{selinuxtype}/%{modulename}.pp.*
@@ -171,6 +229,9 @@ fi
 %config(noreplace) %attr(644,unbound,unbound) %{_sysconfdir}/unbound/conf.d/unbound.conf
 %attr(644,dnsconfd,dnsconfd) %{_rundir}/dnsconfd/unbound.conf
 %{_tmpfilesdir}/dnsconfd-unbound.conf
+
+%files dracut
+%{_prefix}/lib/dracut/modules.d/99dnsconfd
 
 %changelog
 * Mon Nov 18 2024 Tomas Korbar <tkorbar@redhat.com> - 1.6.0-1

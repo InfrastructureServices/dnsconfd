@@ -10,14 +10,29 @@ function routing_setup {
   rlRun "podman exec $3 /bin/bash -c 'echo 1 > /proc/sys/net/ipv4/ip_forward'" 0 "enable ip forwarding on routing server"
   rlRun "podman exec $4 /bin/bash -c 'echo 1 > /proc/sys/net/ipv6/conf/all/forwarding'" 0 "enable ip forwarding on routing server"
   # easier to enable masquerade on both interfaces than to find out which one is connected to the right network
-  rlRun "podman exec $1 iptables -t nat -I POSTROUTING -o eth0 -j MASQUERADE" 0 "enable masquerade on eth0 of routing server"
-  rlRun "podman exec $1 iptables -t nat -I POSTROUTING -o eth1 -j MASQUERADE" 0 "enable masquerade on eth1 of routing server"
-  rlRun "podman exec $2 ip6tables -t nat -I POSTROUTING -o eth0 -j MASQUERADE" 0 "enable masquerade on eth0 of routing server"
-  rlRun "podman exec $2 ip6tables -t nat -I POSTROUTING -o eth1 -j MASQUERADE" 0 "enable masquerade on eth1 of routing server"
-  rlRun "podman exec $3 iptables -t nat -I POSTROUTING -o eth0 -j MASQUERADE" 0 "enable masquerade on eth0 of routing server"
-  rlRun "podman exec $3 iptables -t nat -I POSTROUTING -o eth1 -j MASQUERADE" 0 "enable masquerade on eth1 of routing server"
-  rlRun "podman exec $4 ip6tables -t nat -I POSTROUTING -o eth0 -j MASQUERADE" 0 "enable masquerade on eth0 of routing server"
-  rlRun "podman exec $4 ip6tables -t nat -I POSTROUTING -o eth1 -j MASQUERADE" 0 "enable masquerade on eth1 of routing server"
+  rlRun "podman exec $1 nft add table nat" 0 "enable masquerade on eth0 of routing server"
+  rlRun "podman exec $1 nft -- add chain nat prerouting { type nat hook prerouting priority -100 \; }" 0 "enable masquerade on eth0 of routing server"
+  rlRun "podman exec $1 nft add chain nat postrouting { type nat hook postrouting priority 100 \; }" 0 "enable masquerade on eth1 of routing server"
+  rlRun "podman exec $1 nft add rule nat postrouting oifname 'eth0' masquerade" 0 "enable masquerade on eth2 of routing server"
+  rlRun "podman exec $1 nft add rule nat postrouting oifname 'eth1' masquerade" 0 "enable masquerade on eth2 of routing server"
+
+  rlRun "podman exec $2 nft add table inet nat" 0 "enable masquerade on eth0 of routing server"
+  rlRun "podman exec $2 nft -- add chain inet nat prerouting { type nat hook prerouting priority -100 \; }" 0 "enable masquerade on eth0 of routing server"
+  rlRun "podman exec $2 nft add chain inet nat postrouting { type nat hook postrouting priority 100 \; }" 0 "enable masquerade on eth1 of routing server"
+  rlRun "podman exec $2 nft add rule inet nat postrouting oifname 'eth0' masquerade" 0 "enable masquerade on eth2 of routing server"
+  rlRun "podman exec $2 nft add rule inet nat postrouting oifname 'eth1' masquerade" 0 "enable masquerade on eth2 of routing server"
+
+  rlRun "podman exec $3 nft add table nat" 0 "enable masquerade on eth0 of routing server"
+  rlRun "podman exec $3 nft -- add chain nat prerouting { type nat hook prerouting priority -100 \; }" 0 "enable masquerade on eth0 of routing server"
+  rlRun "podman exec $3 nft add chain nat postrouting { type nat hook postrouting priority 100 \; }" 0 "enable masquerade on eth1 of routing server"
+  rlRun "podman exec $3 nft add rule nat postrouting oifname 'eth0' masquerade" 0 "enable masquerade on eth2 of routing server"
+  rlRun "podman exec $3 nft add rule nat postrouting oifname 'eth1' masquerade" 0 "enable masquerade on eth2 of routing server"
+
+  rlRun "podman exec $4 nft add table inet nat" 0 "enable masquerade on eth0 of routing server"
+  rlRun "podman exec $4 nft -- add chain inet nat prerouting { type nat hook prerouting priority -100 \; }" 0 "enable masquerade on eth0 of routing server"
+  rlRun "podman exec $4 nft add chain inet nat postrouting { type nat hook postrouting priority 100 \; }" 0 "enable masquerade on eth1 of routing server"
+  rlRun "podman exec $4 nft add rule inet nat postrouting oifname 'eth0' masquerade" 0 "enable masquerade on eth2 of routing server"
+  rlRun "podman exec $4 nft add rule inet nat postrouting oifname 'eth1' masquerade" 0 "enable masquerade on eth2 of routing server"
 }
 
 rlJournalStart
