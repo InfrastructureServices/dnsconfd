@@ -246,7 +246,11 @@ class ServerDescription:
         if server.get("address", None) is None:
             raise ValueError("server has no address")
         try:
-            parsed_address = ipaddress.ip_address(server["address"])
+            if isinstance(server["address"], dbus.Array):
+                converted_bytes = bytes(server["address"])
+                parsed_address = ipaddress.ip_address(converted_bytes)
+            else:
+                parsed_address = ipaddress.ip_address(server["address"])
         except ValueError:
             raise ValueError("server has incorrect ip address "
                              f"{server["address"]}")
