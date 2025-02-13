@@ -80,7 +80,6 @@ Dnsconfd management of unbound server
 
 %package dracut
 Summary:            dnsconfd dracut module
-BuildArch:          noarch
 Requires:           %{name}-micro%{?_isa} = %{version}-%{release}
 Requires:           unbound
 Requires:           dracut
@@ -230,7 +229,7 @@ fi
 %files unbound
 %{_unitdir}/unbound.service.d/dnsconfd.conf
 %config(noreplace) %attr(644,unbound,unbound) %{_sysconfdir}/unbound/conf.d/unbound.conf
-%attr(644,dnsconfd,dnsconfd) %{_rundir}/dnsconfd/unbound.conf
+%attr(664,dnsconfd,dnsconfd) %{_rundir}/dnsconfd/unbound.conf
 %{_tmpfilesdir}/dnsconfd-unbound.conf
 
 %files dracut
