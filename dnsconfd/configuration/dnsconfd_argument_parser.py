@@ -104,9 +104,11 @@ class DnsconfdArgumentParser(ArgumentParser):
                          "dnsconfd",
                          validation=r"resolve1|dnsconfd"),
             Option("certification_authority",
-                   "This CA will be used for encrypted protocols"
-                   " as default when no custom CA was specified",
-                   "/etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem")
+                   "Space separated list of CA bundles used for "
+                   "encrypted protocols as default when no custom CA was "
+                   "specified. The first one that can be accessed will be "
+                   "used",
+                   "/etc/pki/dns/extracted/pem/tls-ca-bundle.pem /etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem")
         ]
 
     def add_arguments(self):

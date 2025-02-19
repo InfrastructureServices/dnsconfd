@@ -35,9 +35,9 @@ rlJournalStart
         rlRun "podman exec $dnsconfd_cid getent hosts server.example.com | grep 192.168.6.5" 0 "Verifying correct address resolution"
         # custom CA testing
         rlRun "podman exec $dnsconfd_cid mkdir -p /etc/pki/dns/extracted/pem" 0 "Create dns CA directory"
-        rlRun "podman exec $dnsconfd_cid mv /etc/pki/ca-trust/source/anchors/ca_cert.pem /etc/pki/dns/extracted/pem/" 0 "Move certificate"
+        rlRun "podman exec $dnsconfd_cid mv /etc/pki/ca-trust/source/anchors/ca_cert.pem /etc/pki/dns/extracted/pem/tls-ca-bundle.pem" 0 "Move certificate"
         rlRun "podman exec $dnsconfd_cid update-ca-trust extract" 0 "Rebuild global store without custom certificate"
-        rlRun "podman exec $dnsconfd_cid /bin/bash -c 'printf \"[global-dns]\\ncertification-authority=/etc/pki/dns/extracted/pem/ca_cert.pem\\n[global-dns-domain-*]\\nservers=dns+tls://192.168.6.3#named\\n\" >> /etc/NetworkManager/conf.d/dnsconfd.conf'"
+        rlRun "podman exec $dnsconfd_cid /bin/bash -c 'printf \"[global-dns]\\n[global-dns-domain-*]\\nservers=dns+tls://192.168.6.3#named\\n\" >> /etc/NetworkManager/conf.d/dnsconfd.conf'"
         rlRun "podman exec $dnsconfd_cid nmcli g reload" 0 "Reloading NetworkManager"
         rlRun "podman exec $dnsconfd_cid systemctl restart dnsconfd" 0 "Flush cache with restart to ensure we do not get false negative"
         rlRun "podman exec $dnsconfd_cid nmcli connection mod eth0 ipv4.dns ''" 0 "Removing dns server from NM active profile"
