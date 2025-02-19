@@ -76,16 +76,16 @@ adjust:
      - how: shell
        name: install latest nm
        order: 1
-       script: "dnf -y copr enable bengal/NetworkManager-dns && dnf install -y NetworkManager-1.53.0*"
+       script: "dnf -y copr enable networkmanager/NetworkManager-1.52-debug && dnf upgrade -y NetworkManager-1.51.90*"
   - when: distro == centos-stream-10 or distro == rhel-10
     prepare+:
      - how: shell
        name: install latest unbound
        order: 1
-       script: "dnf -y copr enable tkorbar/unbound-latest-centos centos-stream-10 && dnf install -y unbound-1.20.0-9* && dnf -y copr enable bengal/NetworkManager-dns centos-stream-10 && dnf install -y NetworkManager-1.53.0*"
+       script: "dnf -y copr enable tkorbar/unbound-latest-centos centos-stream-10 && dnf install -y unbound-1.20.0-9* && dnf -y copr enable networkmanager/NetworkManager-1.52-debug centos-stream-10 && dnf upgrade -y NetworkManager-1.51.90*"
   - when: distro == centos-stream-9 or distro == rhel-9
     prepare+:
      - how: shell
        name: install latest unbound
        order: 1
-       script: "dnf -y copr enable tkorbar/unbound-latest-centos centos-stream-9 && dnf install -y unbound-1.16.2-17* && dnf -y copr enable bengal/NetworkManager-dns centos-stream-9 && dnf install -y NetworkManager-1.53.0*"
+       script: "dnf -y copr enable tkorbar/unbound-latest-centos centos-stream-9 && dnf install -y unbound-1.16.2-17* && dnf -y copr enable networkmanager/NetworkManager-1.52-debug centos-stream-9 && dnf upgrade -y NetworkManager-1.51.90*"
