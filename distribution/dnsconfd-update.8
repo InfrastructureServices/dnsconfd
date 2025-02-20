@@ -1,4 +1,4 @@
-.TH "dnsconfd-status" "8" "13 Feb 2025" "dnsconfd-1.7.1" ""
+.TH "dnsconfd-status" "8" "19 Feb 2025" "dnsconfd-1.7.2" ""
 
 .SH NAME
 
@@ -29,7 +29,7 @@ Available fields of JSON servers are:
  \(bu \fBport\fP optional, port on which server is listening. If not given then 53 is used for plain protocol and 853 for DoT
  \(bu \fBrouting_domains\fP optional, list of strings with the domain name whose members will be resolved only by this or other servers with the same domain entry
  \(bu \fBsearch_domains\fP optional, list of strings with the domains that should be used for host-name lookup
- \(bu \fBinterface\fP optional, integer indicating if server can be used only through interface with this interface index.
+ \(bu \fBinterface\fP optional, string indicating if server can be used only through interface with this interface name.
  \(bu \fBdnssec\fP optional, boolean indicating whether this server supports dnssec or not
  \(bu \fBnetworks\fP optional, list of strings representing networks whose reverse dns records must be resolved by this server
  \(bu \fBconnection-uuid\fP optional, string uuid of the connection associated with server in NetworkManager
@@ -57,9 +57,9 @@ See examples section for further description.
 Integer representing resolving mode Dnsconfd should work in.
 
 Valid values are:
- \(bu \fB0\fP - Free, all available server can be used for resolving of all names
- \(bu \fB1\fP - Global restrictive, only global servers (not bound to interface) can be used for resolving of all names. Bound servers can resolve only subdomains
- \(bu \fB2\fP - Full restrictive, only global servers will be used for resolving
+ \(bu \fB0\fP - backup, all available server can be used for resolving of all names
+ \(bu \fB1\fP - prefer, only global servers (not bound to interface) can be used for resolving of all names. Bound servers can resolve only subdomains
+ \(bu \fB2\fP - exclusive, only global servers will be used for resolving
 
 .IP "-h, --help"
 Show help message and exit
