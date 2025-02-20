@@ -1,4 +1,4 @@
-.TH "dnsconfd" "8" "13 Feb 2025" "dnsconfd-1.7.1" ""
+.TH "dnsconfd" "8" "19 Feb 2025" "dnsconfd-1.7.2" ""
 
 .SH NAME
 
@@ -18,7 +18,7 @@ and translates its use to dns service's configuration.
 .IP "-h, --help"
 Show help message and exit
 .IP "--dbus-name DBUS_NAME"
-DBUS name that dnsconfd should use, default org.freedesktop.resolve1
+DBUS name that dnsconfd should use, default com.redhat.dnsconfd
 .IP "--log-level {DEBUG,INFO,WARN}"
 Log level of dnsconfd, default INFO
 .IP "--resolv-conf-path RESOLV_CONF_PATH"
@@ -53,7 +53,11 @@ tcp:myhost.example.com:514
 Dnsconfd will write logs into specified file, not used by default
 .IP "--api-choice"
 Dnsconfd will switch between APIs. Allowed options are resolve1 and dnsconfd.
-Default is resolve1
+Default is dnsconfd
+.IP "--certification-authority"
+Space separated list of CA bundles used for encrypted protocols as default
+when no custom CA was specified. The first one that can be accessed will be
+used, default /etc/pki/dns/extracted/pem/tls-ca-bundle.pem /etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem
 
 .SH "EXIT STATUS"
 

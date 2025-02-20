@@ -2,6 +2,7 @@ import subprocess
 import logging
 from copy import deepcopy
 from typing import Optional
+import os.path
 
 from dnsconfd.dns_managers import DnsManager
 from dnsconfd.network_objects import ServerDescription, DnsProtocol
@@ -25,7 +26,7 @@ class UnboundManager(DnsManager):
         self.dnssec = config["dnssec_enabled"]
         self.address = config["listen_address"]
         self.current_ca = None
-        self.default_ca = config["certification_authority"]
+        self.default_ca: str = config["certification_authority"]
         self._configuration_serial = 1
         self._requested_configuration_serial = 1
 
@@ -42,6 +43,14 @@ class UnboundManager(DnsManager):
             self._requested_configuration_serial = 1
         return self._requested_configuration_serial
 
+    def _get_default_ca(self):
+        if not self.default_ca:
+            return "/etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem"
+
+        for entry in self.default_ca.split(" "):
+            if os.path.isfile(entry):
+                return entry
+
     def get_conf_string(self,
                         zones_to_servers:
                         dict[str, list[ServerDescription]] = None) -> str:
@@ -56,7 +65,11 @@ class UnboundManager(DnsManager):
         else:
             modules = "ipsecmod iterator"
 
-        ca = self.default_ca if self.current_ca is None else self.current_ca
+        if self.current_ca is None:
+            ca = self._get_default_ca()
+        else:
+            ca = self.current_ca
+
         base = ("server:\n"
                 f"\tmodule-config: \"{modules}\"\n"
                 f"\tinterface: {self.address}\n"

@@ -51,7 +51,8 @@ def filled_conf_instance():
                                       'handle_routing': False,
                                       'config_file': '/etc/dnsconfd.conf',
                                       'api_choice': 'dnsconfd',
-                                      'certification_authority': '/etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem',
+                                      'certification_authority': '/etc/pki/dns/extracted/pem/tls-ca-bundle.pem '
+                                                                 '/etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem',
                                       'static_servers': [],
                                       'ignore_api': False}),
     (["--log-level", "DEB"], ValueError, {}),
@@ -85,7 +86,8 @@ def test_parse(args, raised_exception, parsed, empty_conf_instance):
       'handle_routing': False,
       'config_file': '/etc/dnsconfd.conf',
       'api_choice': 'dnsconfd',
-      'certification_authority': '/etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem',
+      'certification_authority': '/etc/pki/dns/extracted/pem/tls-ca-bundle.pem '
+                                 '/etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem',
       'static_servers': [],
       'ignore_api': True}),
     (["--listen-address", "127.0.0.4"],
@@ -104,7 +106,8 @@ def test_parse(args, raised_exception, parsed, empty_conf_instance):
       'handle_routing': False,
       'config_file': '/etc/dnsconfd.conf',
       'api_choice': 'dnsconfd',
-      'certification_authority': '/etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem',
+      'certification_authority': '/etc/pki/dns/extracted/pem/tls-ca-bundle.pem '
+                                 '/etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem',
       'static_servers': [],
       'ignore_api': True}),
 ])

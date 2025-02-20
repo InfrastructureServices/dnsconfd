@@ -19,7 +19,7 @@ rlJournalStart
               rlRun "cp ./test-resolve.service /lib/dracut/modules.d/99test-resolve"
               rlRun "cp ./test-resolve.service /usr/lib/systemd/system/test-resolve.service"
               rlRun "sed -i 's/\(GRUB_CMDLINE_LINUX.*=\".*\)\"/\1 rd.neednet rd.net.dns=dns+tls:\/\/${TMT_GUESTS[server.hostname]}#named ip=dhcp\"/g' /etc/default/grub"
-              rlRun "grubby --update-kernel=/boot/vmlinuz-$(uname -r) --args=\"rd.neednet rd.net.dns=dns+tls://${TMT_GUESTS[server.hostname]}#named ip=dhcp\""
+              rlRun "grubby --update-kernel=/boot/vmlinuz-$(uname -r) --args=\"rd.neednet rd.net.dns=dns+tls://${TMT_GUESTS[server.hostname]}#named ip=dhcp rd.net.dns-global-mode=exclusive rd.net.dns-backend=dnsconfd\""
               rlRun "dracut --force" 0 "Rebuild initramfs"
               rlRun "grub2-mkconfig -o /boot/grub2/grub.cfg"
               rlRun "tmt-reboot" 0 "Reboot the machine"

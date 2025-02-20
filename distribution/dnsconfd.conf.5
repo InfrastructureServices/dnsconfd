@@ -1,4 +1,4 @@
-.TH "dnsconfd.conf" "5" "13 Feb 2025" "dnsconfd-1.7.1" ""
+.TH "dnsconfd.conf" "5" "19 Feb 2025" "dnsconfd-1.7.2" ""
 
 .SH NAME
 
@@ -11,7 +11,7 @@ Dnsconfd.conf is YAML formatted configuration file altering behaviour of Dnsconf
 .SH OPTIONS
 
 .IP "dbus_name"
-DBUS name that dnsconfd should use, default org.freedesktop.resolve1
+DBUS name that dnsconfd should use, default com.redhat.dnsconfd
 .IP "log_level"
 Log level of dnsconfd, default INFO
 .IP "resolv_conf_path"
@@ -28,7 +28,7 @@ Enable dnssec record validation, default no
 Dnsconfd will submit necessary routes to routing manager, default yes
 .IP "api_choice"
 Dnsconfd will switch between APIs. Allowed options are resolve1 and dnsconfd.
-Default is resolve1
+Default is dnsconfd
 .IP stderr_log
 Dnsconfd will write logs into stderr, default yes
 .IP journal_log
@@ -44,6 +44,10 @@ Absolute path to a bundle of certification authorities that will be used
 when no custom were specified.
 .IP "static_servers"
 List of servers that should be configured, default is empty
+.IP "certification_authority"
+Space separated list of CA bundles used for encrypted protocols as default
+when no custom CA was specified. The first one that can be accessed will be
+used, default /etc/pki/dns/extracted/pem/tls-ca-bundle.pem /etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem
 
 Available attributes of servers are:
 
