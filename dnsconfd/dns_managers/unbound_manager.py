@@ -44,10 +44,12 @@ class UnboundManager(DnsManager):
         return self._requested_configuration_serial
 
     def _get_default_ca(self):
-        if not self.default_ca:
-            return "/etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem"
+        default_ca = self.default_ca or " ".join[
+            "/etc/pki/dns/extracted/pem/tls-ca-bundle.pem",
+            " /etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem",
+        ]
 
-        for entry in self.default_ca.split(" "):
+        for entry in default_ca.split(" "):
             if os.path.isfile(entry):
                 return entry
 
