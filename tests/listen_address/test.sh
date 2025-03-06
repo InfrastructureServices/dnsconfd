@@ -23,14 +23,15 @@ rlJournalStart
         rlRun "podman exec $dnsconfd_cid nmcli con up eth0"
         # FIXME workaround of NM DAD issue
         rlRun "podman exec $dnsconfd_cid nmcli g reload"
-        sleep 2
         rlRun "podman exec $dnsconfd_cid dnsconfd status --json | jq_filter_general > status1" 0 "Getting status of dnsconfd"
         rlAssertNotDiffer status1 $ORIG_DIR/expected_status.json
         rlRun "podman exec $dnsconfd_cid getent hosts address.test.com | grep 192.168.6.3" 0 "Verifying correct address resolution"
         rlRun "podman exec $dnsconfd_cid cat /etc/resolv.conf | grep '127.0.0.64'" 0 "Verifying correct listening address"
         rlRun "podman exec $dnsconfd_cid /bin/bash -c 'echo LISTEN_ADDRESS=\"127.0.0.32\" >> /etc/sysconfig/dnsconfd'" 0 "Setting service env file"
         rlRun "podman exec $dnsconfd_cid systemctl restart dnsconfd"
-        sleep 2
+        rlRun "podman exec $dnsconfd_cid nmcli con up eth0"
+        # FIXME workaround of NM DAD issue
+        rlRun "podman exec $dnsconfd_cid nmcli g reload"
         rlRun "podman exec $dnsconfd_cid getent hosts address.test.com | grep 192.168.6.3" 0 "Verifying correct address resolution"
         rlRun "podman exec $dnsconfd_cid cat /etc/resolv.conf | grep '127.0.0.32'" 0 "Verifying correct listening address"
     rlPhaseEnd
