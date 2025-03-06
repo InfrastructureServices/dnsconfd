@@ -33,7 +33,6 @@ rlJournalStart
         rlRun "podman stop -t 0 $dhcp4_cid" 0 "Stopping containers"
         rlRun "podman container rm $dhcp4_cid" 0 "Removing containers"
         rlRun "dhcp4_cid=\$(podman run -d --cap-add=NET_RAW --network dnsconfd_network:ip=192.168.6.5,ip=2001:db8::a1 localhost/dnsconfd_utilities:latest dhcp_entry.sh /etc/dhcp/dhcpd-common.conf)" 0 "Starting dhcpd container with dns list"
-        sleep 5
         rlRun "podman exec $dnsconfd_cid nmcli connection up eth0"
         # FIXME workaround of NM DAD issue
         rlRun "podman exec $dnsconfd_cid nmcli g reload"
