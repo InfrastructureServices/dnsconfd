@@ -1,0 +1,7 @@
+summary: Test whether NetworkManager can trigger start of stopped dnsconfd
+test: ./test.sh
+framework: beakerlib
+recommend:
+  - podman
+tag:
+  - integration
