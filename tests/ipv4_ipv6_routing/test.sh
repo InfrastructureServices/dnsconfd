@@ -1,8 +1,6 @@
 #!/bin/bash
 # vim: dict+=/usr/share/beakerlib/dictionary.vim cpt=.,w,b,u,t,i,k
 . /usr/share/beakerlib/beakerlib.sh || exit 1
-DBUS_NAME=org.freedesktop.resolve1
-ORIG_DIR=$(pwd)
 
 function routing_setup {
   rlRun "podman exec $1 /bin/bash -c 'echo 1 > /proc/sys/net/ipv4/ip_forward'" 0 "enable ip forwarding on routing server"
