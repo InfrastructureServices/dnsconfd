@@ -23,8 +23,6 @@ rlJournalStart
         # this is necessary, because if ca trust is not in place before unbound start then verification of
         # server certificate fails
         rlRun "podman exec $dnsconfd_cid systemctl restart unbound"
-        #FIXME once unbound calls notify properly we can remove this
-        sleep 5
         rlRun "podman exec $dnsconfd_cid nmcli connection mod eth0 ipv4.dns dns+tls://192.168.6.3#named" 0 "Adding dns server to NM active profile"
         # we have to restart, otherwise NM will attempt to change ipv6 and because it has no permissions, it will fail
         rlRun "podman exec $dnsconfd_cid nmcli connection up eth0" 0 "Bringing the connection up"
