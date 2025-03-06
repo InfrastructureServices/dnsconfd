@@ -23,14 +23,16 @@ jobs:
     trigger: pull_request
     identifier: pr_copr_build
     targets:
-      - fedora-all
+      - fedora-42
+      - fedora-rawhide
       - centos-stream-10
       - centos-stream-9
   - job: tests
     trigger: pull_request
     identifier: pr_tests_multihost
     targets:
-      - fedora-all
+      - fedora-42
+      - fedora-rawhide
       - centos-stream-10
       - centos-stream-9
     tmt_plan: multihost
@@ -44,7 +46,8 @@ jobs:
     trigger: pull_request
     identifier: pr_tests_singlehost
     targets:
-      - fedora-all
+      - fedora-42
+      - fedora-rawhide
       - centos-stream-10
       - centos-stream-9
     tmt_plan: "(integration|distribution|unit)"
@@ -54,14 +57,16 @@ jobs:
     trigger: commit
     identifier: commit_copr_build
     targets:
-      - fedora-all
+      - fedora-42
+      - fedora-rawhide
       - centos-stream-10
       - centos-stream-9
   - job: tests
     trigger: commit
     identifier: pr_tests_multihost
     targets:
-      - fedora-all
+      - fedora-42
+      - fedora-rawhide
       - centos-stream-10
       - centos-stream-9
     tmt_plan: multihost
@@ -75,9 +80,9 @@ jobs:
     trigger: commit
     identifier: pr_tests_singlehost
     targets:
-      - fedora-all
+      - fedora-42
+      - fedora-rawhide
       - centos-stream-10
       - centos-stream-9
     tmt_plan: "(integration|distribution|unit)"
     skip_build: True
-
