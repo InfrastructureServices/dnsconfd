@@ -1,8 +1,6 @@
 FROM scratch
 
 COPY ./baseroot /
-RUN rpm --setugids -a
-RUN rpm --setperms -a
 COPY ./*.rpm ./
 RUN dnf install -y --setopt=install_weak_deps=False --setopt=tsflags=nodocs systemd \
     NetworkManager iproute ./*.rpm openvpn NetworkManager-openvpn sssd-client \
