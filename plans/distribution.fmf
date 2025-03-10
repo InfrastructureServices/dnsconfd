@@ -6,7 +6,7 @@ execute:
     how: tmt
 prepare:
   - name: packages
-    order: 2
+    order: 4
     how: install
     package:
       - beakerlib
@@ -34,23 +34,23 @@ prepare:
       - gcc
       - cmake
   - name: build-package
-    order: 3
+    order: 5
     how: shell
     script: ./tests/build_package.sh
   - name: remove-systemd-resolved
-    order: 4
+    order: 6
     how: shell
     script: dnf remove -y systemd-resolved
   - name: restart-network-manager
-    order: 5
+    order: 7
     how: shell
     script: systemctl restart NetworkManager
   - name: install-package
-    order: 6
+    order: 8
     how: shell
     script: dnf install -y ./tests/*.rpm
   - name: increase-verbosity
-    order: 7
+    order: 9
     how: shell
     script: "echo 'LOG_LEVEL=DEBUG' >> /etc/sysconfig/dnsconfd && sed -i 's/verbosity.*/verbosity: 5/g' /etc/unbound/unbound.conf"
 adjust:
@@ -63,11 +63,24 @@ adjust:
      - how: shell
        name: enable CRB
        order: 1
-       script: 'dnf config-manager --set-enabled crb'
-  - when: distro == centos-stream or distro == rhel
+       script: 'dnf config-manager --set-enabled crb || dnf config-manager --set-enabled rhel-CRB || dnf config-manager --set-enabled beaker-CRB'
+  - when: distro == centos-stream-9 or distro == rhel-9
     prepare+:
      - how: install
-       name: install epel
-       order: 1
+       name: install EPEL
+       order: 2
        package:
          - https://dl.fedoraproject.org/pub/epel/epel-release-latest-9.noarch.rpm
+  - when: distro == centos-stream-10 or distro == rhel-10
+    prepare+:
+     - how: install
+       name: install EPEL
+       order: 2
+       package:
+         - https://dl.fedoraproject.org/pub/epel/epel-release-latest-10.noarch.rpm
+  - when: distro == centos-stream or distro == rhel
+    prepare+:
+     - how: shell
+       name: enable EPEL
+       order: 3
+       script: 'dnf config-manager --set-enabled epel'
