@@ -6,7 +6,7 @@ execute:
     how: tmt
 prepare:
   - name: packages
-    order: 3
+    order: 4
     how: install
     package:
       - podman
@@ -56,11 +56,24 @@ adjust:
      - how: shell
        name: enable CRB
        order: 1
-       script: 'dnf config-manager --set-enabled crb'
-  - when: distro == centos-stream or distro == rhel
+       script: 'dnf config-manager --set-enabled crb || dnf config-manager --set-enabled rhel-CRB || dnf config-manager --set-enabled beaker-CRB'
+  - when: distro == centos-stream-9 or distro == rhel-9
     prepare+:
      - how: install
-       name: install epel
-       order: 1
+       name: install EPEL
+       order: 2
        package:
          - https://dl.fedoraproject.org/pub/epel/epel-release-latest-9.noarch.rpm
+  - when: distro == centos-stream-10 or distro == rhel-10
+    prepare+:
+     - how: install
+       name: install EPEL
+       order: 2
+       package:
+         - https://dl.fedoraproject.org/pub/epel/epel-release-latest-10.noarch.rpm
+  - when: distro == centos-stream or distro == rhel
+    prepare+:
+     - how: shell
+       name: enable EPEL
+       order: 3
+       script: 'dnf config-manager --set-enabled epel'
