@@ -100,7 +100,7 @@ adjust:
      - how: shell
        name: enable CRB
        order: 1
-       script: 'dnf config-manager --set-enabled crb'
+       script: 'dnf config-manager --set-enabled crb || dnf config-manager --set-enabled rhel-CRB'
   - when: distro == centos-stream or distro == rhel
     prepare+:
      - how: install
