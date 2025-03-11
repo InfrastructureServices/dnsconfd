@@ -3,6 +3,8 @@ Description=Try to resolve name
 Wants=network-online.target
 After=network-online.target
 Before=initrd-switch-root.target
+Before=initrd.target
+After=sysinit.target
 
 [Service]
 Type=oneshot
