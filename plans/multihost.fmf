@@ -65,22 +65,22 @@ prepare:
     script: "echo 'LOG_LEVEL=DEBUG' >> /etc/sysconfig/dnsconfd && sed -i 's/verbosity.*/verbosity: 5/g' /etc/unbound/unbound.conf"
     where: client
   - name: set-up-bind-1
-    order: 3
+    order: 5
     how: shell
     script: "cp tests/named.conf /etc/named.conf; cp tests/bind_zones/* /etc/named/"
     where: server
   - name: set-up-bind-2
-    order: 4
+    order: 6
     how: shell
     script: "cp tests/named_certs/my_signed_cert.pem tests/named_certs/my_private_key.pem /etc/named/"
     where: server
   - name: set-up-bind-3
-    order: 5
+    order: 7
     how: shell
     script: "chown named /etc/named/my_signed_cert.pem; chown named /etc/named/my_private_key.pem"
     where: server
   - name: start-bind
-    order: 6
+    order: 8
     how: shell
     script: "systemctl start named"
     where: server
@@ -108,7 +108,6 @@ adjust:
        order: 2
        package:
          - https://dl.fedoraproject.org/pub/epel/epel-release-latest-9.noarch.rpm
-       where: client
   - when: distro == centos-stream-10 or distro == rhel-10
     prepare+:
      - how: install
@@ -116,18 +115,16 @@ adjust:
        order: 2
        package:
          - https://dl.fedoraproject.org/pub/epel/epel-release-latest-10.noarch.rpm
-       where: client
   - when: distro == centos-stream or distro == rhel
     prepare+:
      - how: shell
        name: enable EPEL
        order: 3
        script: 'dnf config-manager --set-enabled epel'
-       where: client
   - when: distro == centos-stream-9 or distro == rhel-9
     prepare+:
     - name: server-packages
-      order: 2
+      order: 4
       how: install
       package:
         - bind9.18
@@ -136,7 +133,7 @@ adjust:
   - when: distro != centos-stream-9 and distro != rhel-9
     prepare+:
     - name: server-packages
-      order: 2
+      order: 4
       how: install
       package:
         - bind
