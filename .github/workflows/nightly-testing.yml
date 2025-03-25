@@ -3,21 +3,7 @@ on:
   schedule:
     - cron: "0 2 * * *"
   workflow_dispatch:
-permissions:
-  actions: none
-  attestations: none
-  checks: none
-  contents: read
-  deployments: none
-  id-token: none
-  issues: none
-  discussions: none
-  packages: none
-  pages: none
-  pull-requests: none
-  repository-projects: none
-  security-events: none
-  statuses: none
+permissions: write-all
 jobs:
   build:
     runs-on: ubuntu-latest
