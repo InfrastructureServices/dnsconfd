@@ -29,4 +29,4 @@ jobs:
           curl -sL  -X POST -d @- \
             -H "Content-Type: application/json" \
             -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
-            "https://api.github.com/repos/$GITHUB_REPOSITORY/commits/$GITHUB_SHA/comments"
+            "https://api.github.com/repos/InfrastructureServices/$GITHUB_REPOSITORY/commits/$GITHUB_SHA/comments"
