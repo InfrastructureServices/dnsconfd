@@ -11,7 +11,7 @@ rlJournalStart
     rlPhaseStartTest
         if [ "${TMT_GUEST[name]}" = "client" ]; then
             if [ "$TMT_REBOOT_COUNT" -eq 0 ]; then
-              rlRun "nc -l 8888"
+              rlRun "ncat -l 8888"
               rlRun "mkdir -p /etc/pki/dns/extracted/pem/"
               rlRun "cp ca_cert.pem /etc/pki/dns/extracted/pem/tls-ca-bundle.pem"
               rlRun "mkdir -p /lib/dracut/modules.d/99test-resolve"
@@ -29,12 +29,12 @@ rlJournalStart
               rlRun "journalctl -u micro-dnsconfd"
               rlRun "journalctl -u unbound"
               rlRun "journalctl -u NetworkManager"
-              rlRun "while ! echo 'finish' | nc ${TMT_GUESTS[server.hostname]} 8888; do sleep 2; done"
+              rlRun "while ! echo 'finish' | ncat ${TMT_GUESTS[server.hostname]} 8888; do sleep 2; done"
             fi
         else
-          rlRun "while ! echo 'start' | nc ${TMT_GUESTS[client.hostname]} 8888; do sleep 2; done"
+          rlRun "while ! echo 'start' | ncat ${TMT_GUESTS[client.hostname]} 8888; do sleep 2; done"
           rlRun "journalctl -u named"
-          rlRun "nc -l 8888"
+          rlRun "ncat -l 8888"
         fi
     rlPhaseEnd
 
