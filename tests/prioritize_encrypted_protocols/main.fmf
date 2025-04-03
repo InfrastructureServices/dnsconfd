@@ -1,0 +1,7 @@
+summary: Verify Dnsconfd prioritizes servers that support encryption
+test: ./test.sh
+framework: beakerlib
+recommend:
+  - podman
+tag:
+  - integration

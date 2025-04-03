@@ -20,3 +20,9 @@ class DnsProtocol(Enum):
                            "dns+tcp": DnsProtocol.DNS_PLUS_TCP,
                            "dns+tls": DnsProtocol.DNS_PLUS_TLS}
         return str_to_protocol.get(name.lower(), None)
+
+    def get_priority(self):
+        priority_dict = {DnsProtocol.DNS_PLUS_UDP: 0,
+                         DnsProtocol.DNS_PLUS_TCP: 0,
+                         DnsProtocol.DNS_PLUS_TLS: 1}
+        return priority_dict[self]
