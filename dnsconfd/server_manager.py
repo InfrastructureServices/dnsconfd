@@ -70,7 +70,8 @@ class ServerManager:
                 search_domains[domain] = True
 
         for zone in new_zones_to_servers.values():
-            zone.sort(key=lambda x: x.priority, reverse=True)
+            zone.sort(key=lambda x: (x.priority, x.protocol.get_priority()),
+                      reverse=True)
         self.lgr.debug("New zones to server prepared: %s",
                        new_zones_to_servers)
         self.lgr.debug("New search domains prepared: %s",
