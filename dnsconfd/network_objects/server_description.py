@@ -287,6 +287,12 @@ class ServerDescription:
                 raise ValueError("server name is not a string")
             name = str(server["name"])
 
+        priority = 100
+        if server.get("priority", None) is not None:
+            if not isinstance(server["priority"], int):
+                raise ValueError("priority is not an integer")
+            priority = int(server["priority"])
+
         routing_domains = None
         if server.get("routing_domains", None) is not None:
             if not isinstance(server["routing_domains"], list):
@@ -362,7 +368,7 @@ class ServerDescription:
                                  parsed_address.packed,
                                  port,
                                  name,
-                                 priority=100,
+                                 priority=priority,
                                  routing_domains=routing_domains,
                                  search_domains=search_domains,
                                  interface=interface,
