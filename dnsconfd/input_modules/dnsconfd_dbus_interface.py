@@ -78,7 +78,7 @@ class DnsconfdDbusInterface(dbus.service.Object):
                                         is_interface_wireless(serv_int)))
 
             if is_wireless:
-                serv_desc.priority = 50
+                serv_desc.priority = serv_desc.priority - 1
 
             if serv_desc.ca is not None and entered_ca is None:
                 entered_ca = serv_desc.ca
