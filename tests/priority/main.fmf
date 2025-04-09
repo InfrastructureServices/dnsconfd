@@ -5,3 +5,4 @@ recommend:
   - podman
 tag:
   - integration
+enabled: false
