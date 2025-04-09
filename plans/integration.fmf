@@ -46,6 +46,10 @@ prepare:
     order: 7
     how: shell
     script: ./tests/build_images.sh
+  - name: install-package
+    order: 8
+    how: shell
+    script: dnf install -y ./tests/*.rpm
 adjust:
   - when: trigger is not defined or trigger == human
     provision:
