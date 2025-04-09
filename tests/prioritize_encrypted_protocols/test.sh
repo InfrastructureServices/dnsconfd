@@ -6,6 +6,13 @@ ORIG_DIR=$(pwd)
 
 rlJournalStart
     rlPhaseStartSetup
+        if rlTestVersion "$(rpm -q --queryformat '%{VERSION}' dnsconfd)" "<" "1.7.3"; then
+          # this test works only in version >= 1.7.2
+          rlLog "TEST SKIPPED"
+          rlPhaseEnd
+          rlJournalEnd
+          exit 0
+        fi
         rlRun "tmp=\$(mktemp -d)" 0 "Create tmp directory"
         rlRun "cp ./ca_cert.pem $tmp/ca_cert.pem" 0 "Copying CA certificate"
         rlRun "pushd $tmp"
