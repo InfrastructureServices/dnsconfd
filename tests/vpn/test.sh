@@ -18,9 +18,9 @@ rlJournalStart
         rlRun "dhcp_cid=\$(podman run -d --cap-add=NET_RAW --network dnsconfd_network:ip=192.168.6.20 localhost/dnsconfd_utilities:latest dhcp_entry.sh /etc/dhcp/dhcpd-common.conf)" 0 "Starting dhcpd container"
         rlRun "vpn_cid=\$(podman run -d --cap-add=NET_ADMIN --cap-add=NET_RAW --privileged --security-opt label=disable --device=/dev/net/tun --network dnsconfd_network:ip=192.168.6.30 --network dnsconfd_network2:ip=192.168.7.3 localhost/dnsconfd_utilities:latest vpn_entry.sh)"
         rlRun "dnsconfd_cid=\$(podman run -d --privileged --security-opt label=disable --device=/dev/net/tun --dns='none' --network dnsconfd_network:ip=192.168.6.2 dnsconfd_testing:latest)" 0 "Starting dnsconfd container"
-        rlRun "dnsmasq1_cid=\$(podman run -d --dns='none' --network dnsconfd_network:ip=192.168.6.3 localhost/dnsconfd_utilities:latest dnsmasq_entry.sh --listen-address=192.168.6.3 --address=/first-address.test.com/192.168.6.3)" 0 "Starting first dnsmasq container"
+        rlRun "dnsmasq1_cid=\$(podman run -d --dns='none' --network dnsconfd_network:ip=192.168.6.3 localhost/dnsconfd_utilities:latest dnsmasq_entry.sh --listen-address=192.168.6.3 --address=/first-address.test.com/192.168.6.3 --address=/first-address.whatever.com/192.168.6.3)" 0 "Starting first dnsmasq container"
         rlRun "dnsmasq2_cid=\$(podman run -d --dns='none' --network dnsconfd_network:ip=192.168.6.4 localhost/dnsconfd_utilities:latest dnsmasq_entry.sh --listen-address=192.168.6.4 --address=/second-address.test.com/192.168.6.4)" 0 "Starting second dnsmasq container"
-        rlRun "dnsmasq3_cid=\$(podman run -d --dns='none' --network dnsconfd_network2:ip=192.168.7.2 localhost/dnsconfd_utilities:latest dnsmasq_entry.sh --listen-address=192.168.7.2 --address=/dummy.vpndomain.com/192.168.6.5)" 0 "Starting third dnsmasq container"
+        rlRun "dnsmasq3_cid=\$(podman run -d --dns='none' --network dnsconfd_network2:ip=192.168.7.2 localhost/dnsconfd_utilities:latest dnsmasq_entry.sh --listen-address=192.168.7.2 --address=/dummy.vpndomain.com/192.168.6.5 --address=/first-address.whatever.com/192.168.6.5)" 0 "Starting third dnsmasq container"
     rlPhaseEnd
 
     rlPhaseStartTest
@@ -54,6 +54,20 @@ rlJournalStart
         rlAssertNotDiffer status2 $ORIG_DIR/expected_status2.json
         rlRun "podman exec $dnsconfd_cid getent hosts dummy | grep 192.168.6.5" 0 "Verifying correct address resolution"
         rlRun "podman exec $dnsconfd_cid getent hosts second-address | grep 192.168.6.4" 0 "Verifying correct address resolution"
+        if rlTestVersion "$(rpm -q --queryformat '%{VERSION}' dnsconfd)" ">=" "1.7.3" && rlTestVersion "$(rpm -q --queryformat '%{VERSION}' NetworkManager)" ">" "1.53.2"; then
+          # fix for this behavior has been implement in dnsconfd 1.7.3 and NM 1.53.3
+          rlRun "podman exec $dnsconfd_cid nmcli connection down vpn" 0 "Disconnecting from vpn"
+          rlRun "podman exec $dnsconfd_cid nmcli connection mod vpn ipv4.never-default no" 0 "Allowing vpn to have gateway"
+          rlRun "podman exec $dnsconfd_cid nmcli connection up vpn" 0 "Connecting to vpn"
+          # FIXME workaround of NM DAD issue
+          rlRun "podman exec $dnsconfd_cid nmcli g reload"
+          rlRun "podman exec $dnsconfd_cid dnsconfd status --json | jq_filter_general > status3" 0 "Getting status of dnsconfd"
+          rlAssertNotDiffer status3 $ORIG_DIR/expected_status3.json
+          rlRun "podman exec $dnsconfd_cid getent hosts first-address.whatever.com | grep 192.168.6.5" 0 "Verifying correct address resolution"
+          rlRun "podman exec $dnsconfd_cid getent hosts first-address.test.com | grep 192.168.6.3" 0 "Verifying correct address resolution"
+          rlRun "podman exec $dnsconfd_cid getent hosts second-address.test.com | grep 192.168.6.4" 0 "Verifying correct address resolution"
+          rlRun "podman exec $dnsconfd_cid getent hosts dummy.vpndomain.com | grep 192.168.6.5" 0 "Verifying correct address resolution"
+        fi
     rlPhaseEnd
 
     rlPhaseStartCleanup
