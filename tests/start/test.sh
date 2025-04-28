@@ -21,6 +21,7 @@ rlJournalStart
         rlRun "dnsconfd status | grep unbound" 0 "Verifying status of dnsconfd"
         # we can not simply check for a AVC until chrony issue is fixed
         rlRun "ausearch -m avc --start recent | grep dnsconfd" 1 "Check no AVC occured"
+        rlRun "ls -Z /bin/dnsconfd | grep dnsconfd_exec_t" 0 "Verify that dnsconfd executable has right context"
     rlPhaseEnd
 
     rlPhaseStartCleanup
