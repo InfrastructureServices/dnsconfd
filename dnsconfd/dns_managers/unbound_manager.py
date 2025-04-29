@@ -25,8 +25,9 @@ class UnboundManager(DnsManager):
         self.lgr = logging.getLogger(self.__class__.__name__)
         self.dnssec = config["dnssec_enabled"]
         self.address = config["listen_address"]
-        self.current_ca = None
-        self.default_ca: str = config["certification_authority"]
+        self.entered_ca = None
+        self.config_ca: str = config["certification_authority"]
+        self.effective_ca = None
         self._configuration_serial = 1
         self._requested_configuration_serial = 1
 
@@ -44,10 +45,10 @@ class UnboundManager(DnsManager):
         return self._requested_configuration_serial
 
     def _get_default_ca(self):
-        if not self.default_ca:
+        if not self.config_ca:
             return "/etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem"
 
-        for entry in self.default_ca.split(" "):
+        for entry in self.config_ca.split(" "):
             if os.path.isfile(entry):
                 return entry
 
@@ -65,16 +66,16 @@ class UnboundManager(DnsManager):
         else:
             modules = "ipsecmod iterator"
 
-        if self.current_ca is None:
-            ca = self._get_default_ca()
+        if self.entered_ca is None:
+            self.effective_ca = self._get_default_ca()
         else:
-            ca = self.current_ca
+            self.effective_ca = self.entered_ca
 
         base = ("server:\n"
                 f"\tmodule-config: \"{modules}\"\n"
                 f"\tinterface: {self.address}\n"
                 f"\tdo-not-query-address: 127.0.0.1/8\n"
-                f"\ttls-cert-bundle: {ca}\n")
+                f"\ttls-cert-bundle: {self.effective_ca}\n")
 
         if not zones_to_servers:
             return base + ("forward-zone:\n"
@@ -159,9 +160,11 @@ class UnboundManager(DnsManager):
         """
         for zone, servers in zones_to_servers.items():
             for server in servers:
-                if self.current_ca != server.ca:
-                    self.current_ca = server.ca
+                if self.entered_ca != server.ca:
+                    self.entered_ca = server.ca
                     return True
+        if self.effective_ca != self._get_default_ca():
+            return True
         return False
 
     def update(self,
