@@ -18,7 +18,8 @@ RUN cd /etc/openvpn/easy-rsa\
 COPY vpn.conf /etc/openvpn/serverudp.conf
 
 COPY named.conf /etc/named.conf
-COPY bind_zones named_certs/my_signed_cert.pem named_certs/my_private_key.pem /etc/named/
-RUN chown named /etc/named/my_signed_cert.pem /etc/named/my_private_key.pem
+COPY named2.conf /etc/named2.conf
+COPY bind_zones named_certs/my_signed_cert.pem named_certs/my_private_key.pem named_certs/my_signed_cert2.pem named_certs/my_private_key2.pem /etc/named/
+RUN chown named /etc/named/my_signed_cert.pem /etc/named/my_private_key.pem /etc/named/my_signed_cert2.pem /etc/named/my_private_key2.pem
 
 COPY dhcp_entry.sh vpn_entry.sh dnsmasq_entry.sh bind_entry.sh ratool_entry.sh /usr/bin/
