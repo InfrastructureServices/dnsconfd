@@ -1,0 +1,1 @@
+{"cache_config":{".":["dns+udp://192.168.6.3:73"],"6.168.192.in-addr.arpa":["dns+udp://192.168.6.3:73"]},"mode":"backup","servers":[{"address":"192.168.6.3","dnssec":true,"firewall_zone":null,"interface":"eth0","name":null,"networks":["192.168.6.0/24"],"port":73,"protocol":"dns+udp","routing_domains":["."],"search_domains":[]}],"service":"unbound"}

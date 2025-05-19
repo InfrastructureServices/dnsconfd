@@ -1,0 +1,7 @@
+summary: Start container, set 1 DNS server listening on unusual port and verify resolution works
+test: ./test.sh
+framework: beakerlib
+recommend:
+  - podman
+tag:
+  - integration
