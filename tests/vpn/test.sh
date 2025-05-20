@@ -54,7 +54,7 @@ rlJournalStart
         rlAssertNotDiffer status2 $ORIG_DIR/expected_status2.json
         rlRun "podman exec $dnsconfd_cid getent hosts dummy | grep 192.168.6.5" 0 "Verifying correct address resolution"
         rlRun "podman exec $dnsconfd_cid getent hosts second-address | grep 192.168.6.4" 0 "Verifying correct address resolution"
-        if rlTestVersion "$(rpm -q --queryformat '%{VERSION}' dnsconfd)" ">=" "1.7.3" && rlTestVersion "$(rpm -q --queryformat '%{VERSION}' NetworkManager)" ">" "1.53.3"; then
+        if rlTestVersion "$(rpm -q --queryformat '%{VERSION}' dnsconfd)" ">=" "1.7.3" && rlTestVersion "$(rpm -q --queryformat '%{VERSION}' NetworkManager)" ">=" "1.54"; then
           # fix for this behavior has been implemented in dnsconfd 1.7.3 and NM > 1.53.3
           rlRun "podman exec $dnsconfd_cid nmcli connection down vpn" 0 "Disconnecting from vpn"
           rlRun "podman exec $dnsconfd_cid nmcli connection mod vpn ipv4.never-default no" 0 "Allowing vpn to have gateway"
