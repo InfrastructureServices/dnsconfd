@@ -57,8 +57,8 @@ Available attributes of servers are:
  \(bu \fBport\fP optional, port on which server is listening. If not given then 53 is used for plain protocol and 853 for DoT
  \(bu \fBrouting_domains\fP optional, domains whose resolution should be performed through this server
  \(bu \fBsearch_domains\fP optional, domains that should be used for host-name lookup
- \(bu \dnssec\fP optional, boolean indicating whether this server supports dnssec or not
- \(bu \networks\fP optional, networks whose reverse dns records must be resolved by this server
+ \(bu \fBdnssec\fP optional, boolean indicating whether this server supports dnssec or not
+ \(bu \fBnetworks\fP optional, networks whose reverse dns records must be resolved by this server
 
 Examples:
 
@@ -66,7 +66,7 @@ Enabling one global server using DNS over TLS
 
 static_servers:
    - address: 192.168.6.3
-     protocol: "DoT"
+     protocol: "dns+tls"
      name: named
 
 Enabling one server for specific domain and second for everything else
