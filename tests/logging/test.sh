@@ -11,7 +11,7 @@ rlJournalStart
         rlRun "set -o pipefail"
         # dns=none is neccessary, because otherwise resolv.conf is created and
         # mounted by podman as read-only
-        rlRun "dnsconfd_cid=\$(podman run -d --dns='none' dnsconfd_testing:latest)" 0 "Starting dnsconfd container"
+        rlRun "dnsconfd_cid=\$(podman run --privileged -d --dns='none' dnsconfd_testing:latest)" 0 "Starting dnsconfd container"
     rlPhaseEnd
 
     rlPhaseStartTest
