@@ -12,7 +12,7 @@ rlJournalStart
         rlRun "podman network create dnsconfd_network --internal -d=bridge --gateway=192.168.6.1 --subnet=192.168.6.0/24"
         # dns=none is neccessary, because otherwise resolv.conf is created and
         # mounted by podman as read-only
-        rlRun "dnsconfd_cid=\$(podman run -d --dns='none' --network dnsconfd_network:ip=192.168.6.2 dnsconfd_testing:latest)" 0 "Starting dnsconfd container"
+        rlRun "dnsconfd_cid=\$(podman run --privileged -d --dns='none' --network dnsconfd_network:ip=192.168.6.2 dnsconfd_testing:latest)" 0 "Starting dnsconfd container"
         rlRun "dnsmasq_cid1=\$(podman run -d --dns='none' --network dnsconfd_network:ip=192.168.6.3 localhost/dnsconfd_utilities:latest dnsmasq_entry.sh --listen-address=192.168.6.3 --host-record=address-one.example.com,8.8.8.8)" 0 "Starting dnsmasq container"
         rlRun "dnsmasq_cid2=\$(podman run -d --dns='none' --network dnsconfd_network:ip=192.168.6.4 localhost/dnsconfd_utilities:latest dnsmasq_entry.sh --listen-address=192.168.6.4 --host-record=address-two.example.com,8.8.8.8)" 0 "Starting dnsmasq container"
         rlRun "dnsmasq_cid3=\$(podman run -d --dns='none' --network dnsconfd_network:ip=192.168.6.5 localhost/dnsconfd_utilities:latest dnsmasq_entry.sh --listen-address=192.168.6.5 --host-record=address-three.example.com,8.8.8.8 --host-record=address-four.example.com,8.8.4.4)" 0 "Starting dnsmasq container"
