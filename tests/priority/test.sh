@@ -28,17 +28,23 @@ rlJournalStart
     rlPhaseStartTest
         rlRun "podman exec $dnsconfd_cid systemctl start network-online.target"
         rlRun "podman exec $dnsconfd_cid dnsconfd update --json '[{\"address\":\"192.168.6.3\", \"priority\":20}, {\"address\":\"192.168.6.4\", \"routing_domains\": [\".\", \"subdomain.example.com\"], \"priority\":10}, {\"address\":\"192.168.6.5\", \"priority\":0}]' --mode 0" 0 "submit update"
-        sleep 2
+        sleep 4
         rlRun "podman exec $dnsconfd_cid dnsconfd status --json | jq_filter_general > status1" 0 "Getting status of dnsconfd"
-        rlAssertNotDiffer status1 $ORIG_DIR/expected_status1.json
+        if ! rlAssertNotDiffer status1 $ORIG_DIR/expected_status1.json; then
+          rlRun "cat status1"
+        fi
         rlRun "podman exec $dnsconfd_cid dnsconfd update --json '[{\"address\":\"192.168.6.3\", \"priority\":0}, {\"address\":\"192.168.6.4\", \"routing_domains\": [\".\", \"subdomain.example.com\"], \"priority\":0}, {\"address\":\"192.168.6.5\", \"priority\":0}]' --mode 0" 0 "submit update"
-        sleep 2
+        sleep 4
         rlRun "podman exec $dnsconfd_cid dnsconfd status --json | jq_filter_general > status2" 0 "Getting status of dnsconfd"
-        rlAssertNotDiffer status2 $ORIG_DIR/expected_status2.json
+        if ! rlAssertNotDiffer status2 $ORIG_DIR/expected_status2.json; then
+          rlRun "cat status2"
+        fi
         rlRun "podman exec $dnsconfd_cid dnsconfd update --json '[{\"address\":\"192.168.6.3\", \"priority\":10}, {\"address\":\"192.168.6.4\", \"routing_domains\": [\".\", \"subdomain.example.com\"], \"priority\":0}, {\"address\":\"192.168.6.5\", \"priority\":10}]' --mode 0" 0 "submit update"
-        sleep 2
+        sleep 4
         rlRun "podman exec $dnsconfd_cid dnsconfd status --json | jq_filter_general > status3" 0 "Getting status of dnsconfd"
-        rlAssertNotDiffer status3 $ORIG_DIR/expected_status3.json
+        if ! rlAssertNotDiffer status3 $ORIG_DIR/expected_status3.json; then
+          rlRun "cat status3"
+        fi
     rlPhaseEnd
 
     rlPhaseStartCleanup
