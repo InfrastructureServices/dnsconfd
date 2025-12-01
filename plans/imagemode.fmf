@@ -1,0 +1,6 @@
+summary: Run distribution tests with tmt
+discover:
+  how: fmf
+  filter: tag:distribution
+execute:
+    how: tmt

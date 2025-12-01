@@ -15,21 +15,21 @@ rlJournalStart
     rlPhaseStartTest
         rlRun "dnsconfd config nm_enable" 0 "Installing dnsconfd"
         rlServiceStop rsyslog
-        rlRun "echo '' > /var/log/messages"
+        CUR_TIME=$(date +%T)
         # now we will test syslog logging
         rlRun "cp rsyslog.conf /etc/rsyslog.conf"
         rlServiceStart rsyslog
         rlRun "printf 'syslog_log: unix:/dev/newlog\n' >> /etc/dnsconfd.conf" 0 "Enabling syslog logging"
         rlServiceStart dnsconfd
         sleep 3
-        rlRun "cat /var/log/messages | grep 'ContextState.RUNNING'" 0 "verify logs are indeed in syslog"
+        rlRun "journalctl --since \"$CUR_TIME\" | grep 'ContextState.RUNNING'" 0 "verify logs are indeed in syslog"
         rlServiceStop rsyslog
-        rlRun "echo '' > /var/log/messages"
+        CUR_TIME=$(date +%T)
         rlRun "printf 'syslog_log: udp:127.0.0.1:514\n' >> /etc/dnsconfd.conf" 0 "Enabling syslog logging with udp"
         rlServiceStart rsyslog
         rlServiceStart dnsconfd
         sleep 3
-        rlRun "cat /var/log/messages | grep 'ContextState.RUNNING'" 0 "verify logs are indeed in syslog"
+        rlRun "journalctl --since \"$CUR_TIME\" | grep 'ContextState.RUNNING'" 0 "verify logs are indeed in syslog"
     rlPhaseEnd
 
     rlPhaseStartCleanup
