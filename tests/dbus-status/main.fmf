@@ -3,3 +3,7 @@ test: ./test.sh
 framework: beakerlib
 tag:
   - distribution
+recommend:
+  - dnsconfd
+  - audit
+  - dbus-tools
