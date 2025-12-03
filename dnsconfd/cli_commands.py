@@ -140,7 +140,7 @@ class CLICommands:
 
         :param config: dictionary with configuration
         """
-        if config["server_list"] is None:
+        if config["server_list"] is None or len(config["server_list"]) == 0:
             server_list = []
         elif config["json"]:
             try:
