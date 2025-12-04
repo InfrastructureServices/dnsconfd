@@ -2,7 +2,6 @@
 Description=Dns local cache services configuration daemon
 After=network.target dbus.service
 Requires=dbus.service
-Conflicts=systemd-resolved.service
 
 [Service]
 Type=notify
