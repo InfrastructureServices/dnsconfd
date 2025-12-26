@@ -2,3 +2,4 @@
 /usr/bin/micro-dnsconfd                  gen_context(system_u:object_r:dnsconfd_exec_t,s0)
 /usr/libexec/dnsconfd-take-resolvconf.sh gen_context(system_u:object_r:dnsconfd_init_exec_t,s0)
 /run/dnsconfd(/.*)?                      gen_context(system_u:object_r:dnsconfd_var_run_t,s0)
+/run/dnsconfd/resolv[^/]*.conf           gen_context(system_u:object_r:net_conf_t,s0)
