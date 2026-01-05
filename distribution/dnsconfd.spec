@@ -2,7 +2,7 @@
 %global selinuxtype targeted
 
 Name:           dnsconfd
-Version:        1.7.3
+Version:        1.7.4
 Release:        1%{?dist}
 Summary:        Local DNS cache configuration daemon
 License:        MIT
@@ -242,6 +242,9 @@ fi
 %{_prefix}/lib/dracut/modules.d/99dnsconfd
 
 %changelog
+* Mon Jan 05 2026 Tomas Korbar <tkorbar@redhat.com> - 1.7.4-1
+- Release 1.7.4
+
 * Wed Apr 09 2025 Tomas Korbar <tkorbar@redhat.com> - 1.7.3-1
 - Release 1.7.3
 
