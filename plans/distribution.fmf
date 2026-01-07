@@ -13,6 +13,8 @@ prepare:
       - python3-devel
       - python3-setuptools
       - python3-rpm-macros
+      - pyproject-rpm-macros
+      - python3dist(wheel)
       - python3-pip
       - python3-pyyaml
       - python3-systemd

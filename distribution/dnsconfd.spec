@@ -11,8 +11,6 @@ Source0:        %{url}/archive/%{version}/%{name}-%{version}.tar.gz
 Source1:        dnsconfd.sysusers
 
 BuildRequires:  python3-devel
-BuildRequires:  python3-setuptools
-BuildRequires:  python3-setuptools
 BuildRequires:  python3-rpm-macros
 BuildRequires:  python3-pip
 BuildRequires:  systemd
@@ -31,8 +29,8 @@ Requires:  %{name}-cache
 Requires:  polkit
 Suggests:  %{name}-unbound
 Requires:  (%{name}-unbound = %{version}-%{release} if %{name}-unbound)
-
-%?python_enable_dependency_generator
+%generate_buildrequires
+%pyproject_buildrequires
 
 %description
 Dnsconfd configures local DNS cache services.
@@ -95,7 +93,7 @@ Dnsconfd dracut module
 %autosetup -n %{name}-%{version}
 
 %build
-%py3_build
+%pyproject_wheel
 
 %if %{defined fedora} && 0%{?fedora} < 40 || %{defined rhel} && 0%{?rhel} < 10
     echo '/var/run/dnsconfd(/.*)? gen_context(system_u:object_r:dnsconfd_var_run_t,s0)' >> distribution/dnsconfd.fc
@@ -112,7 +110,7 @@ pushd micro-dnsconfd
 popd
 
 %install
-%py3_install
+%pyproject_install
 mkdir   -m 0755 -p %{buildroot}%{_datadir}/dbus-1/system.d/
 mkdir   -m 0755 -p %{buildroot}%{_datadir}/dbus-1/system-services/
 mkdir   -m 0755 -p %{buildroot}%{_sysconfdir}/unbound/conf.d/
