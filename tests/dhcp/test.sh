@@ -42,6 +42,7 @@ rlJournalStart
         rlRun "podman exec $dnsconfd_cid getent hosts second-address.test.com | grep 192.168.6.4" 0 "Verifying correct address resolution"
         rlRun "podman exec $dnsconfd_cid getent hosts second-address | grep 192.168.6.4" 0 "Verifying correct address resolution"
         rlRun "podman exec $dnsconfd_cid getent hosts third-address.test.com | grep 2001:db8::3" 0 "Verifying correct address resolution"
+        rlRun "podman exec $dnsconfd_cid cat /etc/resolv.conf | grep 'search test.com' "
     rlPhaseEnd
 
     rlPhaseStartCleanup

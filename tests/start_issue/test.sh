@@ -9,15 +9,19 @@ rlJournalStart
         # dns=none is neccessary, because otherwise resolv.conf is created and
         # mounted by podman as read-only
         rlRun "dnsconfd_cid=\$(podman run --privileged -d --dns='none' --network dnsconfd_network:ip=192.168.6.2 dnsconfd_testing:latest)" 0 "Starting dnsconfd container"
+        until podman exec $dnsconfd_cid systemctl is-system-running --quiet 2>/dev/null; do
+            sleep 0.1
+        done
     rlPhaseEnd
 
     rlPhaseStartTest
         rlRun "podman exec $dnsconfd_cid systemctl start network-online.target"
+        sleep 2
         rlRun "podman exec $dnsconfd_cid systemctl stop dnsconfd" 0 "stop dnsconfd"
         rlRun "podman exec $dnsconfd_cid sed -i 's/ExecStart=.*/ExecStart=false/g' /usr/lib/systemd/system/unbound.service" 0 "breaking unbound"
         rlRun "podman exec $dnsconfd_cid systemctl daemon-reload" 0 "reload systemd units"
         rlRun "podman exec $dnsconfd_cid systemctl start dnsconfd" 1 "start dnsconfd"
-        rlRun "podman exec $dnsconfd_cid journalctl -u dnsconfd | grep -e 'TIMEOUT' -e 'START_FAIL'" 0 "Checking dnsconfd logs"
+        rlRun "podman exec $dnsconfd_cid journalctl -u dnsconfd | grep 'JOB_FAILURE'" 0 "Checking dnsconfd logs"
         rlRun "podman exec $dnsconfd_cid systemctl status dnsconfd" 3 "Verify that dnsconfd is stopped"
     rlPhaseEnd
 

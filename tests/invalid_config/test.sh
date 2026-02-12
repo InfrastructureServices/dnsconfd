@@ -8,14 +8,14 @@ rlJournalStart
         # dns=none is neccessary, because otherwise resolv.conf is created and
         # mounted by podman as read-only
         rlRun "dnsconfd_cid=\$(podman run --privileged -d --dns='none' --network dnsconfd_network:ip=192.168.6.2 dnsconfd_testing:latest)" 0 "Starting dnsconfd container"
+        # give systemd in container time to open the dbus socket
+        until podman exec $dnsconfd_cid systemctl is-system-running --quiet 2>/dev/null; do
+        sleep 0.1
+        done
     rlPhaseEnd
 
     rlPhaseStartTest
         rlRun "podman exec $dnsconfd_cid systemctl start network-online.target"
-        rlRun "podman exec $dnsconfd_cid /bin/bash -c 'echo nonsense > /etc/dnsconfd.conf' "
-        rlRun "podman exec $dnsconfd_cid systemctl restart dnsconfd" 0 "restart dnsconfd"
-        rlRun "podman exec $dnsconfd_cid journalctl -u dnsconfd | grep 'Configuration could not be parsed as YAML'" 0 "Checking dnsconfd logs"
-        rlRun "podman exec $dnsconfd_cid systemctl status dnsconfd" 0 "Verify that dnsconfd is running"
         rlRun "podman exec $dnsconfd_cid /bin/bash -c 'echo listen_address: \"nonsense\" > /etc/dnsconfd.conf'"
         rlRun "podman exec $dnsconfd_cid systemctl restart dnsconfd" 1 "restart dnsconfd"
         rlRun "podman exec $dnsconfd_cid systemctl status dnsconfd | grep 'status=13'" 0 "Verify that dnsconfd refused bad option"

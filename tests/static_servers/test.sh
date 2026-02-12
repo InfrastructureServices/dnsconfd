@@ -36,6 +36,7 @@ rlJournalStart
         rlRun "podman exec $dnsconfd_cid systemctl restart dnsconfd"
         rlRun "podman exec $dnsconfd_cid dnsconfd status --json | jq_filter_general > status1" 0 "Getting status of dnsconfd"
         rlAssertNotDiffer status1 $ORIG_DIR/expected_status.json
+        rlRun "cat status1"
         rlRun "podman exec $dnsconfd_cid getent hosts server.example.com | grep 192.168.6.5" 0 "Verifying correct address resolution"
         rlRun "podman cp dnsconfd-wrong.conf $dnsconfd_cid://etc/dnsconfd.conf"
         rlRun "podman exec $dnsconfd_cid systemctl restart dnsconfd" 1 "restart dnsconfd"

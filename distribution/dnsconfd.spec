@@ -2,7 +2,7 @@
 %global selinuxtype targeted
 
 Name:           dnsconfd
-Version:        1.7.5
+Version:        2.0.0
 Release:        1%{?dist}
 Summary:        Local DNS cache configuration daemon
 License:        MIT
@@ -10,27 +10,21 @@ URL:            https://github.com/InfrastructureServices/dnsconfd
 Source0:        %{url}/archive/%{version}/%{name}-%{version}.tar.gz
 Source1:        dnsconfd.sysusers
 
-BuildRequires:  python3-devel
-BuildRequires:  python3-rpm-macros
-BuildRequires:  python3-pip
+BuildRequires:  pkgconfig(liburiparser) pkgconfig(jansson) pkgconfig(yaml-0.1)
+BuildRequires:  pkgconfig(glib-2.0) pkgconfig(libsystemd) pkgconfig(gio-2.0) pkgconfig(libidn2)
 BuildRequires:  systemd
 BuildRequires:  systemd-rpm-macros
+BuildRequires:  meson gcc
 %if %{defined fedora} && 0%{?fedora} < 42 || %{defined rhel} && 0%{?rhel} < 11
 %{?sysusers_requires_compat}
 %endif
 
 Requires:  (%{name}-selinux if selinux-policy-%{selinuxtype})
-Requires:  python3-gobject-base
-Requires:  python3-pyyaml
-Requires:  python3-systemd
-Recommends: python3-idna
 Requires:  dbus-common
 Requires:  %{name}-cache
 Requires:  polkit
 Suggests:  %{name}-unbound
 Requires:  (%{name}-unbound = %{version}-%{release} if %{name}-unbound)
-%generate_buildrequires
-%pyproject_buildrequires
 
 %description
 Dnsconfd configures local DNS cache services.
@@ -85,15 +79,17 @@ Requires:           %{name}-micro%{?_isa} = %{version}-%{release}
 Requires:           unbound
 Requires:           dracut
 Requires:           dracut-network
+Requires:           unbound-dracut
 
 %description dracut
 Dnsconfd dracut module
 
 %prep
-%autosetup -n %{name}-%{version}
+%autosetup -c
 
 %build
-%pyproject_wheel
+%meson
+%meson_build
 
 %if %{defined fedora} && 0%{?fedora} < 40 || %{defined rhel} && 0%{?rhel} < 10
     echo '/var/run/dnsconfd(/.*)? gen_context(system_u:object_r:dnsconfd_var_run_t,s0)' >> distribution/dnsconfd.fc
@@ -110,7 +106,7 @@ pushd micro-dnsconfd
 popd
 
 %install
-%pyproject_install
+%meson_install
 mkdir   -m 0755 -p %{buildroot}%{_datadir}/dbus-1/system.d/
 mkdir   -m 0755 -p %{buildroot}%{_datadir}/dbus-1/system-services/
 mkdir   -m 0755 -p %{buildroot}%{_sysconfdir}/unbound/conf.d/
@@ -203,8 +199,6 @@ fi
 %files
 %license LICENSE
 %{_bindir}/dnsconfd
-%{python3_sitelib}/dnsconfd/
-%{python3_sitelib}/dnsconfd-%{version}*
 %{_datadir}/dbus-1/system.d/com.redhat.dnsconfd.conf
 %{_datadir}/dbus-1/system-services/com.redhat.dnsconfd.service
 %config(noreplace) %{_sysconfdir}/sysconfig/dnsconfd

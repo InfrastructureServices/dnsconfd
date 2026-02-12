@@ -17,18 +17,17 @@ rlJournalStart
     rlPhaseEnd
 
     rlPhaseStartTest
-        rlRun "podman exec $dnsconfd_cid /bin/bash -c 'echo api_choice: dnsconfd >> /etc/dnsconfd.conf'" 0 "switching API"
-        rlRun "podman exec $dnsconfd_cid systemctl restart dnsconfd" 0 "restarting dnsconfd"
         rlRun "podman exec $dnsconfd_cid systemctl start network-online.target"
+        sleep 2
         rlRun "podman exec $dnsconfd_cid dnsconfd update 'dns+udp://192.168.6.3?interface=eth0'" 0 "submit update"
         rlRun "podman exec $dnsconfd_cid dnsconfd status --json | jq_filter_general > status" 0 "Getting status of dnsconfd"
         rlAssertNotDiffer status $ORIG_DIR/expected_status1.json
         rlRun "podman exec $dnsconfd_cid dnsconfd update 'dns+udp://192.168.6.3?interface=eth0' 'dns+tls://[2001:0DB8::1]:9000?domain=example.com&domain=example.org&validation=yes'" 0 "submit update"
         rlRun "podman exec $dnsconfd_cid dnsconfd status --json | jq_filter_general > status" 0 "Getting status of dnsconfd"
         rlAssertNotDiffer status $ORIG_DIR/expected_status2.json
-        rlRun "podman exec $dnsconfd_cid dnsconfd update 'dns+udp://1.1.1.1.1.1.1.1?interface=eth0'" 1 "submit bad update"
+        rlRun "podman exec $dnsconfd_cid dnsconfd update 'dns+udp://1.1.1.1.1.1.1.1?interface=eth0'" 13 "submit bad update"
         rlAssertNotDiffer status $ORIG_DIR/expected_status2.json
-        rlRun "podman exec $dnsconfd_cid dnsconfd update 'dns+udp://192.168.6.3' 'dns+udp://192.168.7.3' --mode 2 --search example.com example.org" 0 "submit update with search"
+        rlRun "podman exec $dnsconfd_cid dnsconfd update 'dns+udp://192.168.6.3?search=example.com&search=example.org' 'dns+udp://192.168.7.3?search=example.com&search=example.org' --mode exclusive" 0 "submit update with search"
         rlRun "podman exec $dnsconfd_cid dnsconfd status --json | jq_filter_general > status" 0 "Getting status of dnsconfd"
         rlAssertNotDiffer status $ORIG_DIR/expected_status3.json
         rlRun "podman exec $dnsconfd_cid dnsconfd update" 0 "submit update"

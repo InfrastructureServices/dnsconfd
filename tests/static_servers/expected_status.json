@@ -1,1 +1,1 @@
-{"cache_config":{".":["dns+tls://192.168.6.3"]},"mode":"backup","servers":[{"address":"192.168.6.3","dnssec":false,"firewall_zone":null,"interface":null,"name":null,"networks":[],"port":853,"protocol":"dns+tls","routing_domains":["."],"search_domains":[]}],"service":"unbound"}
+{"cache_config":{".":["dns+tls://192.168.6.3"]},"mode":"backup","servers":[{"address":"192.168.6.3","dnssec":true,"firewall_zone":null,"interface":null,"name":null,"networks":[],"port":853,"protocol":"dns+tls","routing_domains":["."],"search_domains":[]}],"service":"unbound"}

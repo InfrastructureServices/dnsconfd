@@ -27,20 +27,18 @@ rlJournalStart
 
     rlPhaseStartTest
         rlRun "podman exec $dnsconfd_cid systemctl start network-online.target"
-        rlRun "podman exec $dnsconfd_cid dnsconfd update --json '[{\"address\":\"192.168.6.3\", \"priority\":20}, {\"address\":\"192.168.6.4\", \"routing_domains\": [\".\", \"subdomain.example.com\"], \"priority\":10}, {\"address\":\"192.168.6.5\", \"priority\":0}]' --mode 0" 0 "submit update"
-        sleep 4
+        sleep 2
+        rlRun "podman exec $dnsconfd_cid dnsconfd update --json '[{\"address\":\"192.168.6.3\", \"priority\":20}, {\"address\":\"192.168.6.4\", \"routing_domains\": [\".\", \"subdomain.example.com\"], \"priority\":10}, {\"address\":\"192.168.6.5\", \"priority\":0}]'" 0 "submit update"
         rlRun "podman exec $dnsconfd_cid dnsconfd status --json | jq_filter_general > status1" 0 "Getting status of dnsconfd"
         if ! rlAssertNotDiffer status1 $ORIG_DIR/expected_status1.json; then
           rlRun "cat status1"
         fi
-        rlRun "podman exec $dnsconfd_cid dnsconfd update --json '[{\"address\":\"192.168.6.3\", \"priority\":0}, {\"address\":\"192.168.6.4\", \"routing_domains\": [\".\", \"subdomain.example.com\"], \"priority\":0}, {\"address\":\"192.168.6.5\", \"priority\":0}]' --mode 0" 0 "submit update"
-        sleep 4
+        rlRun "podman exec $dnsconfd_cid dnsconfd update --json '[{\"address\":\"192.168.6.3\", \"priority\":0}, {\"address\":\"192.168.6.4\", \"routing_domains\": [\".\", \"subdomain.example.com\"], \"priority\":0}, {\"address\":\"192.168.6.5\", \"priority\":0}]'" 0 "submit update"
         rlRun "podman exec $dnsconfd_cid dnsconfd status --json | jq_filter_general > status2" 0 "Getting status of dnsconfd"
         if ! rlAssertNotDiffer status2 $ORIG_DIR/expected_status2.json; then
           rlRun "cat status2"
         fi
-        rlRun "podman exec $dnsconfd_cid dnsconfd update --json '[{\"address\":\"192.168.6.3\", \"priority\":10}, {\"address\":\"192.168.6.4\", \"routing_domains\": [\".\", \"subdomain.example.com\"], \"priority\":0}, {\"address\":\"192.168.6.5\", \"priority\":10}]' --mode 0" 0 "submit update"
-        sleep 4
+        rlRun "podman exec $dnsconfd_cid dnsconfd update --json '[{\"address\":\"192.168.6.3\", \"priority\":10}, {\"address\":\"192.168.6.4\", \"routing_domains\": [\".\", \"subdomain.example.com\"], \"priority\":0}, {\"address\":\"192.168.6.5\", \"priority\":10}]'" 0 "submit update"
         rlRun "podman exec $dnsconfd_cid dnsconfd status --json | jq_filter_general > status3" 0 "Getting status of dnsconfd"
         if ! rlAssertNotDiffer status3 $ORIG_DIR/expected_status3.json; then
           rlRun "cat status3"
