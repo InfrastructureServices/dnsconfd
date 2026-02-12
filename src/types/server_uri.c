@@ -154,6 +154,7 @@ int server_uri_t_init_from_string(char* uri_string, server_uri_t* uri) {
 
   if (temp_length > 0 && (uri->protocol = protocol_from_nstring(
                               parsed_uri.scheme.first, temp_length)) == DNS_PROTOCOLS_END) {
+    uriFreeUriMembersA(&parsed_uri);
     return -1;
   }
 
@@ -162,12 +163,14 @@ int server_uri_t_init_from_string(char* uri_string, server_uri_t* uri) {
 
   temp_length = parsed_uri.hostText.afterLast - parsed_uri.hostText.first;
   if (temp_length > INET6_ADDRSTRLEN) {
+    uriFreeUriMembersA(&parsed_uri);
     return -1;
   }
   memcpy(ip_str, parsed_uri.hostText.first, temp_length);
   ip_str[temp_length] = 0;
 
   if (parse_ip_str(ip_str, &uri->address) != 0) {
+    uriFreeUriMembersA(&parsed_uri);
     return -1;
   }
 
@@ -175,6 +178,7 @@ int server_uri_t_init_from_string(char* uri_string, server_uri_t* uri) {
   if (temp_length > 0) {
     temp_long = strtol(parsed_uri.portText.first, NULL, 10);
     if (temp_long < 0 || temp_long > 65535) {
+      uriFreeUriMembersA(&parsed_uri);
       return -1;
     }
     if (uri->address.ss_family == AF_INET) {
@@ -186,8 +190,10 @@ int server_uri_t_init_from_string(char* uri_string, server_uri_t* uri) {
 
   if (parsed_uri.query.afterLast - parsed_uri.query.first > 0 &&
       parse_query(&parsed_uri, uri) != 0) {
+    uriFreeUriMembersA(&parsed_uri);
     return -1;
   }
+  uriFreeUriMembersA(&parsed_uri);
   return 0;
 }
 

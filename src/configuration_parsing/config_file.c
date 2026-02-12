@@ -273,6 +273,9 @@ static int duplicating_options(const char* key, const char* value, dnsconfd_conf
 
   for (size_t i = 0; i < sizeof(options) / sizeof(options[0]); i++) {
     if (strcmp(key, options[i].opt_key) == 0) {
+      if (*options[i].destination) {
+        free((void*)*options[i].destination);
+      }
       if ((*options[i].destination = strdup(value)) == NULL) {
         *error_string = "Failed to allocate memory for option during config parsing";
         return -1;
@@ -387,6 +390,7 @@ int parse_config_file(const char* path, dnsconfd_config_t* config, const char** 
     }
 
     yaml_event_delete(&event);
+    if (status != 0) done = 1;
   }
 
   if (current_key) free(current_key);
