@@ -11,15 +11,6 @@ prepare:
     package:
       - podman
       - beakerlib
-      - python3-devel
-      - python3-setuptools
-      - python3-rpm-macros
-      - pyproject-rpm-macros
-      - python3dist(wheel)
-      - python3-pip
-      - python3-pyyaml
-      - python3-systemd
-      - python3-idna
       - systemd
       - rpm-build
       - systemd-rpm-macros
@@ -31,10 +22,15 @@ prepare:
       - jq
       - pkgconfig(glib-2.0)
       - pkgconfig(gio-2.0)
-      - pkgconfig(libcurl)
+      - pkgconfig(jansson)
+      - pkgconfig(yaml-0.1)
+      - pkgconfig(liburiparser)
       - pkgconfig(check)
       - pkgconfig(libsystemd)
+      - pkgconfig(libidn2)
+      - pkgconfig(libcurl)
       - gcc
+      - meson
       - cmake
   - name: build-package
     order: 5

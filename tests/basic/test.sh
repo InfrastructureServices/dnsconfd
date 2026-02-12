@@ -25,7 +25,6 @@ rlJournalStart
         rlRun "podman exec $dnsconfd_cid nmcli con show eth0"
         rlRun "podman exec $dnsconfd_cid dnsconfd status --json | jq_filter_general > status1" 0 "Getting status of dnsconfd"
         rlAssertNotDiffer status1 $ORIG_DIR/expected_status.json
-        rlRun "cat status1"
         rlRun "podman exec $dnsconfd_cid getent hosts address.test.com | grep 192.168.6.3" 0 "Verifying correct address resolution"
     rlPhaseEnd
 

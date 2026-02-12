@@ -20,11 +20,8 @@ rlJournalStart
 
     rlPhaseStartTest
         rlRun "podman exec $dnsconfd_cid systemctl start network-online.target"
-        rlRun "podman exec $dnsconfd_cid /bin/bash -c 'echo api_choice: dnsconfd >> /etc/dnsconfd.conf'" 0 "switching API"
-        rlRun "podman exec $dnsconfd_cid systemctl restart dnsconfd" 0 "restarting dnsconfd"
-        rlRun "podman exec $dnsconfd_cid dnsconfd update --json '[{\"address\":\"192.168.6.3\", \"networks\": [\"8.0.0.0/8\"]}, {\"address\":\"192.168.6.4\", \"networks\": [\"192.168.7.0/24\"]}, {\"address\":\"192.168.6.5\", \"networks\": [\"192.168.8.0/24\", \"8.8.4.0/24\"]}]' --mode 0" 0 "submit update"
-        #FIXME implement proper waiting in dnsconfd update
         sleep 2
+        rlRun "podman exec $dnsconfd_cid dnsconfd update --json '[{\"address\":\"192.168.6.3\", \"networks\": [\"8.0.0.0/8\"]}, {\"address\":\"192.168.6.4\", \"networks\": [\"192.168.7.0/24\"]}, {\"address\":\"192.168.6.5\", \"networks\": [\"192.168.8.0/24\", \"8.8.4.0/24\"]}]'" 0 "submit update"
         rlRun "podman exec $dnsconfd_cid dnsconfd status --json | jq_filter_general > status1" 0 "Getting status of dnsconfd"
         rlAssertNotDiffer status1 $ORIG_DIR/expected_status.json
         rlRun "podman exec $dnsconfd_cid host 8.8.8.8 | grep address-one.example.com" 0 "Verifying correct address resolution"

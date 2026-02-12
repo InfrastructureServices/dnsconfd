@@ -27,12 +27,7 @@ rlJournalStart
         rlRun "podman exec $dnsconfd_cid nmcli g reload"
         rlRun "podman exec $dnsconfd_cid getent ahosts address.test.com | grep 192.168.6.3" 0 "Verifying correct address resolution"
         rlRun "podman exec $dnsconfd_cid /bin/bash -c 'export LC_ALL=C.UTF-8; getent ahosts address2.čočka.org | grep 192.168.7.3'" 0 "Verifying correct address resolution"
-        # new api testing
-        rlRun "podman exec $dnsconfd_cid /bin/bash -c 'echo api_choice: dnsconfd >> /etc/dnsconfd.conf'" 0 "switching API"
-        rlRun "podman exec $dnsconfd_cid systemctl restart dnsconfd" 0 "restarting dnsconfd"
         rlRun "podman exec $dnsconfd_cid dnsconfd update 'dns+udp://192.168.6.3' 'dns+udp://192.168.7.3?domain=%C4%8Do%C4%8Dka.org'" 0 "submit update"
-        # FIXME implement waiting in dnsconfd update
-        sleep 2
         rlRun "podman exec $dnsconfd_cid getent ahosts address.test.com | grep 192.168.6.3" 0 "Verifying correct address resolution"
         rlRun "podman exec $dnsconfd_cid /bin/bash -c 'export LC_ALL=C.UTF-8; getent ahosts address2.čočka.org | grep 192.168.7.3'" 0 "Verifying correct address resolution"
     rlPhaseEnd

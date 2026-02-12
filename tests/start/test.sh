@@ -11,15 +11,9 @@ rlJournalStart
     rlPhaseStartTest
         rlRun "dnsconfd config nm_enable" 0 "Installing dnsconfd"
         rlServiceStart dnsconfd
-        sleep 2
         rlRun "dnsconfd status | grep unbound" 0 "Verifying status of dnsconfd"
-        # test also new api
-        rlRun "echo 'api_choice: dnsconfd' >> /etc/dnsconfd.conf"
-        rlServiceStart dnsconfd
         rlRun "dnsconfd update --json '[{\"address\":\"192.168.6.3\", \"interface\": \"eth0\"}]'"
-        sleep 2
-        rlRun "dnsconfd status | grep unbound" 0 "Verifying status of dnsconfd"
-        # we can not simply check for a AVC until chrony issue is fixed
+        rlRun "dnsconfd status | grep 192.168.6.3" 0 "Verifying status of dnsconfd"
         rlRun "ausearch -m avc --start recent | grep dnsconfd" 1 "Check no AVC occured"
         rlRun "ls -Z /bin/dnsconfd | grep dnsconfd_exec_t" 0 "Verify that dnsconfd executable has right context"
     rlPhaseEnd

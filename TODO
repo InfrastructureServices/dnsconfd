@@ -1,7 +1,0 @@
-- Make NetworkManager recognize that dnsconfd manages resolv.conf even without the symlink
-- Add option to NetworkManager so it can change dbus name of systemd-resolved
-- Until NetworkManager starts to really check whether the service is running, we can not stop
-  using root, because without it we can not access resolv.conf or any other stub resolv.conf
-  location
-- Improve logging. Improve logging prefixes.
-- Add option for altering behaviour while handling wireless interfaces.
