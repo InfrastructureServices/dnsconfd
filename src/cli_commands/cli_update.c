@@ -7,6 +7,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "cli_common.h"
 #include "ip_utilities.h"
 #include "types/network_address.h"
 #include "types/server_uri.h"
@@ -57,17 +58,40 @@ static void network_address_to_string(network_address_t* net, char* buffer, size
   snprintf(buffer, size, "%s/%d", ip_str, net->prefix);
 }
 
+static void build_string_array(GVariantBuilder* server_dict_builder, GList* list, char* dict_key) {
+  GVariantBuilder domains_builder;
+  g_variant_builder_init(&domains_builder, G_VARIANT_TYPE("as"));
+  for (; list != NULL; list = list->next) {
+    g_variant_builder_add(&domains_builder, "s", (char*)list->data);
+  }
+  g_variant_builder_add(server_dict_builder, "{sv}", dict_key,
+                        g_variant_builder_end(&domains_builder));
+}
+
+static void build_networks_array(server_uri_t *server, GVariantBuilder* server_dict_builder) {
+  GVariantBuilder networks_builder;
+  char net_str[INET6_ADDRSTRLEN + 5];  // +5 for /128
+
+  g_variant_builder_init(&networks_builder, G_VARIANT_TYPE("as"));
+  for (GList* n = server->networks; n != NULL; n = n->next) {
+    network_address_to_string((network_address_t*)n->data, net_str, sizeof(net_str));
+    g_variant_builder_add(&networks_builder, "s", net_str);
+  }
+  g_variant_builder_add(server_dict_builder, "{sv}", "networks",
+                        g_variant_builder_end(&networks_builder));
+}
+
 static void build_servers_variant(GList* servers, GVariantBuilder* servers_builder) {
   GVariantBuilder server_dict_builder;
-  GList* l;
   char addr_str[INET6_ADDRSTRLEN];
   const char* proto_str;
+  server_uri_t* server;
   in_port_t port = 0;
 
   g_variant_builder_init(servers_builder, G_VARIANT_TYPE("aa{sv}"));
 
-  for (l = servers; l != NULL; l = l->next) {
-    server_uri_t* server = (server_uri_t*)l->data;
+  for (; servers != NULL; servers = servers->next) {
+    server = (server_uri_t*)servers->data;
     g_variant_builder_init(&server_dict_builder, G_VARIANT_TYPE("a{sv}"));
 
     if (server->address.ss_family == AF_INET) {
@@ -117,39 +141,17 @@ static void build_servers_variant(GList* servers, GVariantBuilder* servers_build
 
     // Domains
     if (server->routing_domains) {
-      GVariantBuilder domains_builder;
-      g_variant_builder_init(&domains_builder, G_VARIANT_TYPE("as"));
-      for (GList* d = server->routing_domains; d != NULL; d = d->next) {
-        g_variant_builder_add(&domains_builder, "s", (char*)d->data);
-      }
-      g_variant_builder_add(&server_dict_builder, "{sv}", "routing_domains",
-                            g_variant_builder_end(&domains_builder));
+      build_string_array(&server_dict_builder, server->routing_domains, "routing_domains");
     }
 
     // Search domains
     if (server->search_domains) {
-      GVariantBuilder search_builder;
-      g_variant_builder_init(&search_builder, G_VARIANT_TYPE("as"));
-      for (GList* s = server->search_domains; s != NULL; s = s->next) {
-        g_variant_builder_add(&search_builder, "s", (char*)s->data);
-      }
-      g_variant_builder_add(&server_dict_builder, "{sv}", "search_domains",
-                            g_variant_builder_end(&search_builder));
+      build_string_array(&server_dict_builder, server->search_domains, "search_domains");
     }
 
     // Networks
     if (server->networks) {
-      GVariantBuilder networks_builder;
-      g_variant_builder_init(&networks_builder, G_VARIANT_TYPE("as"));
-      for (GList* n = server->networks; n != NULL; n = n->next) {
-        char net_str[INET6_ADDRSTRLEN + 5];  // +5 for /128
-        network_address_to_string((network_address_t*)n->data, net_str, sizeof(net_str));
-        if (strlen(net_str) > 0) {
-          g_variant_builder_add(&networks_builder, "s", net_str);
-        }
-      }
-      g_variant_builder_add(&server_dict_builder, "{sv}", "networks",
-                            g_variant_builder_end(&networks_builder));
+      build_networks_array(server, &server_dict_builder);
     }
 
     g_variant_builder_add(servers_builder, "a{sv}", &server_dict_builder);
@@ -201,12 +203,8 @@ int cli_update_command(dnsconfd_config_t* config) {
   UpdateContext ctx = {0};
   GError* error = NULL;
 
-  connection = g_bus_get_sync(G_BUS_TYPE_SYSTEM, NULL, &error);
-  if (error != NULL) {
-    fprintf(stderr, "Error connecting to system bus: %s\n", error->message);
-    g_error_free(error);
-    return EXIT_COMMAND_FAILURE;
-  }
+  connection = cli_connect_to_dbus();
+  if (!connection) return EXIT_COMMAND_FAILURE;
 
   // Subscribe to PropertiesChanged signal
   subscription_id = g_dbus_connection_signal_subscribe(
