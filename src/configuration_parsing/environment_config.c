@@ -4,13 +4,9 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "config_utils.h"
 #include "ip_utilities.h"
 #include "log_utilities.h"
-
-static unsigned char parse_boolean(const char* str) {
-  return strcmp(str, "yes") == 0 || strcmp(str, "1") == 0 ? CONFIG_BOOLEAN_TRUE
-                                                          : CONFIG_BOOLEAN_FALSE;
-}
 
 int parse_environment_variables(dnsconfd_config_t* config, const char **error_string) {
   char* env_val;

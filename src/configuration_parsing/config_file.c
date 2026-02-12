@@ -5,16 +5,12 @@
 #include <syslog.h>
 #include <yaml.h>
 
+#include "config_utils.h"
 #include "dnsconfd_config.h"
 #include "ip_utilities.h"
 #include "log_utilities.h"
 #include "types/network_address.h"
 #include "types/server_uri.h"
-
-static unsigned char parse_boolean(const char* str) {
-  return strcmp(str, "yes") == 0 || strcmp(str, "1") == 0 ? CONFIG_BOOLEAN_TRUE
-                                                          : CONFIG_BOOLEAN_FALSE;
-}
 
 static dns_protocol_t parse_protocol_string(const char* str) {
   if (strcmp(str, "dns+udp") == 0) return DNS_UDP;

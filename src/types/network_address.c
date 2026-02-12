@@ -5,14 +5,14 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "ip_utilities.h"
+
 int network_address_t_from_string(const char* address_string, network_address_t* addr) {
   char ip_str[INET6_ADDRSTRLEN];
   const char* ip_part = address_string;
   int prefix;
   long raw_prefix;
   char* endptr;
-  struct sockaddr_in* s4;
-  struct sockaddr_in6* s6;
   const char* slash = strchr(address_string, '/');
 
   if (!slash) {
@@ -33,23 +33,12 @@ int network_address_t_from_string(const char* address_string, network_address_t*
   }
   prefix = (int)raw_prefix;
 
-  s4 = (struct sockaddr_in*)&addr->address;
-  s6 = (struct sockaddr_in6*)&addr->address;
-
-  // Try IPv4
-  if (inet_pton(AF_INET, ip_part, &s4->sin_addr) == 1) {
-    if (prefix > 32) {
-      return -1;
+  if (parse_ip_str(ip_part, &addr->address) == 0) {
+    if (addr->address.ss_family == AF_INET) {
+      if (prefix > 32) {
+        return -1;
+      }
     }
-    s4->sin_family = AF_INET;
-    addr->prefix = (unsigned char)prefix;
-    return 0;
-  }
-
-  // Try IPv6
-  if (inet_pton(AF_INET6, ip_part, &s6->sin6_addr) == 1) {
-    // We do not have to check for prefix here as we already know it is > 0 and <= 128
-    s6->sin6_family = AF_INET6;
     addr->prefix = (unsigned char)prefix;
     return 0;
   }
