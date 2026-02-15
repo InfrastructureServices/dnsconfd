@@ -28,6 +28,10 @@ static unsigned int call_systemd_manager(GDBusConnection *connection, const char
   g_variant_get(result, "(&o)", &job_string);
 
   job_string = strrchr(job_string, '/');
+  if (!job_string) {
+    g_variant_unref(result);
+    return 0;
+  }
   errno = 0;
   // systemd job ids are unsigned 32 bit integers starting at 1
   job_id = strtoul(job_string + 1, &end_ptr, 10);
