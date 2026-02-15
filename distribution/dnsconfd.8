@@ -1,4 +1,4 @@
-.TH "dnsconfd" "8" "07 Jan 2026" "dnsconfd-1.7.5" ""
+.TH "dnsconfd" "8" "15 Feb 2026" "dnsconfd-2.0.0" ""
 
 .SH NAME
 
@@ -17,8 +17,6 @@ and translates its use to dns service's configuration.
 
 .IP "-h, --help"
 Show help message and exit
-.IP "--dbus-name DBUS_NAME"
-DBUS name that dnsconfd should use, default com.redhat.dnsconfd
 .IP "--log-level {DEBUG,INFO,WARN}"
 Log level of dnsconfd, default INFO
 .IP "--resolv-conf-path RESOLV_CONF_PATH"
@@ -33,27 +31,12 @@ Path where config file is located, default /etc/dnsconfd.conf
 Options to be used in resolv.conf for alteration of resolver, default "edns0 trust-ad"
 .IP "--dnssec-enabled, --no-dnssec-enabled"
 Enable dnssec record validation, default no
-.IP "--handle-routing, --no-handle-routing"
-Dnsconfd will submit necessary routes to routing manager, default yes
 .IP "--stderr-log, --no-stderr-log"
 Dnsconfd will write logs into stderr, default yes
-.IP "--journal-log, --no-journal-log"
-Dnsconfd will send logs into journal, default no
-.IP "--syslog-log"
-Dnsconfd will send logs into syslog destination specified by this option,
-by default disabled.
-You can specify either linux domain socket by 'unix:<path>' where path
-will usually be /dev/log on your system, or you can use tcp or udp protocols
-like: '<transport_protocol>:<host>:<port>' where 'transport_protocol' is
-either tcp or udp, host can be ipv4, ipv6 address in square brackets or
-hostname and the port where syslog daemon is listening.
-Examples: udp:localhost:514, udp:[::1]:514, tcp:127.0.0.1:514,
-tcp:myhost.example.com:514
+.IP "--syslog-log, --no-syslog-log"
+Dnsconfd will use syslog for logging, default no
 .IP "--file-log"
 Dnsconfd will write logs into specified file, not used by default
-.IP "--api-choice"
-Dnsconfd will switch between APIs. Allowed options are resolve1 and dnsconfd.
-Default is dnsconfd
 .IP "--certification-authority"
 Space separated list of CA bundles used for encrypted protocols as default
 when no custom CA was specified. The first one that can be accessed will be
@@ -71,18 +54,22 @@ Failed communication through DBUS.
 Failed interaction with resolv.conf.
 .IP 11
 Failed to configure dns cache service.
-.IP 12
-Failed to set up necessary routes.
 .IP 13
 Bad arguments.
+.IP 14
+Failed to initialize logs.
+.IP 15
+Failed to execute command.
+.IP 16
+Failed to update configuration.
+.IP 17
+Internal state machine failure.
 
 .SH ENVIRONMENT
 Environment variables have lower priority than command line options but higher
 than configuration file. Boolean options recognize 'yes' or '1' as True, all
 other values are considered as False.
 
-.IP DBUS_NAME
-DBUS name that dnsconfd should use, default org.freedesktop.resolve1
 .IP LOG_LEVEL
 Log level of dnsconfd, default INFO
 .IP RESOLV_CONF_PATH
@@ -97,38 +84,23 @@ Path where config file is located, default /etc/dnsconfd.conf
 Options to be used in resolv.conf for alteration of resolver, default "edns0 trust-ad"
 .IP DNSSEC_ENABLED
 Enable dnssec record validation, default no
-.IP HANDLE_ROUTING
-Dnsconfd will submit necessary routes to routing manager, default yes
 .IP STDERR_LOG
 Dnsconfd will write logs into stderr, default yes
-.IP JOURNAL_LOG
-Dnsconfd will send logs into journal, default no
 .IP SYSLOG_LOG
-Dnsconfd will send logs into syslog destination specified by this option,
-by default disabled. See command line option for destination specification
-syntax.
+Dnsconfd will use syslog for logging, default no
 .IP FILE_LOG
 Dnsconfd will write logs into specified file, not used by default
-.IP API_CHOICE
-Dnsconfd will switch between APIs. Allowed options are resolve1 and dnsconfd.
-Default is resolve1
 
 .SH FILES
 Dnsconfd manages resolv.conf to route domain name resolution to local cache service.
 Default location of the configuration file is /etc/dnsconfd.conf.
 
-.SH ROUTING
-Dnsconfd by default submits routes through NetworkManager, so system contacts
-DNS servers through the right interfaces. This behaviour can be turned off
-by setting handle_routing option to 'no'.
-
 .SH NOTES
 The only currently supported backend is Unbound.
 
-Although default is to use stderr for logs and not journal, service is
+Although default is to use stderr for logs and not syslog, service is
 distributed with sysconfig file that reverses this behaviour, so when
-running Dnsconfd service you will have advantages of direct journal
-logs.
+running Dnsconfd service you will have advantages of syslog logs.
 
 .SH Installation
 

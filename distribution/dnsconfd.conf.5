@@ -1,4 +1,4 @@
-.TH "dnsconfd.conf" "5" "07 Jan 2026" "dnsconfd-1.7.5" ""
+.TH "dnsconfd.conf" "5" "15 Feb 2026" "dnsconfd-2.0.0" ""
 
 .SH NAME
 
@@ -10,8 +10,6 @@ Dnsconfd.conf is YAML formatted configuration file altering behaviour of Dnsconf
 
 .SH OPTIONS
 
-.IP "dbus_name"
-DBUS name that dnsconfd should use, default com.redhat.dnsconfd
 .IP "log_level"
 Log level of dnsconfd, default INFO
 .IP "resolv_conf_path"
@@ -24,24 +22,12 @@ Address on which local resolver listens, default 127.0.0.1
 Options to be used in resolv.conf for alteration of resolver, default "edns0 trust-ad"
 .IP "dnssec_enabled"
 Enable dnssec record validation, default no
-.IP "handle_routing"
-Dnsconfd will submit necessary routes to routing manager, default yes
-.IP "api_choice"
-Dnsconfd will switch between APIs. Allowed options are resolve1 and dnsconfd.
-Default is dnsconfd
 .IP stderr_log
 Dnsconfd will write logs into stderr, default yes
-.IP journal_log
-Dnsconfd will send logs into journal, default no
 .IP syslog_log
-Dnsconfd will send logs into syslog destination specified by this option,
-by default disabled. See command line option for destination specification
-syntax.
+Dnsconfd will use syslog for logging, default no
 .IP file_log
 Dnsconfd will write logs into specified file, not used by default
-.IP certification_authority
-Absolute path to a bundle of certification authorities that will be used
-when no custom were specified.
 .IP "static_servers"
 List of servers that should be configured, default is empty
 .IP "certification_authority"
@@ -59,6 +45,7 @@ Available attributes of servers are:
  \(bu \fBsearch_domains\fP optional, domains that should be used for host-name lookup
  \(bu \fBdnssec\fP optional, boolean indicating whether this server supports dnssec or not
  \(bu \fBnetworks\fP optional, networks whose reverse dns records must be resolved by this server
+ \(bu \fBpriority\fP optional, integer indicating priority of the server
 
 Examples:
 
@@ -76,9 +63,6 @@ static_servers:
     - address: 192.168.6.4
       routing_domains:
         - example.com
-
-.IP "ignore_api"
-If enabled, dnsconfd will ignore configuration received through API, default no
 
 .SH "REPORTING BUGS"
 Please for reporting bugs use Github repository https://github.com/InfrastructureServices/dnsconfd
