@@ -15,6 +15,9 @@ BuildRequires:  pkgconfig(glib-2.0) pkgconfig(libsystemd) pkgconfig(gio-2.0) pkg
 BuildRequires:  systemd
 BuildRequires:  systemd-rpm-macros
 BuildRequires:  meson gcc
+%if 0%{?with_asan}
+BuildRequires:  libasan
+%endif
 %if %{defined fedora} && 0%{?fedora} < 42 || %{defined rhel} && 0%{?rhel} < 11
 %{?sysusers_requires_compat}
 %endif
@@ -88,11 +91,19 @@ Dnsconfd dracut module
 %autosetup -c
 
 %build
+%if 0%{?with_asan}
+%meson -Db_sanitize=address -Doptimization=g
+%else
 %meson
+%endif
 %meson_build
 
 %if %{defined fedora} && 0%{?fedora} < 40 || %{defined rhel} && 0%{?rhel} < 10
     echo '/var/run/dnsconfd(/.*)? gen_context(system_u:object_r:dnsconfd_var_run_t,s0)' >> distribution/dnsconfd.fc
+%endif
+
+%if 0%{?with_asan}
+    echo 'allow dnsconfd_t dnsconfd_t:process ptrace;' >> distribution/dnsconfd.te
 %endif
 
 make -f %{_datadir}/selinux/devel/Makefile %{modulename}.pp

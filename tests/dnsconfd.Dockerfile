@@ -4,9 +4,10 @@ COPY ./baseroot /
 COPY ./*.rpm ./
 RUN dnf install -y --setopt=install_weak_deps=False --setopt=tsflags=nodocs systemd \
     NetworkManager iproute ./*.rpm openvpn NetworkManager-openvpn sssd-client \
-    polkit bind-utils bind-dnssec-utils dbus-tools net-tools rsyslog tcpdump procps-ng python3-idna vim crypto-policies-scripts less gdb
+    polkit bind-utils bind-dnssec-utils dbus-tools net-tools rsyslog tcpdump procps-ng python3-idna vim crypto-policies-scripts less gdb libasan
 
 RUN echo 'LOG_LEVEL=DEBUG' >> /etc/sysconfig/dnsconfd
+RUN echo 'ASAN_OPTIONS=halt_on_error=1:abort_on_error=1:log_to_syslog=true' >> /etc/sysconfig/dnsconfd
 
 # increase unbound logging
 RUN sed -i "s/verbosity.*/verbosity: 5/g" /etc/unbound/unbound.conf

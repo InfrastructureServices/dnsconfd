@@ -32,6 +32,7 @@ prepare:
       - gcc
       - meson
       - cmake
+      - libasan
   - name: build-package
     order: 5
     how: shell

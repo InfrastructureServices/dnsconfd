@@ -40,4 +40,6 @@ json_t* server_uri_to_json(server_uri_t* server);
 
 dns_protocol_t protocol_from_nstring(const char* string, size_t n);
 
+void server_uri_t_list_replace_elements_with_copies(GList* list);
+
 #endif

@@ -502,17 +502,17 @@ static const GDBusInterfaceVTable interface_vtable = {
 /* --- Bus Lifecycle Callbacks --- */
 
 static void on_bus_acquired(GDBusConnection* connection, const gchar* name, gpointer user_data) {
-  GDBusNodeInfo* introspection_data = NULL;
   guint registration_id;
+  fsm_context_t* ctx = user_data;
 
-  ((fsm_context_t*)user_data)->dbus_connection = connection;
+  ctx->dbus_connection = connection;
   // Parse the XML data
-  introspection_data = g_dbus_node_info_new_for_xml(introspection_xml, NULL);
+  ctx->introspection_data = g_dbus_node_info_new_for_xml(introspection_xml, NULL);
 
   // Register the object
   // We register the FIRST interface defined in the XML node info
   registration_id = g_dbus_connection_register_object(
-      connection, "/com/redhat/dnsconfd", introspection_data->interfaces[0], &interface_vtable,
+      connection, "/com/redhat/dnsconfd", ctx->introspection_data->interfaces[0], &interface_vtable,
       user_data,  // user_data
       NULL,       // user_data_free_func
       NULL        // GError
@@ -561,6 +561,12 @@ static void clean_context(fsm_context_t* ctx) {
   }
   if (ctx->dbus_connection) {
     g_dbus_connection_close_sync(ctx->dbus_connection, NULL, NULL);
+  }
+  if (ctx->introspection_data) {
+    g_dbus_node_info_unref(ctx->introspection_data);
+  }
+  if (ctx->main_loop) {
+    g_main_loop_unref(ctx->main_loop);
   }
   if (ctx->resolv_conf_backup) {
     g_string_free(ctx->resolv_conf_backup, 1);

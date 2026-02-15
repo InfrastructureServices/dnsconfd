@@ -582,3 +582,63 @@ json_t* server_uri_to_json(server_uri_t* server) {
 
   return obj;
 }
+
+static server_uri_t* server_uri_t_copy(const server_uri_t* src) {
+  server_uri_t* dest;
+  GList* l;
+
+  if (!src) return NULL;
+
+  dest = malloc(sizeof(server_uri_t));
+  if (!dest) return NULL;
+
+  memset(dest, 0, sizeof(server_uri_t));
+
+  memcpy(&dest->address, &src->address, sizeof(struct sockaddr_storage));
+  dest->priority = src->priority;
+  memcpy(dest->interface, src->interface, IFNAMSIZ);
+  dest->dnssec = src->dnssec;
+  dest->protocol = src->protocol;
+
+  if (src->certification_authority) {
+    dest->certification_authority = strdup(src->certification_authority);
+    if (!dest->certification_authority) goto error;
+  }
+
+  if (src->name) {
+    dest->name = strdup(src->name);
+    if (!dest->name) goto error;
+  }
+
+  for (l = src->routing_domains; l != NULL; l = l->next) {
+    char* copy = strdup((char*)l->data);
+    if (!copy) goto error;
+    dest->routing_domains = g_list_append(dest->routing_domains, copy);
+  }
+
+  for (l = src->search_domains; l != NULL; l = l->next) {
+    char* copy = strdup((char*)l->data);
+    if (!copy) goto error;
+    dest->search_domains = g_list_append(dest->search_domains, copy);
+  }
+
+  for (l = src->networks; l != NULL; l = l->next) {
+    network_address_t* net_src = (network_address_t*)l->data;
+    network_address_t* net_dest = malloc(sizeof(network_address_t));
+    if (!net_dest) goto error;
+    memcpy(net_dest, net_src, sizeof(network_address_t));
+    dest->networks = g_list_append(dest->networks, net_dest);
+  }
+
+  return dest;
+
+error:
+  server_uri_t_destroy(dest);
+  return NULL;
+}
+
+void server_uri_t_list_replace_elements_with_copies(GList* list) {
+  for (; list != NULL; list = list->next) {
+    list->data = server_uri_t_copy((server_uri_t*)list->data);
+  }
+}
