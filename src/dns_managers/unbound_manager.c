@@ -486,22 +486,16 @@ int update(fsm_context_t *ctx, GHashTable **result, const char **error_string) {
     } else {
       old_servers = NULL;
     }
-    if (used_servers && old_servers) {
+    if (old_servers && compare_servers(used_servers, old_servers) == 0) {
       // TODO compare servers is not perfect, as if you would switch 2 servers
       // with the same absolute priority, the list would from resolution
       // perspective be still equal but we would sign it is not, hashing
       // function has to be implemented
-      if (compare_servers(used_servers, old_servers) == 0) {
-        continue;
-      } else if (add_domain((char *)key, used_servers)) {
-        *error_string = "Failed to add domain to Unbound";
-        goto error;
-      }
-    } else {
-      if (add_domain((char *)key, used_servers)) {
-        *error_string = "Failed to add domain to Unbound";
-        goto error;
-      }
+      continue;
+    }
+    if (add_domain((char *)key, used_servers)) {
+      *error_string = "Failed to add domain to Unbound";
+      goto error;
     }
   }
 

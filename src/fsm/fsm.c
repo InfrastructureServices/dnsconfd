@@ -104,6 +104,7 @@ const char *dnsconfd_mode_t_to_string(dnsconfd_mode_t mode) {
 }
 
 static void set_dynamic_servers(fsm_context_t *ctx) {
+  dnsconfd_log(LOG_DEBUG, ctx->config, "Setting dynamic servers");
   if (ctx->current_dynamic_servers) {
     g_list_free_full(ctx->current_dynamic_servers, server_uri_t_destroy);
   }
@@ -121,6 +122,8 @@ static fsm_event_t update_context(fsm_context_t *ctx) {
 
   ctx->all_servers = g_list_concat(g_list_copy(ctx->config->static_servers),
                                    g_list_copy(ctx->current_dynamic_servers));
+
+  dnsconfd_log(LOG_DEBUG, ctx->config, "Total servers: %u", g_list_length(ctx->all_servers));
 
   if (ctx->current_domain_to_servers) {
     g_hash_table_destroy(ctx->current_domain_to_servers);

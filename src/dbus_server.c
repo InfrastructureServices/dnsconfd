@@ -237,6 +237,8 @@ static GVariant *handle_update_call(GVariant *parameters, fsm_context_t *ctx) {
   int parse_error = PARSE_ERROR_NONE;
   int field_error = 0;
 
+  dnsconfd_log(LOG_DEBUG, ctx->config, "Handling Update call");
+
   struct {
     const char *key;
     const GVariantType *type;
@@ -253,6 +255,7 @@ static GVariant *handle_update_call(GVariant *parameters, fsm_context_t *ctx) {
                          {"networks", G_VARIANT_TYPE_STRING_ARRAY, parse_networks}};
 
   g_variant_get(parameters, "(aa{sv}u)", &servers_iter, &mode);
+  dnsconfd_log(LOG_DEBUG, ctx->config, "Update mode: %u", mode);
 
   if (mode < 0 || mode > 2) {
     parse_error = PARSE_ERROR_INVALID_MODE;
@@ -332,13 +335,17 @@ static GVariant *handle_update_call(GVariant *parameters, fsm_context_t *ctx) {
 
     if (duplicate) {
       server_uri_t_destroy(cur_server);
+      dnsconfd_log(LOG_DEBUG, ctx->config, "Skipping duplicate server");
       continue;
     }
 
     parsed_servers = g_list_append(parsed_servers, cur_server);
+    dnsconfd_log(LOG_DEBUG, ctx->config, "Parsed server successfully");
   }
 
   if (parse_error != PARSE_ERROR_NONE) {
+    dnsconfd_log(LOG_DEBUG, ctx->config, "Update failed with error: %s",
+                 parse_error_strings[parse_error]);
     g_list_free_full(parsed_servers, server_uri_t_destroy);
   } else {
     ctx->new_dynamic_servers = parsed_servers;
@@ -351,6 +358,7 @@ static GVariant *handle_update_call(GVariant *parameters, fsm_context_t *ctx) {
       ctx->exit_code = EXIT_FSM_FAILURE;
       g_main_loop_quit(ctx->main_loop);
     }
+    dnsconfd_log(LOG_DEBUG, ctx->config, "Update accepted and state transition initiated");
     result = g_variant_new("(us)", ctx->requested_configuration_serial, "Update accepted");
   }
 
