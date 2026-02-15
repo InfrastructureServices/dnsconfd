@@ -33,17 +33,17 @@ typedef enum {
 
 typedef struct {
   fsm_state_t current_state;
-  dnsconfd_config_t* config;
-  GList* current_dynamic_servers;
-  GList* new_dynamic_servers;
-  GList* all_servers;
-  GHashTable* current_domain_to_servers;
-  GHashTable* current_unbound_domain_to_servers;
-  GDBusConnection* dbus_connection;
-  GDBusNodeInfo* introspection_data;
-  GString* resolv_conf_backup;
-  char* effective_ca;
-  GMainLoop* main_loop;
+  dnsconfd_config_t *config;
+  GList *current_dynamic_servers;
+  GList *new_dynamic_servers;
+  GList *all_servers;
+  GHashTable *current_domain_to_servers;
+  GHashTable *current_unbound_domain_to_servers;
+  GDBusConnection *dbus_connection;
+  GDBusNodeInfo *introspection_data;
+  GString *resolv_conf_backup;
+  char *effective_ca;
+  GMainLoop *main_loop;
   unsigned int awaited_systemd_job;
   unsigned int systemd_subscription_id;
   unsigned int exit_code;
@@ -52,11 +52,11 @@ typedef struct {
   dnsconfd_mode_t resolution_mode;
 } fsm_context_t;
 
-int state_transition(fsm_context_t* ctx, fsm_event_t event);
+int state_transition(fsm_context_t *ctx, fsm_event_t event);
 
-const char* fsm_state_t_to_string(fsm_state_t state);
+const char *fsm_state_t_to_string(fsm_state_t state);
 
-const char* fsm_event_t_to_string(fsm_event_t event);
+const char *fsm_event_t_to_string(fsm_event_t event);
 
 const char *dnsconfd_mode_t_to_string(dnsconfd_mode_t mode);
 

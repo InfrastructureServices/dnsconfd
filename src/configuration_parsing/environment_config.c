@@ -8,21 +8,21 @@
 #include "ip_utilities.h"
 #include "log_utilities.h"
 
-int parse_environment_variables(dnsconfd_config_t* config, const char **error_string) {
-  char* env_val;
+int parse_environment_variables(dnsconfd_config_t *config, const char **error_string) {
+  char *env_val;
   size_t i;
 
   struct {
-    const char* opt_key;
-    const char** destination;
+    const char *opt_key;
+    const char **destination;
   } string_options[] = {{"FILE_LOG", &config->file_log},
                         {"RESOLV_CONF_PATH", &config->resolv_conf_path},
                         {"RESOLVER_OPTIONS", &config->resolver_options},
                         {"CERTIFICATION_AUTHORITY", &config->certification_authority},
                         {"CONFIG_FILE", &config->config_file}};
   struct {
-    const char* opt_key;
-    config_boolean_t* destination;
+    const char *opt_key;
+    config_boolean_t *destination;
   } boolean_options[] = {{"STDERR_LOG", &config->stderr_log},
                          {"SYSLOG_LOG", &config->syslog_log},
                          {"PRIORITIZE_WIRE", &config->prioritize_wire},

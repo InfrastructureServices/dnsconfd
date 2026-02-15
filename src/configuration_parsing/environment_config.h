@@ -3,6 +3,6 @@
 
 #include "dnsconfd_config.h"
 
-int parse_environment_variables(dnsconfd_config_t* config, const char **error_string);
+int parse_environment_variables(dnsconfd_config_t *config, const char **error_string);
 
 #endif

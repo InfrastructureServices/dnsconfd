@@ -7,8 +7,7 @@
 
 static GVariantDict *get_domain_dict(GVariant *domain_value, FILE *log_file) {
   GVariantDict *domain_dict;
-  if (!g_variant_type_equal(g_variant_get_type(domain_value),
-                            G_VARIANT_TYPE("a{sv}"))) {
+  if (!g_variant_type_equal(g_variant_get_type(domain_value), G_VARIANT_TYPE("a{sv}"))) {
     fprintf(log_file, "Unexpected member of domains field\n");
     return NULL;
   }
@@ -20,10 +19,8 @@ static GVariantDict *get_domain_dict(GVariant *domain_value, FILE *log_file) {
   return domain_dict;
 }
 
-static unsigned char create_unbound_conf(GVariantDict *glob_dict,
-                                         GString *unbound_config_string,
-                                         const char *fallback_ca,
-                                         FILE *log_file) {
+static unsigned char create_unbound_conf(GVariantDict *glob_dict, GString *unbound_config_string,
+                                         const char *fallback_ca, FILE *log_file) {
   unsigned char global_specified = 0;
 
   GVariantIter domains_iter;
@@ -45,31 +42,27 @@ static unsigned char create_unbound_conf(GVariantDict *glob_dict,
   GVariant *certification_authority;
   gchar *certification_authority_string;
 
-  GVariant *domains = g_variant_dict_lookup_value(glob_dict, "domains",
-                                                  G_VARIANT_TYPE_DICTIONARY);
+  GVariant *domains = g_variant_dict_lookup_value(glob_dict, "domains", G_VARIANT_TYPE_DICTIONARY);
 
   if (!domains) {
     fprintf(log_file, "No global domains specified in configuration\n");
     return 1;
   }
 
-  g_string_append(
-      unbound_config_string,
-      "server:\n\tmodule-config: \"ipsecmod iterator\"\n\tinterface: "
-      "127.0.0.1\n\tdo-not-query-address: 127.0.0.1/8\n");
+  g_string_append(unbound_config_string,
+                  "server:\n\tmodule-config: \"ipsecmod iterator\"\n\tinterface: "
+                  "127.0.0.1\n\tdo-not-query-address: 127.0.0.1/8\n");
 
-  certification_authority = g_variant_dict_lookup_value(
-      glob_dict, "certification-authority", G_VARIANT_TYPE_STRING);
+  certification_authority =
+      g_variant_dict_lookup_value(glob_dict, "certification-authority", G_VARIANT_TYPE_STRING);
 
   if (certification_authority) {
-    g_variant_get(certification_authority, "&s",
-                  &certification_authority_string);
+    g_variant_get(certification_authority, "&s", &certification_authority_string);
     g_string_append_printf(unbound_config_string, "\ttls-cert-bundle: %s\n",
                            certification_authority_string);
     g_variant_unref(certification_authority);
   } else {
-    g_string_append_printf(unbound_config_string, "\ttls-cert-bundle: %s\n",
-                           fallback_ca);
+    g_string_append_printf(unbound_config_string, "\ttls-cert-bundle: %s\n", fallback_ca);
   }
 
   if (!g_variant_iter_init(&domains_iter, domains)) {
@@ -77,11 +70,9 @@ static unsigned char create_unbound_conf(GVariantDict *glob_dict,
     return 1;
   }
 
-  while (
-      g_variant_iter_next(&domains_iter, "{sv}", &domain_name, &domain_value)) {
+  while (g_variant_iter_next(&domains_iter, "{sv}", &domain_name, &domain_value)) {
     if (strcmp(domain_name, "*") != 0) {
-      g_string_append_printf(unbound_config_string,
-                             "forward-zone:\n\tname: \"%s\"\n", domain_name);
+      g_string_append_printf(unbound_config_string, "forward-zone:\n\tname: \"%s\"\n", domain_name);
     } else {
       global_specified = 1;
       g_string_append(unbound_config_string, "forward-zone:\n\tname: \".\"\n");
@@ -95,8 +86,7 @@ static unsigned char create_unbound_conf(GVariantDict *glob_dict,
       return 1;
     }
 
-    servers = g_variant_dict_lookup_value(domain_dict, "servers",
-                                          G_VARIANT_TYPE_ARRAY);
+    servers = g_variant_dict_lookup_value(domain_dict, "servers", G_VARIANT_TYPE_ARRAY);
     g_variant_dict_unref(domain_dict);
 
     if (!servers || !g_variant_iter_init(&server_iter, servers)) {
@@ -109,8 +99,7 @@ static unsigned char create_unbound_conf(GVariantDict *glob_dict,
     non_tls_servers = 0;
 
     while (g_variant_iter_next(&server_iter, "&s", &server_string)) {
-      rc = transform_server_string(server_string, &is_server_tls,
-                                   unbound_config_string, log_file);
+      rc = transform_server_string(server_string, &is_server_tls, unbound_config_string, log_file);
       if (rc) {
         g_variant_unref(domains);
         g_variant_unref(servers);
@@ -137,21 +126,18 @@ static unsigned char create_unbound_conf(GVariantDict *glob_dict,
   g_variant_unref(domains);
 
   if (!global_specified) {
-    g_string_append(
-        unbound_config_string,
-        "forward-zone:\n\tname: \".\"\n\tforward-addr: 127.0.0.1\n");
+    g_string_append(unbound_config_string,
+                    "forward-zone:\n\tname: \".\"\n\tforward-addr: 127.0.0.1\n");
   }
   return 0;
 }
 
-static void parse_resolv_field(GVariantDict *glob_dict,
-                               GString *resolvconf_string, char *dict_key,
+static void parse_resolv_field(GVariantDict *glob_dict, GString *resolvconf_string, char *dict_key,
                                char *resolv_field) {
   GVariantIter iter;
   GVariant *array;
   gchar *cur_value;
-  array =
-      g_variant_dict_lookup_value(glob_dict, dict_key, G_VARIANT_TYPE_ARRAY);
+  array = g_variant_dict_lookup_value(glob_dict, dict_key, G_VARIANT_TYPE_ARRAY);
   if (array) {
     if (g_variant_iter_init(&iter, array)) {
       g_string_append_printf(resolvconf_string, "%s", resolv_field);
@@ -165,23 +151,20 @@ static void parse_resolv_field(GVariantDict *glob_dict,
   }
 }
 
-static void create_resolv_conf(GVariantDict *glob_dict,
-                               GString *resolvconf_string) {
+static void create_resolv_conf(GVariantDict *glob_dict, GString *resolvconf_string) {
   g_string_append(resolvconf_string, "nameserver 127.0.0.1\n");
   parse_resolv_field(glob_dict, resolvconf_string, "options", "options");
   parse_resolv_field(glob_dict, resolvconf_string, "searches", "search");
 }
 
-GString *get_unbound_conf_string(GVariantDict *glob_dict,
-                                 const char *fallback_ca, FILE *log_file) {
+GString *get_unbound_conf_string(GVariantDict *glob_dict, const char *fallback_ca, FILE *log_file) {
   GString *unbound_config_string = g_string_new(NULL);
   if (!unbound_config_string) {
     fprintf(log_file, "Out of memory\n");
     return NULL;
   }
 
-  if (create_unbound_conf(glob_dict, unbound_config_string, fallback_ca,
-                          log_file)) {
+  if (create_unbound_conf(glob_dict, unbound_config_string, fallback_ca, log_file)) {
     g_string_free(unbound_config_string, 1);
     return NULL;
   }

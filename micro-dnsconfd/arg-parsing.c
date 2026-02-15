@@ -11,8 +11,7 @@ static char doc[] = "Generator of resolv.conf and unbound configuration, "
 static char args_doc[] = "[-r <path_to_resolvconf>] [-u <path_to_unbound_conf]";
 static struct argp_option options[] = {
     {"resolvconf", 'r', "resolv.conf", 0, "Path to resolv.conf file"},
-    {"unboundconf", 'u', "unbound.conf", 0,
-     "Path to unbound configuration file"},
+    {"unboundconf", 'u', "unbound.conf", 0, "Path to unbound configuration file"},
     {"no-error-code", 'n', 0, 0, "Do not exit with error code on error"},
     {0}};
 

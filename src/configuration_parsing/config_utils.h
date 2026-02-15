@@ -3,6 +3,6 @@
 
 #include "dnsconfd_config.h"
 
-unsigned char parse_boolean(const char* str);
+unsigned char parse_boolean(const char *str);
 
 #endif

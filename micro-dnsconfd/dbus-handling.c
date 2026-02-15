@@ -19,10 +19,9 @@ GVariantDict *get_glob_dict() {
     return NULL;
   }
 
-  proxy = g_dbus_proxy_new_sync(
-      connection, G_DBUS_PROXY_FLAGS_NONE, NULL,
-      "org.freedesktop.NetworkManager", "/org/freedesktop/NetworkManager",
-      "org.freedesktop.DBus.Properties", NULL, &proxy_error);
+  proxy = g_dbus_proxy_new_sync(connection, G_DBUS_PROXY_FLAGS_NONE, NULL,
+                                "org.freedesktop.NetworkManager", "/org/freedesktop/NetworkManager",
+                                "org.freedesktop.DBus.Properties", NULL, &proxy_error);
   if (proxy_error) {
     g_error_free(proxy_error);
     fprintf(stderr, "Could not connect to NetworkManager\n");
@@ -33,8 +32,7 @@ GVariantDict *get_glob_dict() {
 
   result = g_dbus_proxy_call_sync(
       proxy, "Get",
-      g_variant_new("(ss)", "org.freedesktop.NetworkManager",
-                    "GlobalDnsConfiguration"),
+      g_variant_new("(ss)", "org.freedesktop.NetworkManager", "GlobalDnsConfiguration"),
       G_DBUS_CALL_FLAGS_NONE, 5000, NULL, &call_error);
   g_object_unref(proxy);
   g_dbus_connection_close_sync(connection, NULL, &connection_error);

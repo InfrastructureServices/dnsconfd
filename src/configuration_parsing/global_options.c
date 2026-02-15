@@ -13,21 +13,22 @@
 #include "log_utilities.h"
 #include "reload_command.h"
 #include "status_command.h"
-#include "update_command.h"
 #include "types/server_uri.h"
+#include "update_command.h"
 
 error_t argp_err_exit_status = EXIT_BAD_ARGUMENTS;
-const char* argp_program_version = "dnsconfd 2.0.0";
-const char* argp_program_bug_address = "<tkorbar@redhat.com>";
+const char *argp_program_version = "dnsconfd 2.0.0";
+const char *argp_program_bug_address = "<tkorbar@redhat.com>";
 static char doc[] = "local DNS cache configuration daemon";
-static char args_doc[] =
-    "[--help] [--log-level LOG_LEVEL] [--stderr-log | --no-stderr-log] "
-    "[--syslog-log SYSLOG_LOG] [--file-log FILE_LOG] "
-    "[--resolv-conf-path RESOLV_CONF_PATH] [--listen-address LISTEN_ADDRESS] "
-    "[--prioritize-wire | --no-prioritize-wire] [--resolver-options RESOLVER_OPTIONS] "
-    "[--dnssec-enabled | --no-dnssec-enabled] "
-    "[--config-file CONFIG_FILE] [--certification-authority CERTIFICATION_AUTHORITY] "
-    "{status,reload,config,update} ...";
+static char args_doc[] = "[--help] [--log-level LOG_LEVEL] [--stderr-log | --no-stderr-log] "
+                         "[--syslog-log SYSLOG_LOG] [--file-log FILE_LOG] "
+                         "[--resolv-conf-path RESOLV_CONF_PATH] [--listen-address LISTEN_ADDRESS] "
+                         "[--prioritize-wire | --no-prioritize-wire] [--resolver-options "
+                         "RESOLVER_OPTIONS] "
+                         "[--dnssec-enabled | --no-dnssec-enabled] "
+                         "[--config-file CONFIG_FILE] [--certification-authority "
+                         "CERTIFICATION_AUTHORITY] "
+                         "{status,reload,config,update} ...";
 
 enum {
   OPT_LOG_LEVEL = 1000,
@@ -57,7 +58,8 @@ static struct argp_option options[] = {
     {"file-log", OPT_FILE_LOG, "FILE_LOG", 0,
      "Path to the log file, this is turned off by default"},
     {"resolv-conf-path", OPT_RESOLV_CONF_PATH, "RESOLV_CONF_PATH", 0,
-     "Path to resolv.conf that the dnsconfd should manage, Default is /etc/resolv.conf"},
+     "Path to resolv.conf that the dnsconfd should manage, Default is "
+     "/etc/resolv.conf"},
     {"listen-address", OPT_LISTEN_ADDRESS, "LISTEN_ADDRESS", 0,
      "Address on which local resolver listens, Default is 127.0.0.1"},
     {"prioritize-wire", OPT_PRIORITIZE_WIRE, 0, 0,
@@ -65,7 +67,8 @@ static struct argp_option options[] = {
     {"no-prioritize-wire", OPT_NO_PRIORITIZE_WIRE, 0, 0,
      "All interfaces will have the same priority"},
     {"resolver-options", OPT_RESOLVER_OPTIONS, "RESOLVER_OPTIONS", 0,
-     "Options to be used in resolv.conf for alteration of resolver behavior, default is edns0 "
+     "Options to be used in resolv.conf for alteration of resolver behavior, "
+     "default is edns0 "
      "trust-ad"},
     {"dnssec-enabled", OPT_DNSSEC_ENABLED, 0, 0, "Enable dnssec record validation"},
     {"no-dnssec-enabled", OPT_NO_DNSSEC_ENABLED, 0, 0,
@@ -73,145 +76,147 @@ static struct argp_option options[] = {
     {"config-file", OPT_CONFIG_FILE, "CONFIG_FILE", 0,
      "Path where config file is located, default is /etc/dnsconfd.conf"},
     {"certification-authority", OPT_CERTIFICATION_AUTHORITY, "CERTIFICATION_AUTHORITY", 0,
-     "Space separated list of CA bundles used for encrypted protocols as default when no custom CA "
-     "was specified. The first one that can be accessed will be used, Default is "
+     "Space separated list of CA bundles used for encrypted protocols as "
+     "default when no custom CA "
+     "was specified. The first one that can be accessed will be used, Default "
+     "is "
      "/etc/pki/dns/extracted/pem/tls-ca-bundle.pem "
      "/etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem"},
     {0}};
 
-static error_t parse_global_opt(int key, char* arg, struct argp_state* state) {
-  dnsconfd_config_t* config = state->input;
+static error_t parse_global_opt(int key, char *arg, struct argp_state *state) {
+  dnsconfd_config_t *config = state->input;
   error_t subcommand_parsing_result = 0;
 
   switch (key) {
-    case OPT_LOG_LEVEL:
-      if ((config->log_level = parse_log_level(arg)) < 0) {
-        argp_error(state, "Invalid log level: %s", arg);
-      }
-      break;
-    case OPT_STDERR_LOG:
-      config->stderr_log = CONFIG_BOOLEAN_TRUE;
-      break;
-    case OPT_NO_STDERR_LOG:
-      config->stderr_log = CONFIG_BOOLEAN_FALSE;
-      break;
-    case OPT_SYSLOG_LOG:
-      config->syslog_log = CONFIG_BOOLEAN_TRUE;
-      break;
-    case OPT_NO_SYSLOG_LOG:
-      config->syslog_log = CONFIG_BOOLEAN_FALSE;
-      break;
-    case OPT_FILE_LOG:
-      if (config->file_log != NULL) {
-        free((char*)config->file_log);
-      }
-      if ((config->file_log = strdup(arg)) == NULL) {
-        return ENOMEM;
-      }
-      break;
-    case OPT_RESOLV_CONF_PATH:
-      if (config->resolv_conf_path != NULL) {
-        free((char*)config->resolv_conf_path);
-      }
-      if ((config->resolv_conf_path = strdup(arg)) == NULL) {
-        return ENOMEM;
-      }
-      break;
-    case OPT_LISTEN_ADDRESS:
-      if (parse_ip_str(arg, &config->listen_address) != 0) {
-        argp_error(state, "Invalid listen address: %s", arg);
-      }
-      break;
-    case OPT_PRIORITIZE_WIRE:
-      config->prioritize_wire = CONFIG_BOOLEAN_TRUE;
-      break;
-    case OPT_NO_PRIORITIZE_WIRE:
-      config->prioritize_wire = CONFIG_BOOLEAN_FALSE;
-      break;
-    case OPT_RESOLVER_OPTIONS:
-      if (config->resolver_options != NULL) {
-        free((char*)config->resolver_options);
-      }
-      if ((config->resolver_options = strdup(arg)) == NULL) {
-        return ENOMEM;
-      }
-      break;
-    case OPT_DNSSEC_ENABLED:
-      config->dnssec_enabled = CONFIG_BOOLEAN_TRUE;
-      break;
-    case OPT_NO_DNSSEC_ENABLED:
-      config->dnssec_enabled = CONFIG_BOOLEAN_FALSE;
-      break;
-    case OPT_CONFIG_FILE:
-      if (config->config_file != NULL) {
-        free((char*)config->config_file);
-      }
-      if ((config->config_file = strdup(arg)) == NULL) {
-        return ENOMEM;
-      }
-      break;
-    case OPT_CERTIFICATION_AUTHORITY:
-      if (config->certification_authority != NULL) {
-        free((char*)config->certification_authority);
-      }
-      if ((config->certification_authority = strdup(arg)) == NULL) {
-        return ENOMEM;
-      }
-      break;
-    case ARGP_KEY_ARG:
-      if (config->command != COMMAND_START) {
-        argp_error(state, "Command was already specified %s", arg);
-      }
-      if (strcasecmp(arg, "status") == 0) {
-        config->command = COMMAND_STATUS;
-        subcommand_parsing_result =
-            parse_status_command(state->argc - state->next + 1, &state->argv[state->next - 1],
-                                 &config->command_options.status_options);
-      } else if (strcasecmp(arg, "reload") == 0) {
-        config->command = COMMAND_RELOAD;
-        subcommand_parsing_result =
-            parse_reload_command(state->argc - state->next + 1, &state->argv[state->next - 1]);
-      } else if (strcasecmp(arg, "config") == 0) {
-        config->command = COMMAND_CONFIG;
-        subcommand_parsing_result =
-            parse_config_command(state->argc - state->next + 1, &state->argv[state->next - 1],
-                                 &config->command_options.config_options);
-      } else if (strcasecmp(arg, "update") == 0) {
-        config->command = COMMAND_UPDATE;
-        subcommand_parsing_result =
-            parse_update_command(state->argc - state->next + 1, &state->argv[state->next - 1],
-                                 &config->command_options.update_options);
-      } else {
-        argp_error(state, "Unknown command: %s", arg);
-      }
-      if (subcommand_parsing_result) {
-        return subcommand_parsing_result;
-      }
-      state->next = state->argc;
-      break;
-    case ARGP_KEY_END:
-      break;
-    default:
-      return ARGP_ERR_UNKNOWN;
+  case OPT_LOG_LEVEL:
+    if ((config->log_level = parse_log_level(arg)) < 0) {
+      argp_error(state, "Invalid log level: %s", arg);
+    }
+    break;
+  case OPT_STDERR_LOG:
+    config->stderr_log = CONFIG_BOOLEAN_TRUE;
+    break;
+  case OPT_NO_STDERR_LOG:
+    config->stderr_log = CONFIG_BOOLEAN_FALSE;
+    break;
+  case OPT_SYSLOG_LOG:
+    config->syslog_log = CONFIG_BOOLEAN_TRUE;
+    break;
+  case OPT_NO_SYSLOG_LOG:
+    config->syslog_log = CONFIG_BOOLEAN_FALSE;
+    break;
+  case OPT_FILE_LOG:
+    if (config->file_log != NULL) {
+      free((char *)config->file_log);
+    }
+    if ((config->file_log = strdup(arg)) == NULL) {
+      return ENOMEM;
+    }
+    break;
+  case OPT_RESOLV_CONF_PATH:
+    if (config->resolv_conf_path != NULL) {
+      free((char *)config->resolv_conf_path);
+    }
+    if ((config->resolv_conf_path = strdup(arg)) == NULL) {
+      return ENOMEM;
+    }
+    break;
+  case OPT_LISTEN_ADDRESS:
+    if (parse_ip_str(arg, &config->listen_address) != 0) {
+      argp_error(state, "Invalid listen address: %s", arg);
+    }
+    break;
+  case OPT_PRIORITIZE_WIRE:
+    config->prioritize_wire = CONFIG_BOOLEAN_TRUE;
+    break;
+  case OPT_NO_PRIORITIZE_WIRE:
+    config->prioritize_wire = CONFIG_BOOLEAN_FALSE;
+    break;
+  case OPT_RESOLVER_OPTIONS:
+    if (config->resolver_options != NULL) {
+      free((char *)config->resolver_options);
+    }
+    if ((config->resolver_options = strdup(arg)) == NULL) {
+      return ENOMEM;
+    }
+    break;
+  case OPT_DNSSEC_ENABLED:
+    config->dnssec_enabled = CONFIG_BOOLEAN_TRUE;
+    break;
+  case OPT_NO_DNSSEC_ENABLED:
+    config->dnssec_enabled = CONFIG_BOOLEAN_FALSE;
+    break;
+  case OPT_CONFIG_FILE:
+    if (config->config_file != NULL) {
+      free((char *)config->config_file);
+    }
+    if ((config->config_file = strdup(arg)) == NULL) {
+      return ENOMEM;
+    }
+    break;
+  case OPT_CERTIFICATION_AUTHORITY:
+    if (config->certification_authority != NULL) {
+      free((char *)config->certification_authority);
+    }
+    if ((config->certification_authority = strdup(arg)) == NULL) {
+      return ENOMEM;
+    }
+    break;
+  case ARGP_KEY_ARG:
+    if (config->command != COMMAND_START) {
+      argp_error(state, "Command was already specified %s", arg);
+    }
+    if (strcasecmp(arg, "status") == 0) {
+      config->command = COMMAND_STATUS;
+      subcommand_parsing_result =
+          parse_status_command(state->argc - state->next + 1, &state->argv[state->next - 1],
+                               &config->command_options.status_options);
+    } else if (strcasecmp(arg, "reload") == 0) {
+      config->command = COMMAND_RELOAD;
+      subcommand_parsing_result =
+          parse_reload_command(state->argc - state->next + 1, &state->argv[state->next - 1]);
+    } else if (strcasecmp(arg, "config") == 0) {
+      config->command = COMMAND_CONFIG;
+      subcommand_parsing_result =
+          parse_config_command(state->argc - state->next + 1, &state->argv[state->next - 1],
+                               &config->command_options.config_options);
+    } else if (strcasecmp(arg, "update") == 0) {
+      config->command = COMMAND_UPDATE;
+      subcommand_parsing_result =
+          parse_update_command(state->argc - state->next + 1, &state->argv[state->next - 1],
+                               &config->command_options.update_options);
+    } else {
+      argp_error(state, "Unknown command: %s", arg);
+    }
+    if (subcommand_parsing_result) {
+      return subcommand_parsing_result;
+    }
+    state->next = state->argc;
+    break;
+  case ARGP_KEY_END:
+    break;
+  default:
+    return ARGP_ERR_UNKNOWN;
   }
   return 0;
 }
 
 static struct argp argp = {options, parse_global_opt, args_doc, doc};
 
-static void merge_configs(dnsconfd_config_t* high_prio, dnsconfd_config_t* low_prio) {
+static void merge_configs(dnsconfd_config_t *high_prio, dnsconfd_config_t *low_prio) {
   size_t i = 0;
   struct {
-    const char** high;
-    const char* low;
+    const char **high;
+    const char *low;
   } str_to_check[] = {{&high_prio->file_log, low_prio->file_log},
                       {&high_prio->resolv_conf_path, low_prio->resolv_conf_path},
                       {&high_prio->resolver_options, low_prio->resolver_options},
                       {&high_prio->config_file, low_prio->config_file},
                       {&high_prio->certification_authority, low_prio->certification_authority}};
   struct {
-    config_boolean_t* high;
-    config_boolean_t* low;
+    config_boolean_t *high;
+    config_boolean_t *low;
   } bools_to_check[] = {
       {&high_prio->stderr_log, &low_prio->stderr_log},
       {&high_prio->syslog_log, &low_prio->syslog_log},
@@ -223,7 +228,8 @@ static void merge_configs(dnsconfd_config_t* high_prio, dnsconfd_config_t* low_p
     if (!(*str_to_check[i].high)) {
       *str_to_check[i].high = str_to_check[i].low;
     } else {
-      if (str_to_check[i].low) free((void*)str_to_check[i].low);
+      if (str_to_check[i].low)
+        free((void *)str_to_check[i].low);
     }
   }
 
@@ -248,7 +254,7 @@ static void merge_configs(dnsconfd_config_t* high_prio, dnsconfd_config_t* low_p
   }
 }
 
-int parse_configuration(int argc, char* argv[], dnsconfd_config_t* config) {
+int parse_configuration(int argc, char *argv[], dnsconfd_config_t *config) {
   const char *error_string;
   dnsconfd_config_t temp_config = (dnsconfd_config_t){0};
   temp_config.log_level = -1;
@@ -271,7 +277,8 @@ int parse_configuration(int argc, char* argv[], dnsconfd_config_t* config) {
   merge_configs(config, &temp_config);
 
   if (!config->config_file) {
-    if (!(config->config_file = strdup("/etc/dnsconfd.conf"))) return 1;
+    if (!(config->config_file = strdup("/etc/dnsconfd.conf")))
+      return 1;
   }
 
   temp_config = (dnsconfd_config_t){0};
@@ -294,12 +301,13 @@ int parse_configuration(int argc, char* argv[], dnsconfd_config_t* config) {
     config->syslog_log = CONFIG_BOOLEAN_FALSE;
   }
   if (!config->resolv_conf_path) {
-    if (!(config->resolv_conf_path = strdup("/etc/resolv.conf"))) return 1;
+    if (!(config->resolv_conf_path = strdup("/etc/resolv.conf")))
+      return 1;
   }
   if (config->listen_address.ss_family == PF_UNSPEC) {
     // Default listen address 127.0.0.1
-    ((struct sockaddr_in*)&config->listen_address)->sin_family = AF_INET;
-    inet_pton(AF_INET, "127.0.0.1", &((struct sockaddr_in*)&config->listen_address)->sin_addr);
+    ((struct sockaddr_in *)&config->listen_address)->sin_family = AF_INET;
+    inet_pton(AF_INET, "127.0.0.1", &((struct sockaddr_in *)&config->listen_address)->sin_addr);
   }
   if (config->prioritize_wire == CONFIG_BOOLEAN_UNSET) {
     config->prioritize_wire = CONFIG_BOOLEAN_TRUE;
@@ -308,7 +316,8 @@ int parse_configuration(int argc, char* argv[], dnsconfd_config_t* config) {
     config->dnssec_enabled = CONFIG_BOOLEAN_FALSE;
   }
   if (!config->resolver_options) {
-    if (!(config->resolver_options = strdup("edns0 trust-ad"))) return 1;
+    if (!(config->resolver_options = strdup("edns0 trust-ad")))
+      return 1;
   }
 
   if (!config->certification_authority) {
@@ -321,14 +330,14 @@ int parse_configuration(int argc, char* argv[], dnsconfd_config_t* config) {
   return 0;
 }
 
-void config_cleanup(dnsconfd_config_t* config) {
-  const char* pointers_to_check[5] = {config->file_log,
-                                      config->resolv_conf_path, config->resolver_options,
-                                      config->config_file,      config->certification_authority};
+void config_cleanup(dnsconfd_config_t *config) {
+  const char *pointers_to_check[5] = {config->file_log, config->resolv_conf_path,
+                                      config->resolver_options, config->config_file,
+                                      config->certification_authority};
 
   for (size_t i = 0; i < 5; i++) {
     if (pointers_to_check[i] != NULL) {
-      free((char*)pointers_to_check[i]);
+      free((char *)pointers_to_check[i]);
     }
   }
 

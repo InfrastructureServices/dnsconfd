@@ -13,20 +13,21 @@
 #include "ip_utilities.h"
 #include "types/server_uri.h"
 
-static GList* get_used_servers(GList* servers, dnsconfd_mode_t mode, const char* domain) {
-  GList* used_servers = NULL;
-  server_uri_t* cur_server = ((server_uri_t*)servers->data);
+static GList *get_used_servers(GList *servers, dnsconfd_mode_t mode, const char *domain) {
+  GList *used_servers = NULL;
+  server_uri_t *cur_server = ((server_uri_t *)servers->data);
   int max_priority = cur_server->priority;
   dns_protocol_t max_protocol = cur_server->protocol;
   unsigned char dnssec = cur_server->dnssec;
 
   for (; servers != NULL; servers = servers->next) {
-    cur_server = ((server_uri_t*)servers->data);
+    cur_server = ((server_uri_t *)servers->data);
     if (cur_server->priority < max_priority || cur_server->protocol < max_protocol ||
         cur_server->dnssec != dnssec) {
       break;
     }
-    // if this server can not be used globally and we are in strict mode, then skip it
+    // if this server can not be used globally and we are in strict mode, then
+    // skip it
     if (cur_server->interface[0] != '\0') {
       if ((mode > MODE_BACKUP && strcmp(domain, ".") == 0) || mode == MODE_EXCLUSIVE) {
         continue;
@@ -38,7 +39,7 @@ static GList* get_used_servers(GList* servers, dnsconfd_mode_t mode, const char*
   return used_servers;
 }
 
-static int server_to_unbound_string(FILE* config_file, server_uri_t* server) {
+static int server_to_unbound_string(FILE *config_file, server_uri_t *server) {
   char addr_buffer[INET6_ADDRSTRLEN];
   uint16_t port;
 
@@ -46,9 +47,9 @@ static int server_to_unbound_string(FILE* config_file, server_uri_t* server) {
 
   fprintf(config_file, "\tforward-addr: %s", addr_buffer);
   if (server->address.ss_family == AF_INET) {
-    port = ntohs(((struct sockaddr_in*)&server->address)->sin_port);
+    port = ntohs(((struct sockaddr_in *)&server->address)->sin_port);
   } else {
-    port = ntohs(((struct sockaddr_in6*)&server->address)->sin6_port);
+    port = ntohs(((struct sockaddr_in6 *)&server->address)->sin6_port);
   }
 
   if (server->protocol == DNS_TLS) {
@@ -65,33 +66,37 @@ static int server_to_unbound_string(FILE* config_file, server_uri_t* server) {
   }
   fprintf(config_file, "\n");
 
-  if (ferror(config_file)) return -1;
+  if (ferror(config_file))
+    return -1;
 
   return 0;
 }
 
-static int generate_forward_zones(FILE* config_file, GHashTable* domain_to_servers,
+static int generate_forward_zones(FILE *config_file, GHashTable *domain_to_servers,
                                   dnsconfd_mode_t mode) {
   GHashTableIter iter;
   gpointer key, value;
-  GList* used_servers;
-  GList* l;
-  server_uri_t* server;
+  GList *used_servers;
+  GList *l;
+  server_uri_t *server;
   unsigned char tls = 0;
   unsigned char root_present = 0;
 
   g_hash_table_iter_init(&iter, domain_to_servers);
   while (g_hash_table_iter_next(&iter, &key, &value)) {
     used_servers = get_used_servers(value, mode, key);
-    if (!used_servers) continue;
+    if (!used_servers)
+      continue;
 
-    fprintf(config_file, "forward-zone:\n\tname: \"%s\"\n", (char*)key);
+    fprintf(config_file, "forward-zone:\n\tname: \"%s\"\n", (char *)key);
 
-    if (!root_present && strcmp(key, ".") == 0) root_present = 1;
+    if (!root_present && strcmp(key, ".") == 0)
+      root_present = 1;
 
-    for (l = (GList*)used_servers; l != NULL; l = l->next) {
-      server = (server_uri_t*)l->data;
-      if (server->protocol == DNS_TLS) tls = 1;
+    for (l = (GList *)used_servers; l != NULL; l = l->next) {
+      server = (server_uri_t *)l->data;
+      if (server->protocol == DNS_TLS)
+        tls = 1;
       if (server_to_unbound_string(config_file, server) < 0) {
         g_list_free(used_servers);
         return -1;
@@ -106,12 +111,13 @@ static int generate_forward_zones(FILE* config_file, GHashTable* domain_to_serve
     fprintf(config_file, "forward-zone:\n\tname: \".\"\n\tforward-addr: \"127.0.0.1\"\n");
   }
 
-  if (ferror(config_file)) return -1;
+  if (ferror(config_file))
+    return -1;
   return 0;
 }
 
-static int generate_listen_address(FILE* config_file, dnsconfd_config_t* config,
-                                   const char** error_string) {
+static int generate_listen_address(FILE *config_file, dnsconfd_config_t *config,
+                                   const char **error_string) {
   char inet_buffer[INET6_ADDRSTRLEN];
 
   ip_to_str(&config->listen_address, inet_buffer);
@@ -125,22 +131,24 @@ static int generate_listen_address(FILE* config_file, dnsconfd_config_t* config,
   return 0;
 }
 
-static char* effective_ca_from_uris(GHashTable* domain_to_servers, dnsconfd_mode_t mode) {
+static char *effective_ca_from_uris(GHashTable *domain_to_servers, dnsconfd_mode_t mode) {
   GHashTableIter iter;
   gpointer key, value;
-  server_uri_t* cur_server;
+  server_uri_t *cur_server;
   int highest_prio;
-  GList* server_iterator;
-  char* effective_ca = NULL;
+  GList *server_iterator;
+  char *effective_ca = NULL;
 
   g_hash_table_iter_init(&iter, domain_to_servers);
 
   while (g_hash_table_iter_next(&iter, &key, &value)) {
-    for (server_iterator = (GList*)value; server_iterator != NULL;
+    for (server_iterator = (GList *)value; server_iterator != NULL;
          server_iterator = server_iterator->next) {
-      cur_server = (server_uri_t*)server_iterator->data;
-      if (!cur_server->certification_authority) continue;
-      // if this server can not be used globally and we are in strict mode, then skip it
+      cur_server = (server_uri_t *)server_iterator->data;
+      if (!cur_server->certification_authority)
+        continue;
+      // if this server can not be used globally and we are in strict mode, then
+      // skip it
       if (cur_server->interface[0] != '\0') {
         if ((mode > MODE_BACKUP && strcmp(key, ".") == 0) || mode == MODE_EXCLUSIVE) {
           continue;
@@ -157,16 +165,18 @@ static char* effective_ca_from_uris(GHashTable* domain_to_servers, dnsconfd_mode
   return effective_ca ? strdup(effective_ca) : effective_ca;
 }
 
-static char* effective_ca_from_config(dnsconfd_config_t* config) {
-  char* effective_ca = NULL;
-  char* backup_ca = NULL;
-  char* duplicated_ca;
-  char* result;
+static char *effective_ca_from_config(dnsconfd_config_t *config) {
+  char *effective_ca = NULL;
+  char *backup_ca = NULL;
+  char *duplicated_ca;
+  char *result;
   duplicated_ca = backup_ca = strdup(config->certification_authority);
-  if (!duplicated_ca) return NULL;
+  if (!duplicated_ca)
+    return NULL;
 
   while ((effective_ca = strsep(&duplicated_ca, " "))) {
-    if (access(effective_ca, R_OK) == 0) break;
+    if (access(effective_ca, R_OK) == 0)
+      break;
   }
 
   result = strdup(effective_ca);
@@ -175,9 +185,9 @@ static char* effective_ca_from_config(dnsconfd_config_t* config) {
   return result;
 }
 
-static char* get_effective_ca(GHashTable* domain_to_servers, dnsconfd_mode_t mode,
-                              dnsconfd_config_t* config) {
-  char* effective_ca = NULL;
+static char *get_effective_ca(GHashTable *domain_to_servers, dnsconfd_mode_t mode,
+                              dnsconfd_config_t *config) {
+  char *effective_ca = NULL;
 
   if (domain_to_servers) {
     effective_ca = effective_ca_from_uris(domain_to_servers, mode);
@@ -190,9 +200,9 @@ static char* get_effective_ca(GHashTable* domain_to_servers, dnsconfd_mode_t mod
   return effective_ca;
 }
 
-int write_configuration(fsm_context_t* ctx, const char** error_string) {
-  char* effective_ca;
-  FILE* config_file = fopen("/run/dnsconfd/unbound.conf", "w");
+int write_configuration(fsm_context_t *ctx, const char **error_string) {
+  char *effective_ca;
+  FILE *config_file = fopen("/run/dnsconfd/unbound.conf", "w");
 
   if (!config_file) {
     *error_string = "Failed to open unbound config file";
@@ -207,8 +217,8 @@ int write_configuration(fsm_context_t* ctx, const char** error_string) {
     goto error;
   }
 
-  // TODO generate_trust_bundle and generate_forward_zones both walk through domain_to_servers
-  // merge them so we walk the dictionary only once
+  // TODO generate_trust_bundle and generate_forward_zones both walk through
+  // domain_to_servers merge them so we walk the dictionary only once
   effective_ca =
       get_effective_ca(ctx->current_domain_to_servers, ctx->resolution_mode, ctx->config);
   if (!effective_ca) {
@@ -247,10 +257,10 @@ error:
   return -1;
 }
 
-static int execute_unbound_command(char** argv) {
+static int execute_unbound_command(char **argv) {
   gint exit_status;
   gboolean success;
-  GError* error = NULL;
+  GError *error = NULL;
 
   success = g_spawn_sync(NULL, argv, NULL, G_SPAWN_SEARCH_PATH, NULL, NULL, NULL, NULL,
                          &exit_status, &error);
@@ -263,14 +273,14 @@ static int execute_unbound_command(char** argv) {
   return WIFEXITED(exit_status) && WEXITSTATUS(exit_status) == 0 ? 0 : -1;
 }
 
-static int remove_domain(const char* domain) {
-  char* argv[5];
+static int remove_domain(const char *domain) {
+  char *argv[5];
   argv[0] = "unbound-control";
 
   if (strcmp(domain, ".") != 0) {
     argv[1] = "forward_remove";
     argv[2] = "+i";
-    argv[3] = (char*)domain;
+    argv[3] = (char *)domain;
     argv[4] = NULL;
   } else {
     argv[1] = "forward_add";
@@ -284,20 +294,20 @@ static int remove_domain(const char* domain) {
   }
 
   argv[1] = "flush_zone";
-  argv[2] = (char*)domain;
+  argv[2] = (char *)domain;
   argv[3] = NULL;
 
   return execute_unbound_command(argv);
 }
 
-static int add_domain(const char* domain, GList* servers) {
+static int add_domain(const char *domain, GList *servers) {
   char address_buffer[INET6_ADDRSTRLEN];
   uint16_t port;
   int ret;
-  server_uri_t* cur_server = (server_uri_t*)servers->data;
+  server_uri_t *cur_server = (server_uri_t *)servers->data;
   int flags = (!cur_server->dnssec) | ((cur_server->protocol == DNS_TLS) << 1);
-  GPtrArray* argv_array = g_ptr_array_new_with_free_func(g_free);
-  char* flush_argv[] = {"unbound-control", "flush_zone", (char*)domain, NULL};
+  GPtrArray *argv_array = g_ptr_array_new_with_free_func(g_free);
+  char *flush_argv[] = {"unbound-control", "flush_zone", (char *)domain, NULL};
 
   g_ptr_array_add(argv_array, g_strdup("unbound-control"));
   g_ptr_array_add(argv_array, g_strdup("forward_add"));
@@ -313,15 +323,15 @@ static int add_domain(const char* domain, GList* servers) {
   g_ptr_array_add(argv_array, g_strdup(domain));
 
   for (; servers != NULL; servers = servers->next) {
-    cur_server = (server_uri_t*)servers->data;
+    cur_server = (server_uri_t *)servers->data;
     ip_to_str(&cur_server->address, address_buffer);
 
-    GString* server_arg = g_string_new(address_buffer);
+    GString *server_arg = g_string_new(address_buffer);
 
     if (cur_server->address.ss_family == AF_INET) {
-      port = ntohs(((struct sockaddr_in*)&cur_server->address)->sin_port);
+      port = ntohs(((struct sockaddr_in *)&cur_server->address)->sin_port);
     } else {
-      port = ntohs(((struct sockaddr_in6*)&cur_server->address)->sin6_port);
+      port = ntohs(((struct sockaddr_in6 *)&cur_server->address)->sin6_port);
     }
 
     if (cur_server->protocol == DNS_TLS) {
@@ -342,31 +352,33 @@ static int add_domain(const char* domain, GList* servers) {
 
   g_ptr_array_add(argv_array, NULL);
 
-  ret = execute_unbound_command((char**)argv_array->pdata);
+  ret = execute_unbound_command((char **)argv_array->pdata);
   g_ptr_array_free(argv_array, TRUE);
 
-  if (ret != 0) return -1;
+  if (ret != 0)
+    return -1;
 
   return execute_unbound_command(flush_argv);
 }
 
-static int compare_addresses(struct sockaddr_storage* a, struct sockaddr_storage* b) {
-  struct sockaddr_in* s4a;
-  struct sockaddr_in* s4b;
-  struct sockaddr_in6* s6a;
-  struct sockaddr_in6* s6b;
+static int compare_addresses(struct sockaddr_storage *a, struct sockaddr_storage *b) {
+  struct sockaddr_in *s4a;
+  struct sockaddr_in *s4b;
+  struct sockaddr_in6 *s6a;
+  struct sockaddr_in6 *s6b;
 
-  if (a->ss_family != b->ss_family) return 1;
+  if (a->ss_family != b->ss_family)
+    return 1;
 
   if (a->ss_family == AF_INET) {
-    s4a = ((struct sockaddr_in*)a);
-    s4b = ((struct sockaddr_in*)b);
+    s4a = ((struct sockaddr_in *)a);
+    s4b = ((struct sockaddr_in *)b);
     if (s4a->sin_addr.s_addr != s4b->sin_addr.s_addr || s4a->sin_port != s4b->sin_port) {
       return 1;
     }
   } else {
-    s6a = ((struct sockaddr_in6*)a);
-    s6b = ((struct sockaddr_in6*)b);
+    s6a = ((struct sockaddr_in6 *)a);
+    s6b = ((struct sockaddr_in6 *)b);
     if (s6a->sin6_port != s6b->sin6_port) {
       return 1;
     }
@@ -377,17 +389,17 @@ static int compare_addresses(struct sockaddr_storage* a, struct sockaddr_storage
   return 0;
 }
 
-static int compare_servers(GList* a, GList* b) {
-  server_uri_t* server_a;
-  server_uri_t* server_b;
+static int compare_servers(GList *a, GList *b) {
+  server_uri_t *server_a;
+  server_uri_t *server_b;
 
   if (g_list_length(a) != g_list_length(b)) {
     return 1;
   }
 
   while (a != NULL) {
-    server_a = (server_uri_t*)a->data;
-    server_b = (server_uri_t*)b->data;
+    server_a = (server_uri_t *)a->data;
+    server_b = (server_uri_t *)b->data;
     if (compare_addresses(&server_a->address, &server_b->address) != 0) {
       return 1;
     }
@@ -424,24 +436,25 @@ static int compare_servers(GList* a, GList* b) {
 }
 
 static void destroy_hash_table_cloned_list(gpointer pointer) {
-  g_list_free_full((GList*)pointer, server_uri_t_destroy);
+  g_list_free_full((GList *)pointer, server_uri_t_destroy);
 }
 
 // -1 error, 0 continue, 1 reload
-int update(fsm_context_t* ctx, GHashTable** result, const char** error_string) {
-  GList* used_servers;
-  GList* old_servers;
-  char* new_effective_ca;
+int update(fsm_context_t *ctx, GHashTable **result, const char **error_string) {
+  GList *used_servers;
+  GList *old_servers;
+  char *new_effective_ca;
   GHashTableIter iter;
   gpointer key, value;
   int ca_comparison;
-  GHashTable* new_unbound_domain_to_servers = g_hash_table_new_full(
+  GHashTable *new_unbound_domain_to_servers = g_hash_table_new_full(
       g_str_hash, g_str_equal, g_free, (GDestroyNotify)destroy_hash_table_cloned_list);
 
   g_hash_table_iter_init(&iter, ctx->current_domain_to_servers);
   while (g_hash_table_iter_next(&iter, &key, &value)) {
-    used_servers = get_used_servers((GList*)value, ctx->resolution_mode, key);
-    if (!used_servers) continue;
+    used_servers = get_used_servers((GList *)value, ctx->resolution_mode, key);
+    if (!used_servers)
+      continue;
     server_uri_t_list_replace_elements_with_copies(used_servers);
     g_hash_table_insert(new_unbound_domain_to_servers, g_strdup(key), used_servers);
   }
@@ -474,17 +487,18 @@ int update(fsm_context_t* ctx, GHashTable** result, const char** error_string) {
       old_servers = NULL;
     }
     if (used_servers && old_servers) {
-      // TODO compare servers is not perfect, as if you would switch 2 servers with the
-      // same absolute priority, the list would from resolution perspective be still equal
-      // but we would sign it is not, hashing function has to be implemented
+      // TODO compare servers is not perfect, as if you would switch 2 servers
+      // with the same absolute priority, the list would from resolution
+      // perspective be still equal but we would sign it is not, hashing
+      // function has to be implemented
       if (compare_servers(used_servers, old_servers) == 0) {
         continue;
-      } else if (add_domain((char*)key, used_servers)) {
+      } else if (add_domain((char *)key, used_servers)) {
         *error_string = "Failed to add domain to Unbound";
         goto error;
       }
     } else {
-      if (add_domain((char*)key, used_servers)) {
+      if (add_domain((char *)key, used_servers)) {
         *error_string = "Failed to add domain to Unbound";
         goto error;
       }
@@ -495,7 +509,7 @@ int update(fsm_context_t* ctx, GHashTable** result, const char** error_string) {
     g_hash_table_iter_init(&iter, ctx->current_unbound_domain_to_servers);
     while (g_hash_table_iter_next(&iter, &key, &value)) {
       if (!g_hash_table_contains(new_unbound_domain_to_servers, key)) {
-        if (remove_domain((char*)key) != 0) {
+        if (remove_domain((char *)key) != 0) {
           goto error;
         }
       }
@@ -509,18 +523,18 @@ error:
   return -1;
 }
 
-int write_resolv_conf(dnsconfd_config_t* config, GHashTable* domain_to_servers, GString** backup,
-                      dnsconfd_mode_t mode, const char** error_string) {
+int write_resolv_conf(dnsconfd_config_t *config, GHashTable *domain_to_servers, GString **backup,
+                      dnsconfd_mode_t mode, const char **error_string) {
   GHashTableIter iter;
   gpointer key, value;
-  GList* used_servers;
-  GList* backup_servers;
-  GList* cur_search;
-  char* original_content = NULL;
+  GList *used_servers;
+  GList *backup_servers;
+  GList *cur_search;
+  char *original_content = NULL;
   char inet_buffer[INET6_ADDRSTRLEN];
   int first_search = 1;
-  GHashTable* searches_table;
-  FILE* resolv_conf_file;
+  GHashTable *searches_table;
+  FILE *resolv_conf_file;
 
   if (!*backup) {
     if (g_file_get_contents(config->resolv_conf_path, &original_content, NULL, NULL)) {
@@ -544,15 +558,16 @@ int write_resolv_conf(dnsconfd_config_t* config, GHashTable* domain_to_servers, 
 
   g_hash_table_iter_init(&iter, domain_to_servers);
   while (g_hash_table_iter_next(&iter, &key, &value)) {
-    used_servers = backup_servers = get_used_servers((GList*)value, mode, key);
-    if (!used_servers) continue;
+    used_servers = backup_servers = get_used_servers((GList *)value, mode, key);
+    if (!used_servers)
+      continue;
 
     for (; used_servers != NULL; used_servers = used_servers->next) {
-      cur_search = ((server_uri_t*)used_servers->data)->search_domains;
+      cur_search = ((server_uri_t *)used_servers->data)->search_domains;
       for (; cur_search != NULL; cur_search = cur_search->next) {
         if (!g_hash_table_contains(searches_table, cur_search->data)) {
           fprintf(resolv_conf_file, "%s%s", first_search ? "search " : " ",
-                  (char*)cur_search->data);
+                  (char *)cur_search->data);
           first_search = 0;
           g_hash_table_insert(searches_table, cur_search->data, NULL);
         }

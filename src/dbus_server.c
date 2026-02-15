@@ -47,7 +47,7 @@ enum parse_error_code {
   PARSE_ERROR_INVALID_MODE = 9,
 };
 
-static const char* parse_error_strings[] = {
+static const char *parse_error_strings[] = {
     NULL,
     "Out of memory",
     "Server does not have address set",
@@ -60,14 +60,14 @@ static const char* parse_error_strings[] = {
     "Mode is invalid",
 };
 
-static int parse_address(GVariantDict* cur_server_dict, server_uri_t* cur_server) {
-  gchar* cur_string;
+static int parse_address(GVariantDict *cur_server_dict, server_uri_t *cur_server) {
+  gchar *cur_string;
   int parse_ok;
   gsize n_elements;
-  const guchar* fixed_array;
-  struct sockaddr_in* sa4 = (struct sockaddr_in*)&cur_server->address;
-  struct sockaddr_in6* sa6 = (struct sockaddr_in6*)&cur_server->address;
-  GVariant* cur_param =
+  const guchar *fixed_array;
+  struct sockaddr_in *sa4 = (struct sockaddr_in *)&cur_server->address;
+  struct sockaddr_in6 *sa6 = (struct sockaddr_in6 *)&cur_server->address;
+  GVariant *cur_param =
       g_variant_dict_lookup_value(cur_server_dict, "address", G_VARIANT_TYPE_STRING);
 
   if (cur_param) {
@@ -79,7 +79,8 @@ static int parse_address(GVariantDict* cur_server_dict, server_uri_t* cur_server
 
   cur_param = g_variant_dict_lookup_value(cur_server_dict, "address", G_VARIANT_TYPE_BYTESTRING);
 
-  if (!cur_param) return PARSE_ERROR_MISSING_ADDRESS;
+  if (!cur_param)
+    return PARSE_ERROR_MISSING_ADDRESS;
 
   fixed_array = g_variant_get_fixed_array(cur_param, &n_elements, sizeof(guchar));
   g_variant_unref(cur_param);
@@ -99,7 +100,7 @@ static int parse_address(GVariantDict* cur_server_dict, server_uri_t* cur_server
   return PARSE_ERROR_NONE;
 }
 
-static int parse_port(GVariant* cur_param, server_uri_t* cur_server) {
+static int parse_port(GVariant *cur_param, server_uri_t *cur_server) {
   gint32 raw_port;
 
   g_variant_get(cur_param, "i", &raw_port);
@@ -108,15 +109,15 @@ static int parse_port(GVariant* cur_param, server_uri_t* cur_server) {
   }
 
   if (cur_server->address.ss_family == AF_INET) {
-    ((struct sockaddr_in*)&cur_server->address)->sin_port = htons((uint16_t)raw_port);
+    ((struct sockaddr_in *)&cur_server->address)->sin_port = htons((uint16_t)raw_port);
   } else {
-    ((struct sockaddr_in6*)&cur_server->address)->sin6_port = htons((uint16_t)raw_port);
+    ((struct sockaddr_in6 *)&cur_server->address)->sin6_port = htons((uint16_t)raw_port);
   }
 
   return PARSE_ERROR_NONE;
 }
 
-static int parse_priority(GVariant* cur_param, server_uri_t* cur_server) {
+static int parse_priority(GVariant *cur_param, server_uri_t *cur_server) {
   gint32 raw_priority;
 
   g_variant_get(cur_param, "i", &raw_priority);
@@ -124,20 +125,21 @@ static int parse_priority(GVariant* cur_param, server_uri_t* cur_server) {
   return PARSE_ERROR_NONE;
 }
 
-static int parse_protocol(GVariant* cur_param, server_uri_t* cur_server) {
-  const gchar* protocol_str;
+static int parse_protocol(GVariant *cur_param, server_uri_t *cur_server) {
+  const gchar *protocol_str;
 
   g_variant_get(cur_param, "&s", &protocol_str);
 
   cur_server->protocol = protocol_from_nstring(protocol_str, strlen(protocol_str));
 
-  if (cur_server->protocol == DNS_PROTOCOLS_END) return PARSE_ERROR_INVALID_PROTOCOL;
+  if (cur_server->protocol == DNS_PROTOCOLS_END)
+    return PARSE_ERROR_INVALID_PROTOCOL;
 
   return PARSE_ERROR_NONE;
 }
 
-static int parse_interface(GVariant* cur_param, server_uri_t* cur_server) {
-  const gchar* interface_str;
+static int parse_interface(GVariant *cur_param, server_uri_t *cur_server) {
+  const gchar *interface_str;
 
   g_variant_get(cur_param, "&s", &interface_str);
   if (strlen(interface_str) >= IFNAMSIZ) {
@@ -147,7 +149,7 @@ static int parse_interface(GVariant* cur_param, server_uri_t* cur_server) {
   return PARSE_ERROR_NONE;
 }
 
-static int parse_dnssec(GVariant* cur_param, server_uri_t* cur_server) {
+static int parse_dnssec(GVariant *cur_param, server_uri_t *cur_server) {
   gboolean dnssec_val;
   g_variant_get(cur_param, "b", &dnssec_val);
   cur_server->dnssec = dnssec_val ? 1 : 0;
@@ -155,60 +157,63 @@ static int parse_dnssec(GVariant* cur_param, server_uri_t* cur_server) {
   return PARSE_ERROR_NONE;
 }
 
-static int parse_ca(GVariant* cur_param, server_uri_t* cur_server) {
-  const gchar* ca_str;
+static int parse_ca(GVariant *cur_param, server_uri_t *cur_server) {
+  const gchar *ca_str;
 
   g_variant_get(cur_param, "&s", &ca_str);
   cur_server->certification_authority = strdup(ca_str);
-  if (!cur_server->certification_authority) return PARSE_ERROR_OOM;
+  if (!cur_server->certification_authority)
+    return PARSE_ERROR_OOM;
 
   return PARSE_ERROR_NONE;
 }
 
-static int parse_name(GVariant* cur_param, server_uri_t* cur_server) {
-  const gchar* name_str;
+static int parse_name(GVariant *cur_param, server_uri_t *cur_server) {
+  const gchar *name_str;
 
   g_variant_get(cur_param, "&s", &name_str);
   cur_server->name = strdup(name_str);
-  if (!cur_server->name) return PARSE_ERROR_OOM;
+  if (!cur_server->name)
+    return PARSE_ERROR_OOM;
 
   return PARSE_ERROR_NONE;
 }
 
-static int save_domains(GVariant* cur_param, GList** where) {
+static int save_domains(GVariant *cur_param, GList **where) {
   GVariantIter iter;
-  gchar* domain_str;
-  uint8_t* domain_idn;
+  gchar *domain_str;
+  uint8_t *domain_idn;
 
   g_variant_iter_init(&iter, cur_param);
   while (g_variant_iter_next(&iter, "&s", &domain_str)) {
     if (strstr(domain_str, "..") ||
-        idn2_lookup_u8((uint8_t*)domain_str, &domain_idn, IDN2_NFC_INPUT) != IDN2_OK) {
+        idn2_lookup_u8((uint8_t *)domain_str, &domain_idn, IDN2_NFC_INPUT) != IDN2_OK) {
       return PARSE_ERROR_INVALID_DOMAIN;
     }
 
-    *where = g_list_append(*where, (char*)domain_idn);
+    *where = g_list_append(*where, (char *)domain_idn);
   }
 
   return PARSE_ERROR_NONE;
 }
 
-static int parse_domains(GVariant* cur_param, server_uri_t* cur_server) {
+static int parse_domains(GVariant *cur_param, server_uri_t *cur_server) {
   return save_domains(cur_param, &cur_server->routing_domains);
 }
 
-static int parse_search(GVariant* cur_param, server_uri_t* cur_server) {
+static int parse_search(GVariant *cur_param, server_uri_t *cur_server) {
   return save_domains(cur_param, &cur_server->search_domains);
 }
 
-static int parse_networks(GVariant* cur_param, server_uri_t* cur_server) {
+static int parse_networks(GVariant *cur_param, server_uri_t *cur_server) {
   GVariantIter iter;
-  gchar* network_str;
-  network_address_t* net;
+  gchar *network_str;
+  network_address_t *net;
 
   g_variant_iter_init(&iter, cur_param);
   while (g_variant_iter_next(&iter, "&s", &network_str)) {
-    if (!(net = malloc(sizeof(network_address_t)))) return PARSE_ERROR_OOM;
+    if (!(net = malloc(sizeof(network_address_t))))
+      return PARSE_ERROR_OOM;
 
     if (network_address_t_from_string(network_str, net) != 0) {
       free(net);
@@ -219,23 +224,23 @@ static int parse_networks(GVariant* cur_param, server_uri_t* cur_server) {
   return PARSE_ERROR_NONE;
 }
 
-static GVariant* handle_update_call(GVariant* parameters, fsm_context_t* ctx) {
+static GVariant *handle_update_call(GVariant *parameters, fsm_context_t *ctx) {
   guint32 mode;
-  GVariant* cur_server_params;
-  GVariant* result;
-  GVariantIter* servers_iter;
+  GVariant *cur_server_params;
+  GVariant *result;
+  GVariantIter *servers_iter;
   GVariantDict cur_server_dict;
-  char* domain_dup;
-  server_uri_t* cur_server = NULL;
-  GVariant* cur_param = NULL;
-  GList* parsed_servers = NULL;
+  char *domain_dup;
+  server_uri_t *cur_server = NULL;
+  GVariant *cur_param = NULL;
+  GList *parsed_servers = NULL;
   int parse_error = PARSE_ERROR_NONE;
   int field_error = 0;
 
   struct {
-    const char* key;
-    const GVariantType* type;
-    int (*parser)(GVariant*, server_uri_t*);
+    const char *key;
+    const GVariantType *type;
+    int (*parser)(GVariant *, server_uri_t *);
   } key_type_parser[] = {{"port", G_VARIANT_TYPE_INT32, parse_port},
                          {"priority", G_VARIANT_TYPE_INT32, parse_priority},
                          {"protocol", G_VARIANT_TYPE_STRING, parse_protocol},
@@ -306,14 +311,15 @@ static GVariant* handle_update_call(GVariant* parameters, fsm_context_t* ctx) {
     set_default_port(&cur_server->address, cur_server->protocol != DNS_TLS ? 53 : 853);
 
     gboolean duplicate = FALSE;
-    for (GList* l = parsed_servers; l != NULL; l = l->next) {
-      server_uri_t* existing = (server_uri_t*)l->data;
+    for (GList *l = parsed_servers; l != NULL; l = l->next) {
+      server_uri_t *existing = (server_uri_t *)l->data;
       if (are_ips_equal(&cur_server->address, &existing->address)) {
         if (g_strcmp0(cur_server->interface, existing->interface) != 0) {
           char addr_str[INET6_ADDRSTRLEN];
           ip_to_str(&cur_server->address, addr_str);
           dnsconfd_log(LOG_NOTICE, ctx->config,
-                       "Ignoring server %s on interface %s because it is already present on "
+                       "Ignoring server %s on interface %s because it is "
+                       "already present on "
                        "interface %s",
                        addr_str, cur_server->interface, existing->interface);
           duplicate = TRUE;
@@ -338,10 +344,10 @@ static GVariant* handle_update_call(GVariant* parameters, fsm_context_t* ctx) {
     ctx->new_dynamic_servers = parsed_servers;
     ctx->resolution_mode = mode;
     if (state_transition(ctx, EVENT_UPDATE)) {
-      dnsconfd_log(
-          LOG_ERR, ctx->config,
-          "Update resulted in unexpected state of FSM, please report bug. Will immediately "
-          "stop to prevent any damage");
+      dnsconfd_log(LOG_ERR, ctx->config,
+                   "Update resulted in unexpected state of FSM, please report "
+                   "bug. Will immediately "
+                   "stop to prevent any damage");
       ctx->exit_code = EXIT_FSM_FAILURE;
       g_main_loop_quit(ctx->main_loop);
     }
@@ -352,15 +358,15 @@ static GVariant* handle_update_call(GVariant* parameters, fsm_context_t* ctx) {
   return result;
 }
 
-static json_t* construct_cache_config_status(GHashTable* current_unbound_domain_to_servers) {
+static json_t *construct_cache_config_status(GHashTable *current_unbound_domain_to_servers) {
   GHashTableIter iter;
   gpointer key, value;
-  json_t* new_object;
-  json_t* servers_arr;
-  server_uri_t* cur_server;
+  json_t *new_object;
+  json_t *servers_arr;
+  server_uri_t *cur_server;
   char addr_str[INET6_ADDRSTRLEN];
   uint16_t port;
-  GString* uri_str = g_string_new_len(NULL, 128);
+  GString *uri_str = g_string_new_len(NULL, 128);
 
   // Cache config
   new_object = json_object();
@@ -368,14 +374,14 @@ static json_t* construct_cache_config_status(GHashTable* current_unbound_domain_
     g_hash_table_iter_init(&iter, current_unbound_domain_to_servers);
     while (g_hash_table_iter_next(&iter, &key, &value)) {
       servers_arr = json_array();
-      for (GList* l = (GList*)value; l != NULL; l = l->next) {
-        cur_server = (server_uri_t*)l->data;
+      for (GList *l = (GList *)value; l != NULL; l = l->next) {
+        cur_server = (server_uri_t *)l->data;
         ip_to_str(&cur_server->address, addr_str);
 
         if (cur_server->address.ss_family == AF_INET) {
-          port = ntohs(((struct sockaddr_in*)&cur_server->address)->sin_port);
+          port = ntohs(((struct sockaddr_in *)&cur_server->address)->sin_port);
         } else {
-          port = ntohs(((struct sockaddr_in6*)&cur_server->address)->sin6_port);
+          port = ntohs(((struct sockaddr_in6 *)&cur_server->address)->sin6_port);
         }
 
         if (cur_server->address.ss_family == AF_INET) {
@@ -401,7 +407,7 @@ static json_t* construct_cache_config_status(GHashTable* current_unbound_domain_
 
         json_array_append_new(servers_arr, json_string(uri_str->str));
       }
-      json_object_set_new(new_object, (char*)key, servers_arr);
+      json_object_set_new(new_object, (char *)key, servers_arr);
     }
   }
 
@@ -409,9 +415,9 @@ static json_t* construct_cache_config_status(GHashTable* current_unbound_domain_
   return new_object;
 }
 
-static json_t* config_to_json(fsm_context_t* ctx) {
-  json_t* root = json_object();
-  json_t* servers_array = json_array();
+static json_t *config_to_json(fsm_context_t *ctx) {
+  json_t *root = json_object();
+  json_t *servers_array = json_array();
 
   // Service
   json_object_set_new(root, "service", json_string("unbound"));
@@ -425,27 +431,28 @@ static json_t* config_to_json(fsm_context_t* ctx) {
   json_object_set_new(root, "state", json_string(fsm_state_t_to_string(ctx->current_state)));
 
   // Servers
-  for (GList* l = ctx->all_servers; l != NULL; l = l->next) {
-    json_array_append_new(servers_array, server_uri_to_json((server_uri_t*)l->data));
+  for (GList *l = ctx->all_servers; l != NULL; l = l->next) {
+    json_array_append_new(servers_array, server_uri_to_json((server_uri_t *)l->data));
   }
   json_object_set_new(root, "servers", servers_array);
 
   return root;
 }
 
-static GVariant* handle_status_call(fsm_context_t* ctx) {
-  json_t* root = config_to_json(ctx);
-  char* json_str = json_dumps(root, 0);
-  GVariant* result = g_variant_new("(s)", json_str);
+static GVariant *handle_status_call(fsm_context_t *ctx) {
+  json_t *root = config_to_json(ctx);
+  char *json_str = json_dumps(root, 0);
+  GVariant *result = g_variant_new("(s)", json_str);
   free(json_str);
   json_decref(root);
   return result;
 }
 
-static GVariant* handle_reload_call(fsm_context_t* ctx) {
+static GVariant *handle_reload_call(fsm_context_t *ctx) {
   if (state_transition(ctx, EVENT_RELOAD)) {
     dnsconfd_log(LOG_ERR, ctx->config,
-                 "Reload resulted in unexpected state of FSM, please report bug. Will immediately "
+                 "Reload resulted in unexpected state of FSM, please report "
+                 "bug. Will immediately "
                  "stop to prevent any damage");
     ctx->exit_code = EXIT_FSM_FAILURE;
     g_main_loop_quit(ctx->main_loop);
@@ -454,12 +461,12 @@ static GVariant* handle_reload_call(fsm_context_t* ctx) {
   return g_variant_new("(s)", "Reload accepted");
 }
 
-static GVariant* handle_get_property(GDBusConnection* connection, const gchar* sender,
-                                     const gchar* object_path, const gchar* interface_name,
-                                     const gchar* property_name, GError** error,
+static GVariant *handle_get_property(GDBusConnection *connection, const gchar *sender,
+                                     const gchar *object_path, const gchar *interface_name,
+                                     const gchar *property_name, GError **error,
                                      gpointer user_data) {
-  fsm_context_t* ctx = (fsm_context_t*)user_data;
-  GVariant* ret = NULL;
+  fsm_context_t *ctx = (fsm_context_t *)user_data;
+  GVariant *ret = NULL;
 
   if (g_strcmp0(property_name, "configuration_serial") == 0) {
     ret = g_variant_new_uint32(ctx->current_configuration_serial);
@@ -468,23 +475,24 @@ static GVariant* handle_get_property(GDBusConnection* connection, const gchar* s
   return ret;
 }
 
-static void handle_method_call(GDBusConnection* connection, const gchar* sender,
-                               const gchar* object_path, const gchar* interface_name,
-                               const gchar* method_name, GVariant* parameters,
-                               GDBusMethodInvocation* invocation, gpointer user_data) {
-  fsm_context_t* ctx = (fsm_context_t*)user_data;
+static void handle_method_call(GDBusConnection *connection, const gchar *sender,
+                               const gchar *object_path, const gchar *interface_name,
+                               const gchar *method_name, GVariant *parameters,
+                               GDBusMethodInvocation *invocation, gpointer user_data) {
+  fsm_context_t *ctx = (fsm_context_t *)user_data;
 
   if (g_strcmp0(method_name, "Update") == 0) {
-    GVariant* result = handle_update_call(parameters, ctx);
+    GVariant *result = handle_update_call(parameters, ctx);
     g_dbus_method_invocation_return_value(invocation, result);
   } else if (g_strcmp0(method_name, "Status") == 0) {
-    GVariant* result = handle_status_call(ctx);
+    GVariant *result = handle_status_call(ctx);
     g_dbus_method_invocation_return_value(invocation, result);
   } else if (g_strcmp0(method_name, "Reload") == 0) {
-    GVariant* result = handle_reload_call(ctx);
+    GVariant *result = handle_reload_call(ctx);
     g_dbus_method_invocation_return_value(invocation, result);
   } else {
-    // Handle unknown methods (good practice, though improbable with introspection)
+    // Handle unknown methods (good practice, though improbable with
+    // introspection)
     g_dbus_method_invocation_return_error(invocation, G_IO_ERROR, G_IO_ERROR_NOT_SUPPORTED,
                                           "Method %s not implemented", method_name);
   }
@@ -495,15 +503,15 @@ static void handle_method_call(GDBusConnection* connection, const gchar* sender,
  */
 static const GDBusInterfaceVTable interface_vtable = {
     handle_method_call,
-    handle_get_property,  // get_property
-    NULL                  // set_property
+    handle_get_property, // get_property
+    NULL                 // set_property
 };
 
 /* --- Bus Lifecycle Callbacks --- */
 
-static void on_bus_acquired(GDBusConnection* connection, const gchar* name, gpointer user_data) {
+static void on_bus_acquired(GDBusConnection *connection, const gchar *name, gpointer user_data) {
   guint registration_id;
-  fsm_context_t* ctx = user_data;
+  fsm_context_t *ctx = user_data;
 
   ctx->dbus_connection = connection;
   // Parse the XML data
@@ -513,37 +521,38 @@ static void on_bus_acquired(GDBusConnection* connection, const gchar* name, gpoi
   // We register the FIRST interface defined in the XML node info
   registration_id = g_dbus_connection_register_object(
       connection, "/com/redhat/dnsconfd", ctx->introspection_data->interfaces[0], &interface_vtable,
-      user_data,  // user_data
-      NULL,       // user_data_free_func
-      NULL        // GError
+      user_data, // user_data
+      NULL,      // user_data_free_func
+      NULL       // GError
   );
 
-  dnsconfd_log(LOG_NOTICE, ((fsm_context_t*)user_data)->config,
+  dnsconfd_log(LOG_NOTICE, ((fsm_context_t *)user_data)->config,
                "Bus acquired, object registered at /com/redhat/dnsconfd (ID: %u)\n",
                registration_id);
 }
 
-static void on_name_acquired(GDBusConnection* connection, const gchar* name, gpointer user_data) {
-  fsm_context_t* ctx = (fsm_context_t*)user_data;
+static void on_name_acquired(GDBusConnection *connection, const gchar *name, gpointer user_data) {
+  fsm_context_t *ctx = (fsm_context_t *)user_data;
   dnsconfd_log(LOG_NOTICE, ctx->config, "Acquired the name %s\n", name);
 
   if (state_transition(ctx, EVENT_KICKOFF)) {
     dnsconfd_log(LOG_ERR, ctx->config,
-                 "Start resulted in unexpected state of FSM, please report bug. Will immediately "
+                 "Start resulted in unexpected state of FSM, please report "
+                 "bug. Will immediately "
                  "stop to prevent any damage");
     ctx->exit_code = EXIT_FSM_FAILURE;
     g_main_loop_quit(ctx->main_loop);
   }
 }
 
-static void on_name_lost(GDBusConnection* connection, const gchar* name, gpointer user_data) {
-  fsm_context_t* ctx = (fsm_context_t*)user_data;
+static void on_name_lost(GDBusConnection *connection, const gchar *name, gpointer user_data) {
+  fsm_context_t *ctx = (fsm_context_t *)user_data;
   dnsconfd_log(LOG_ERR, ctx->config, "Lost the name %s\n", name);
   ctx->exit_code = EXIT_DBUS_FAILURE;
   g_main_loop_quit(ctx->main_loop);
 }
 
-static void clean_context(fsm_context_t* ctx) {
+static void clean_context(fsm_context_t *ctx) {
   if (ctx->current_dynamic_servers) {
     g_list_free_full(ctx->current_dynamic_servers, server_uri_t_destroy);
   }
@@ -577,10 +586,11 @@ static void clean_context(fsm_context_t* ctx) {
 }
 
 static gboolean on_sigterm(gpointer user_data) {
-  fsm_context_t* ctx = (fsm_context_t*)user_data;
+  fsm_context_t *ctx = (fsm_context_t *)user_data;
   if (state_transition(ctx, EVENT_STOP)) {
     dnsconfd_log(LOG_ERR, ctx->config,
-                 "Stop resulted in unexpected state of FSM, please report bug. Will immediately "
+                 "Stop resulted in unexpected state of FSM, please report bug. "
+                 "Will immediately "
                  "stop to prevent any damage");
     ctx->exit_code = EXIT_FSM_FAILURE;
     g_main_loop_quit(ctx->main_loop);
@@ -588,8 +598,8 @@ static gboolean on_sigterm(gpointer user_data) {
   return G_SOURCE_REMOVE;
 }
 
-int dbus_server_run(dnsconfd_config_t* config) {
-  GMainLoop* loop;
+int dbus_server_run(dnsconfd_config_t *config) {
+  GMainLoop *loop;
   guint owner_id;
   fsm_context_t ctx;
 

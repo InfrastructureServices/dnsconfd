@@ -18,8 +18,8 @@ typedef struct {
  * @param addr Pointer to the network_address_t structure to populate.
  * @return 0 on success, -1 on failure (e.g., invalid format, missing prefix).
  */
-int network_address_t_from_string(const char* address_string, network_address_t* addr);
+int network_address_t_from_string(const char *address_string, network_address_t *addr);
 
-int network_address_t_to_reverse_dns(network_address_t* addr, char result[73]);
+int network_address_t_to_reverse_dns(network_address_t *addr, char result[73]);
 
 #endif
