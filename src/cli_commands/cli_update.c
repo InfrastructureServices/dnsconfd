@@ -225,7 +225,7 @@ int cli_update_command(dnsconfd_config_t* config) {
     goto finish;
   }
 
-  g_variant_get(result, "(us)", &serial, &msg);
+  g_variant_get(result, "(u&s)", &serial, &msg);
 
   printf("%s (Serial: %u)\n", msg, serial);
 

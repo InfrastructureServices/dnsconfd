@@ -423,6 +423,10 @@ static int compare_servers(GList* a, GList* b) {
   return 0;
 }
 
+static void destroy_hash_table_cloned_list(gpointer pointer) {
+  g_list_free_full((GList*)pointer, server_uri_t_destroy);
+}
+
 // -1 error, 0 continue, 1 reload
 int update(fsm_context_t* ctx, GHashTable** result, const char** error_string) {
   GList* used_servers;
@@ -431,13 +435,14 @@ int update(fsm_context_t* ctx, GHashTable** result, const char** error_string) {
   GHashTableIter iter;
   gpointer key, value;
   int ca_comparison;
-  GHashTable* new_unbound_domain_to_servers =
-      g_hash_table_new_full(g_str_hash, g_str_equal, g_free, (GDestroyNotify)g_list_free);
+  GHashTable* new_unbound_domain_to_servers = g_hash_table_new_full(
+      g_str_hash, g_str_equal, g_free, (GDestroyNotify)destroy_hash_table_cloned_list);
 
   g_hash_table_iter_init(&iter, ctx->current_domain_to_servers);
   while (g_hash_table_iter_next(&iter, &key, &value)) {
     used_servers = get_used_servers((GList*)value, ctx->resolution_mode, key);
     if (!used_servers) continue;
+    server_uri_t_list_replace_elements_with_copies(used_servers);
     g_hash_table_insert(new_unbound_domain_to_servers, g_strdup(key), used_servers);
   }
 

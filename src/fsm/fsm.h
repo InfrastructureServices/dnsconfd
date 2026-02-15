@@ -40,6 +40,7 @@ typedef struct {
   GHashTable* current_domain_to_servers;
   GHashTable* current_unbound_domain_to_servers;
   GDBusConnection* dbus_connection;
+  GDBusNodeInfo* introspection_data;
   GString* resolv_conf_backup;
   char* effective_ca;
   GMainLoop* main_loop;
