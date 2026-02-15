@@ -34,3 +34,5 @@ executable(
     ],
     install : true
 )
+
+subdir('unittests')

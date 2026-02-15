@@ -12,6 +12,7 @@ Source1:        dnsconfd.sysusers
 
 BuildRequires:  pkgconfig(liburiparser) pkgconfig(jansson) pkgconfig(yaml-0.1)
 BuildRequires:  pkgconfig(glib-2.0) pkgconfig(libsystemd) pkgconfig(gio-2.0) pkgconfig(libidn2)
+BuildRequires:  pkgconfig(check)
 BuildRequires:  systemd
 BuildRequires:  systemd-rpm-macros
 BuildRequires:  meson gcc
@@ -172,6 +173,7 @@ pushd micro-dnsconfd
 popd
 
 %check
+%meson_test
 pushd micro-dnsconfd
 %ctest
 popd
