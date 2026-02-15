@@ -9,7 +9,7 @@
 #include "ip_utilities.h"
 #include "network_address.h"
 
-static void server_uri_t_dealloc_members(server_uri_t* uri) {
+static void server_uri_t_dealloc_members(server_uri_t *uri) {
   if (uri->certification_authority) {
     free(uri->certification_authority);
   }
@@ -27,12 +27,12 @@ static void server_uri_t_dealloc_members(server_uri_t* uri) {
   }
 }
 
-static void server_uri_t_init(server_uri_t* uri) {
+static void server_uri_t_init(server_uri_t *uri) {
   *uri = (server_uri_t){0};
   uri->dnssec = 1;
 }
 
-dns_protocol_t protocol_from_nstring(const char* string, size_t n) {
+dns_protocol_t protocol_from_nstring(const char *string, size_t n) {
   if (n != 7) {
     return DNS_PROTOCOLS_END;
   } else if (memcmp(string, "dns+udp", 6) == 0) {
@@ -46,30 +46,30 @@ dns_protocol_t protocol_from_nstring(const char* string, size_t n) {
   return DNS_PROTOCOLS_END;
 }
 
-const char* dns_protocol_t_to_string(dns_protocol_t protocol) {
+const char *dns_protocol_t_to_string(dns_protocol_t protocol) {
   switch (protocol) {
-    case DNS_UDP:
-      return "dns+udp";
-      break;
-    case DNS_TCP:
-      return "dns+tcp";
-      break;
-    case DNS_TLS:
-      return "dns+tls";
-      break;
-    default:
-      return "unknown";
-      break;
+  case DNS_UDP:
+    return "dns+udp";
+    break;
+  case DNS_TCP:
+    return "dns+tcp";
+    break;
+  case DNS_TLS:
+    return "dns+tls";
+    break;
+  default:
+    return "unknown";
+    break;
   }
 }
 
-static int parse_query(UriUriA* parsed_uri, server_uri_t* uri) {
-  UriQueryListA* queryList;
+static int parse_query(UriUriA *parsed_uri, server_uri_t *uri) {
+  UriQueryListA *queryList;
   int itemCount;
   long temp_long;
-  char* endptr;
-  network_address_t* new_net_address;
-  char* duplicated_string;
+  char *endptr;
+  network_address_t *new_net_address;
+  char *duplicated_string;
 
   if (uriDissectQueryMallocA(&queryList, &itemCount, parsed_uri->query.first,
                              parsed_uri->query.afterLast) != URI_SUCCESS) {
@@ -77,7 +77,7 @@ static int parse_query(UriUriA* parsed_uri, server_uri_t* uri) {
     return -1;
   }
 
-  for (UriQueryListA* queryListNode = queryList; queryListNode != NULL;
+  for (UriQueryListA *queryListNode = queryList; queryListNode != NULL;
        queryListNode = queryListNode->next) {
     if (queryListNode->value == NULL) {
       goto error;
@@ -136,13 +136,13 @@ error:
   return -1;
 }
 
-int server_uri_t_init_from_string(char* uri_string, server_uri_t* uri) {
+int server_uri_t_init_from_string(char *uri_string, server_uri_t *uri) {
   char ip_str[INET6_ADDRSTRLEN];
   UriUriA parsed_uri;
   size_t temp_length;
   long temp_long;
-  struct sockaddr_in* s4;
-  struct sockaddr_in6* s6;
+  struct sockaddr_in *s4;
+  struct sockaddr_in6 *s6;
 
   if (uriParseSingleUriA(&parsed_uri, uri_string, NULL) != URI_SUCCESS) {
     return -1;
@@ -158,8 +158,8 @@ int server_uri_t_init_from_string(char* uri_string, server_uri_t* uri) {
     return -1;
   }
 
-  s4 = (struct sockaddr_in*)&uri->address;
-  s6 = (struct sockaddr_in6*)&uri->address;
+  s4 = (struct sockaddr_in *)&uri->address;
+  s6 = (struct sockaddr_in6 *)&uri->address;
 
   temp_length = parsed_uri.hostText.afterLast - parsed_uri.hostText.first;
   if (temp_length > INET6_ADDRSTRLEN) {
@@ -197,18 +197,18 @@ int server_uri_t_init_from_string(char* uri_string, server_uri_t* uri) {
   return 0;
 }
 
-void server_uri_t_destroy(void* data) {
-  server_uri_t* uri = (server_uri_t*)data;
+void server_uri_t_destroy(void *data) {
+  server_uri_t *uri = (server_uri_t *)data;
   if (uri) {
     server_uri_t_dealloc_members(uri);
     free(uri);
   }
 }
 
-static int parse_json_port_field(json_t* field, server_uri_t* uri) {
+static int parse_json_port_field(json_t *field, server_uri_t *uri) {
   json_int_t numeric_value;
-  struct sockaddr_in* s4 = (struct sockaddr_in*)&uri->address;
-  struct sockaddr_in6* s6 = (struct sockaddr_in6*)&uri->address;
+  struct sockaddr_in *s4 = (struct sockaddr_in *)&uri->address;
+  struct sockaddr_in6 *s6 = (struct sockaddr_in6 *)&uri->address;
 
   if (!json_is_integer(field)) {
     return -1;
@@ -225,7 +225,7 @@ static int parse_json_port_field(json_t* field, server_uri_t* uri) {
   return 0;
 }
 
-static int parse_json_address_field(json_t* field, server_uri_t* uri) {
+static int parse_json_address_field(json_t *field, server_uri_t *uri) {
   if (field == NULL || !json_is_string(field)) {
     return -1;
   }
@@ -233,7 +233,7 @@ static int parse_json_address_field(json_t* field, server_uri_t* uri) {
   return parse_ip_str(json_string_value(field), &uri->address);
 }
 
-static int parse_json_protocol_field(json_t* field, server_uri_t* uri) {
+static int parse_json_protocol_field(json_t *field, server_uri_t *uri) {
   if (!json_is_string(field)) {
     return -1;
   }
@@ -245,7 +245,7 @@ static int parse_json_protocol_field(json_t* field, server_uri_t* uri) {
   return 0;
 }
 
-static int parse_json_priority_field(json_t* field, server_uri_t* uri) {
+static int parse_json_priority_field(json_t *field, server_uri_t *uri) {
   json_int_t numeric_value;
 
   if (!json_is_integer(field)) {
@@ -259,8 +259,8 @@ static int parse_json_priority_field(json_t* field, server_uri_t* uri) {
   return 0;
 }
 
-static int parse_json_interface_field(json_t* field, server_uri_t* uri) {
-  const char* str_val;
+static int parse_json_interface_field(json_t *field, server_uri_t *uri) {
+  const char *str_val;
 
   if (!json_is_string(field)) {
     return -1;
@@ -273,7 +273,7 @@ static int parse_json_interface_field(json_t* field, server_uri_t* uri) {
   return 0;
 }
 
-static int parse_json_dnssec_field(json_t* field, server_uri_t* uri) {
+static int parse_json_dnssec_field(json_t *field, server_uri_t *uri) {
   if (json_is_boolean(field)) {
     uri->dnssec = json_is_true(field) ? 1 : 0;
   } else if (json_is_integer(field)) {
@@ -288,7 +288,7 @@ static int parse_json_dnssec_field(json_t* field, server_uri_t* uri) {
   return 0;
 }
 
-static int parse_json_ca_field(json_t* field, server_uri_t* uri) {
+static int parse_json_ca_field(json_t *field, server_uri_t *uri) {
   if (!json_is_string(field)) {
     return -1;
   }
@@ -299,7 +299,7 @@ static int parse_json_ca_field(json_t* field, server_uri_t* uri) {
   return 0;
 }
 
-static int parse_json_name_field(json_t* field, server_uri_t* uri) {
+static int parse_json_name_field(json_t *field, server_uri_t *uri) {
   if (!json_is_string(field)) {
     return -1;
   }
@@ -310,10 +310,10 @@ static int parse_json_name_field(json_t* field, server_uri_t* uri) {
   return 0;
 }
 
-static int parse_json_string_list(json_t* field, GList** list) {
+static int parse_json_string_list(json_t *field, GList **list) {
   size_t d_idx;
-  json_t* d_val;
-  char* d_dup;
+  json_t *d_val;
+  char *d_dup;
 
   if (!json_is_array(field)) {
     return -1;
@@ -332,18 +332,18 @@ static int parse_json_string_list(json_t* field, GList** list) {
   return 0;
 }
 
-static int parse_json_domains_field(json_t* field, server_uri_t* uri) {
+static int parse_json_domains_field(json_t *field, server_uri_t *uri) {
   return parse_json_string_list(field, &uri->routing_domains);
 }
 
-static int parse_json_search_domains_field(json_t* field, server_uri_t* uri) {
+static int parse_json_search_domains_field(json_t *field, server_uri_t *uri) {
   return parse_json_string_list(field, &uri->search_domains);
 }
 
-static int parse_json_networks_field(json_t* field, server_uri_t* uri) {
+static int parse_json_networks_field(json_t *field, server_uri_t *uri) {
   size_t n_idx;
-  json_t* n_val;
-  network_address_t* net;
+  json_t *n_val;
+  network_address_t *net;
 
   if (!json_is_array(field)) {
     return -1;
@@ -357,7 +357,7 @@ static int parse_json_networks_field(json_t* field, server_uri_t* uri) {
     if (!net) {
       return -1;
     }
-    if (network_address_t_from_string((char*)json_string_value(n_val), net) != 0) {
+    if (network_address_t_from_string((char *)json_string_value(n_val), net) != 0) {
       free(net);
       return -1;
     }
@@ -366,30 +366,35 @@ static int parse_json_networks_field(json_t* field, server_uri_t* uri) {
   return 0;
 }
 
-GList* server_uri_t_list_from_json(const char* server_list) {
-  json_t* root;
+GList *server_uri_t_list_from_json(const char *server_list) {
+  json_t *root;
   json_error_t error;
-  GList* list = NULL;
+  GList *list = NULL;
   size_t index;
-  json_t* value;
-  server_uri_t* uri;
-  json_t* field;
+  json_t *value;
+  server_uri_t *uri;
+  json_t *field;
   size_t i;
 
   struct {
-    const char* key;
-    int (*parser)(json_t*, server_uri_t*);
+    const char *key;
+    int (*parser)(json_t *, server_uri_t *);
   } optional_fields[] = {
-      {"port", parse_json_port_field},         {"protocol", parse_json_protocol_field},
-      {"priority", parse_json_priority_field}, {"interface", parse_json_interface_field},
-      {"dnssec", parse_json_dnssec_field},     {"ca", parse_json_ca_field},
-      {"name", parse_json_name_field},         {"routing_domains", parse_json_domains_field},
+      {"port", parse_json_port_field},
+      {"protocol", parse_json_protocol_field},
+      {"priority", parse_json_priority_field},
+      {"interface", parse_json_interface_field},
+      {"dnssec", parse_json_dnssec_field},
+      {"ca", parse_json_ca_field},
+      {"name", parse_json_name_field},
+      {"routing_domains", parse_json_domains_field},
       {"search_domains", parse_json_search_domains_field},
       {"networks", parse_json_networks_field},
   };
 
   root = json_loads(server_list, 0, &error);
-  if (!root) return NULL;
+  if (!root)
+    return NULL;
 
   if (!json_is_array(root)) {
     json_decref(root);
@@ -413,8 +418,8 @@ GList* server_uri_t_list_from_json(const char* server_list) {
       goto error;
     }
 
-    // parsing of optional fields is the same for all of them, that is why we have
-    // helping struct to list their keys and parsing functions
+    // parsing of optional fields is the same for all of them, that is why we
+    // have helping struct to list their keys and parsing functions
     for (i = 0; i < sizeof(optional_fields) / sizeof(optional_fields[0]); i++) {
       field = json_object_get(value, optional_fields[i].key);
       if (field != NULL && optional_fields[i].parser(field, uri) != 0) {
@@ -436,8 +441,8 @@ error:
 }
 
 static gint compare_servers(gconstpointer a, gconstpointer b) {
-  server_uri_t* server_a = (server_uri_t*)a;
-  server_uri_t* server_b = (server_uri_t*)b;
+  server_uri_t *server_a = (server_uri_t *)a;
+  server_uri_t *server_b = (server_uri_t *)b;
   int temp;
 
   if (server_a == NULL) {
@@ -458,8 +463,8 @@ static gint compare_servers(gconstpointer a, gconstpointer b) {
   return temp;
 }
 
-static void append_server(GHashTable* hash_table, const char* domain, server_uri_t* server) {
-  GList* server_sublist = (GList*)g_hash_table_lookup(hash_table, domain);
+static void append_server(GHashTable *hash_table, const char *domain, server_uri_t *server) {
+  GList *server_sublist = (GList *)g_hash_table_lookup(hash_table, domain);
 
   if (server_sublist) {
     // server_sublist is never NULL here, but to prevent warnings assign return
@@ -471,14 +476,14 @@ static void append_server(GHashTable* hash_table, const char* domain, server_uri
   }
 }
 
-GHashTable* server_list_to_hash_table(GList* server_list) {
-  GHashTable* hash_table;
-  GList* server_iter;
-  GList* sorted_list;
-  server_uri_t* server;
-  GList* domain_iter;
-  const char* domain;
-  network_address_t* network;
+GHashTable *server_list_to_hash_table(GList *server_list) {
+  GHashTable *hash_table;
+  GList *server_iter;
+  GList *sorted_list;
+  server_uri_t *server;
+  GList *domain_iter;
+  const char *domain;
+  network_address_t *network;
   GHashTableIter iter;
   gpointer value;
   char domain_buffer[73];
@@ -487,17 +492,17 @@ GHashTable* server_list_to_hash_table(GList* server_list) {
 
   // Iterate through all servers in the input list
   for (server_iter = server_list; server_iter != NULL; server_iter = server_iter->next) {
-    server = (server_uri_t*)server_iter->data;
+    server = (server_uri_t *)server_iter->data;
 
     // Iterate through all routing domains of this server
     for (domain_iter = server->routing_domains; domain_iter != NULL;
          domain_iter = domain_iter->next) {
-      domain = (const char*)domain_iter->data;
+      domain = (const char *)domain_iter->data;
       append_server(hash_table, domain, server);
     }
 
     for (domain_iter = server->networks; domain_iter != NULL; domain_iter = domain_iter->next) {
-      network = (network_address_t*)domain_iter->data;
+      network = (network_address_t *)domain_iter->data;
       if (network_address_t_to_reverse_dns(network, domain_buffer)) {
         g_hash_table_destroy(hash_table);
         return NULL;
@@ -511,17 +516,17 @@ GHashTable* server_list_to_hash_table(GList* server_list) {
   while (g_hash_table_iter_next(&iter, NULL, &value)) {
     // the copy here is neccessary, because g_hash_table_iter_replace frees
     // the original list
-    sorted_list = g_list_sort(g_list_copy((GList*)value), compare_servers);
+    sorted_list = g_list_sort(g_list_copy((GList *)value), compare_servers);
     g_hash_table_iter_replace(&iter, sorted_list);
   }
 
   return hash_table;
 }
 
-json_t* server_uri_to_json(server_uri_t* server) {
+json_t *server_uri_to_json(server_uri_t *server) {
   char addr_str[INET6_ADDRSTRLEN];
   uint16_t port;
-  json_t* obj = json_object();
+  json_t *obj = json_object();
 
   // Address
   ip_to_str(&server->address, addr_str);
@@ -530,9 +535,9 @@ json_t* server_uri_to_json(server_uri_t* server) {
 
   // Port
   if (server->address.ss_family == AF_INET) {
-    port = ntohs(((struct sockaddr_in*)&server->address)->sin_port);
+    port = ntohs(((struct sockaddr_in *)&server->address)->sin_port);
   } else {
-    port = ntohs(((struct sockaddr_in6*)&server->address)->sin6_port);
+    port = ntohs(((struct sockaddr_in6 *)&server->address)->sin6_port);
   }
   json_object_set_new(obj, "port", json_integer(port));
 
@@ -543,16 +548,16 @@ json_t* server_uri_to_json(server_uri_t* server) {
     json_object_set_new(obj, "name", json_null());
 
   // Routing domains
-  json_t* domains_arr = json_array();
-  for (GList* l = server->routing_domains; l != NULL; l = l->next) {
-    json_array_append_new(domains_arr, json_string((char*)l->data));
+  json_t *domains_arr = json_array();
+  for (GList *l = server->routing_domains; l != NULL; l = l->next) {
+    json_array_append_new(domains_arr, json_string((char *)l->data));
   }
   json_object_set_new(obj, "routing_domains", domains_arr);
 
   // Search domains
-  json_t* search_arr = json_array();
-  for (GList* l = server->search_domains; l != NULL; l = l->next) {
-    json_array_append_new(search_arr, json_string((char*)l->data));
+  json_t *search_arr = json_array();
+  for (GList *l = server->search_domains; l != NULL; l = l->next) {
+    json_array_append_new(search_arr, json_string((char *)l->data));
   }
   json_object_set_new(obj, "search_domains", search_arr);
 
@@ -569,10 +574,10 @@ json_t* server_uri_to_json(server_uri_t* server) {
   json_object_set_new(obj, "dnssec", json_boolean(server->dnssec));
 
   // Networks
-  json_t* networks_arr = json_array();
-  for (GList* l = server->networks; l != NULL; l = l->next) {
-    network_address_t* net = (network_address_t*)l->data;
-    char net_str[INET6_ADDRSTRLEN + 5];  // + /prefix
+  json_t *networks_arr = json_array();
+  for (GList *l = server->networks; l != NULL; l = l->next) {
+    network_address_t *net = (network_address_t *)l->data;
+    char net_str[INET6_ADDRSTRLEN + 5]; // + /prefix
     char ip_str[INET6_ADDRSTRLEN];
     ip_to_str(&net->address, ip_str);
     snprintf(net_str, sizeof(net_str), "%s/%d", ip_str, net->prefix);
@@ -583,14 +588,16 @@ json_t* server_uri_to_json(server_uri_t* server) {
   return obj;
 }
 
-static server_uri_t* server_uri_t_copy(const server_uri_t* src) {
-  server_uri_t* dest;
-  GList* l;
+static server_uri_t *server_uri_t_copy(const server_uri_t *src) {
+  server_uri_t *dest;
+  GList *l;
 
-  if (!src) return NULL;
+  if (!src)
+    return NULL;
 
   dest = malloc(sizeof(server_uri_t));
-  if (!dest) return NULL;
+  if (!dest)
+    return NULL;
 
   memset(dest, 0, sizeof(server_uri_t));
 
@@ -602,30 +609,35 @@ static server_uri_t* server_uri_t_copy(const server_uri_t* src) {
 
   if (src->certification_authority) {
     dest->certification_authority = strdup(src->certification_authority);
-    if (!dest->certification_authority) goto error;
+    if (!dest->certification_authority)
+      goto error;
   }
 
   if (src->name) {
     dest->name = strdup(src->name);
-    if (!dest->name) goto error;
+    if (!dest->name)
+      goto error;
   }
 
   for (l = src->routing_domains; l != NULL; l = l->next) {
-    char* copy = strdup((char*)l->data);
-    if (!copy) goto error;
+    char *copy = strdup((char *)l->data);
+    if (!copy)
+      goto error;
     dest->routing_domains = g_list_append(dest->routing_domains, copy);
   }
 
   for (l = src->search_domains; l != NULL; l = l->next) {
-    char* copy = strdup((char*)l->data);
-    if (!copy) goto error;
+    char *copy = strdup((char *)l->data);
+    if (!copy)
+      goto error;
     dest->search_domains = g_list_append(dest->search_domains, copy);
   }
 
   for (l = src->networks; l != NULL; l = l->next) {
-    network_address_t* net_src = (network_address_t*)l->data;
-    network_address_t* net_dest = malloc(sizeof(network_address_t));
-    if (!net_dest) goto error;
+    network_address_t *net_src = (network_address_t *)l->data;
+    network_address_t *net_dest = malloc(sizeof(network_address_t));
+    if (!net_dest)
+      goto error;
     memcpy(net_dest, net_src, sizeof(network_address_t));
     dest->networks = g_list_append(dest->networks, net_dest);
   }
@@ -637,8 +649,8 @@ error:
   return NULL;
 }
 
-void server_uri_t_list_replace_elements_with_copies(GList* list) {
+void server_uri_t_list_replace_elements_with_copies(GList *list) {
   for (; list != NULL; list = list->next) {
-    list->data = server_uri_t_copy((server_uri_t*)list->data);
+    list->data = server_uri_t_copy((server_uri_t *)list->data);
   }
 }

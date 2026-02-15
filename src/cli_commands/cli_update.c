@@ -14,24 +14,25 @@
 
 typedef struct {
   guint32 expected_serial;
-  GMainLoop* loop;
+  GMainLoop *loop;
   gboolean success;
 } UpdateContext;
 
-static void on_properties_changed(GDBusConnection* connection, const gchar* sender_name,
-                                  const gchar* object_path, const gchar* interface_name,
-                                  const gchar* signal_name, GVariant* parameters,
+static void on_properties_changed(GDBusConnection *connection, const gchar *sender_name,
+                                  const gchar *object_path, const gchar *interface_name,
+                                  const gchar *signal_name, GVariant *parameters,
                                   gpointer user_data) {
-  UpdateContext* ctx = (UpdateContext*)user_data;
-  const gchar* interface;
-  GVariant* changed_properties;
+  UpdateContext *ctx = (UpdateContext *)user_data;
+  const gchar *interface;
+  GVariant *changed_properties;
   GVariantIter iter;
-  const gchar* key;
-  GVariant* value;
+  const gchar *key;
+  GVariant *value;
 
   g_variant_get(parameters, "(&sa{sv}*)", &interface, &changed_properties);
 
-  if (g_strcmp0(interface, "com.redhat.dnsconfd.Manager") != 0) return;
+  if (g_strcmp0(interface, "com.redhat.dnsconfd.Manager") != 0)
+    return;
 
   g_variant_iter_init(&iter, changed_properties);
   while (g_variant_iter_next(&iter, "{&sv}", &key, &value)) {
@@ -46,11 +47,11 @@ static void on_properties_changed(GDBusConnection* connection, const gchar* send
 }
 
 static gboolean on_timeout(gpointer user_data) {
-  g_main_loop_quit(((UpdateContext*)user_data)->loop);
+  g_main_loop_quit(((UpdateContext *)user_data)->loop);
   return G_SOURCE_REMOVE;
 }
 
-static void network_address_to_string(network_address_t* net, char* buffer, size_t size) {
+static void network_address_to_string(network_address_t *net, char *buffer, size_t size) {
   char ip_str[INET6_ADDRSTRLEN];
 
   ip_to_str(&net->address, ip_str);
@@ -58,46 +59,46 @@ static void network_address_to_string(network_address_t* net, char* buffer, size
   snprintf(buffer, size, "%s/%d", ip_str, net->prefix);
 }
 
-static void build_string_array(GVariantBuilder* server_dict_builder, GList* list, char* dict_key) {
+static void build_string_array(GVariantBuilder *server_dict_builder, GList *list, char *dict_key) {
   GVariantBuilder domains_builder;
   g_variant_builder_init(&domains_builder, G_VARIANT_TYPE("as"));
   for (; list != NULL; list = list->next) {
-    g_variant_builder_add(&domains_builder, "s", (char*)list->data);
+    g_variant_builder_add(&domains_builder, "s", (char *)list->data);
   }
   g_variant_builder_add(server_dict_builder, "{sv}", dict_key,
                         g_variant_builder_end(&domains_builder));
 }
 
-static void build_networks_array(server_uri_t *server, GVariantBuilder* server_dict_builder) {
+static void build_networks_array(server_uri_t *server, GVariantBuilder *server_dict_builder) {
   GVariantBuilder networks_builder;
-  char net_str[INET6_ADDRSTRLEN + 5];  // +5 for /128
+  char net_str[INET6_ADDRSTRLEN + 5]; // +5 for /128
 
   g_variant_builder_init(&networks_builder, G_VARIANT_TYPE("as"));
-  for (GList* n = server->networks; n != NULL; n = n->next) {
-    network_address_to_string((network_address_t*)n->data, net_str, sizeof(net_str));
+  for (GList *n = server->networks; n != NULL; n = n->next) {
+    network_address_to_string((network_address_t *)n->data, net_str, sizeof(net_str));
     g_variant_builder_add(&networks_builder, "s", net_str);
   }
   g_variant_builder_add(server_dict_builder, "{sv}", "networks",
                         g_variant_builder_end(&networks_builder));
 }
 
-static void build_servers_variant(GList* servers, GVariantBuilder* servers_builder) {
+static void build_servers_variant(GList *servers, GVariantBuilder *servers_builder) {
   GVariantBuilder server_dict_builder;
   char addr_str[INET6_ADDRSTRLEN];
-  const char* proto_str;
-  server_uri_t* server;
+  const char *proto_str;
+  server_uri_t *server;
   in_port_t port = 0;
 
   g_variant_builder_init(servers_builder, G_VARIANT_TYPE("aa{sv}"));
 
   for (; servers != NULL; servers = servers->next) {
-    server = (server_uri_t*)servers->data;
+    server = (server_uri_t *)servers->data;
     g_variant_builder_init(&server_dict_builder, G_VARIANT_TYPE("a{sv}"));
 
     if (server->address.ss_family == AF_INET) {
-      port = ntohs(((struct sockaddr_in*)&server->address)->sin_port);
+      port = ntohs(((struct sockaddr_in *)&server->address)->sin_port);
     } else {
-      port = ntohs(((struct sockaddr_in6*)&server->address)->sin6_port);
+      port = ntohs(((struct sockaddr_in6 *)&server->address)->sin6_port);
     }
 
     ip_to_str(&server->address, addr_str);
@@ -158,11 +159,11 @@ static void build_servers_variant(GList* servers, GVariantBuilder* servers_build
   }
 }
 
-static void wait_for_serial(guint32 serial, GDBusConnection* connection, UpdateContext* ctx) {
-  GVariant* v;
+static void wait_for_serial(guint32 serial, GDBusConnection *connection, UpdateContext *ctx) {
+  GVariant *v;
   guint32 retrieved_serial;
   // Check if we already have the correct serial
-  GVariant* prop_result = g_dbus_connection_call_sync(
+  GVariant *prop_result = g_dbus_connection_call_sync(
       connection, "com.redhat.dnsconfd", "/com/redhat/dnsconfd", "org.freedesktop.DBus.Properties",
       "Get", g_variant_new("(ss)", "com.redhat.dnsconfd.Manager", "configuration_serial"),
       G_VARIANT_TYPE("(v)"), G_DBUS_CALL_FLAGS_NONE, -1, NULL, NULL);
@@ -193,18 +194,19 @@ static void wait_for_serial(guint32 serial, GDBusConnection* connection, UpdateC
   g_main_loop_unref(ctx->loop);
 }
 
-int cli_update_command(dnsconfd_config_t* config) {
-  GDBusConnection* connection;
-  GVariant* result;
-  gchar* msg;
+int cli_update_command(dnsconfd_config_t *config) {
+  GDBusConnection *connection;
+  GVariant *result;
+  gchar *msg;
   GVariantBuilder servers_builder;
   guint subscription_id;
   guint32 serial;
   UpdateContext ctx = {0};
-  GError* error = NULL;
+  GError *error = NULL;
 
   connection = cli_connect_to_dbus();
-  if (!connection) return EXIT_COMMAND_FAILURE;
+  if (!connection)
+    return EXIT_COMMAND_FAILURE;
 
   // Subscribe to PropertiesChanged signal
   subscription_id = g_dbus_connection_signal_subscribe(

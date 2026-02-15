@@ -53,7 +53,7 @@ typedef struct {
 typedef struct {
   dnsconfd_mode_t mode;
   unsigned char json;
-  GList* servers_uris;
+  GList *servers_uris;
 } update_command_options_t;
 
 typedef union {
@@ -69,13 +69,13 @@ typedef enum {
 } config_boolean_t;
 
 typedef struct {
-  const char* file_log;
-  const char* resolv_conf_path;
-  const char* resolver_options;
-  const char* config_file;
-  const char* certification_authority;
-  FILE* opened_log_file;
-  GList* static_servers;
+  const char *file_log;
+  const char *resolv_conf_path;
+  const char *resolver_options;
+  const char *config_file;
+  const char *certification_authority;
+  FILE *opened_log_file;
+  GList *static_servers;
   struct sockaddr_storage listen_address;
   dnsconfd_command_t command;
   command_options_t command_options;
@@ -87,8 +87,8 @@ typedef struct {
   config_boolean_t dnssec_enabled;
 } dnsconfd_config_t;
 
-int parse_configuration(int argc, char* argv[], dnsconfd_config_t* config);
+int parse_configuration(int argc, char *argv[], dnsconfd_config_t *config);
 
-void config_cleanup(dnsconfd_config_t* config);
+void config_cleanup(dnsconfd_config_t *config);
 
 #endif

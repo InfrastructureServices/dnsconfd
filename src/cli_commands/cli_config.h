@@ -3,6 +3,6 @@
 
 #include "dnsconfd_config.h"
 
-int cli_config_command(dnsconfd_config_t* config);
+int cli_config_command(dnsconfd_config_t *config);
 
 #endif

@@ -16,16 +16,13 @@ static ioTuple io_tuples[] = {
     {"8.8.8.8", "\tforward-addr: 8.8.8.8\n", 0, 0},
     {"dns+tls://8.8.8.8", "\tforward-addr: 8.8.8.8\n", 1, 0},
     {"dns+tls://8.8.8.8:55", "\tforward-addr: 8.8.8.8@55\n", 1, 0},
-    {"dns+tls://8.8.8.8:55#example.org",
-     "\tforward-addr: 8.8.8.8@55#example.org\n", 1, 0},
+    {"dns+tls://8.8.8.8:55#example.org", "\tforward-addr: 8.8.8.8@55#example.org\n", 1, 0},
     {"dns+udp://8.8.8.8", "\tforward-addr: 8.8.8.8\n", 0, 0},
     {"dns+udp://8.8.8.8:55", "\tforward-addr: 8.8.8.8@55\n", 0, 0},
-    {"dns+udp://8.8.8.8#example.org", "\tforward-addr: 8.8.8.8#example.org\n",
-     0, 0},
+    {"dns+udp://8.8.8.8#example.org", "\tforward-addr: 8.8.8.8#example.org\n", 0, 0},
     {"dns+tls://[::1]", "\tforward-addr: ::1\n", 1, 0},
     {"dns+tls://[::1]:55", "\tforward-addr: ::1@55\n", 1, 0},
-    {"dns+tls://[::1]:55#example.org", "\tforward-addr: ::1@55#example.org\n",
-     1, 0},
+    {"dns+tls://[::1]:55#example.org", "\tforward-addr: ::1@55#example.org\n", 1, 0},
     {"dns+udp://[::1]", "\tforward-addr: ::1\n", 0, 0},
     {"dns+udp://[::1]:55", "\tforward-addr: ::1@55\n", 0, 0},
     {"dns+udp://[::1]#example.org", "\tforward-addr: ::1#example.org\n", 0, 0},
@@ -44,9 +41,8 @@ START_TEST(test_parsing) {
 
   for (int i = 0; cur_tuple->input != 0; i++, cur_tuple = &io_tuples[i]) {
     domain_tls = 0;
-    ck_assert(transform_server_string(cur_tuple->input, &domain_tls,
-                                      config_string,
-                                      dev_null) == cur_tuple->return_code);
+    ck_assert(transform_server_string(cur_tuple->input, &domain_tls, config_string, dev_null) ==
+              cur_tuple->return_code);
     if (!cur_tuple->return_code) {
       ck_assert(domain_tls == cur_tuple->is_domain_tls);
       ck_assert(strcmp(config_string->str, cur_tuple->output) == 0);

@@ -10,10 +10,8 @@ static unsigned char is_valid_ip(char *ip) {
   return (inet_pton(AF_INET, ip, &inaddr) || inet_pton(AF_INET6, ip, &inaddr6));
 }
 
-unsigned char transform_server_string(gchar *server_string,
-                                      unsigned char *is_server_tls,
-                                      GString *unbound_config_string,
-                                      FILE *log_file) {
+unsigned char transform_server_string(gchar *server_string, unsigned char *is_server_tls,
+                                      GString *unbound_config_string, FILE *log_file) {
   CURLU *server_curl_handle = curl_url();
   CURLUcode parser_rc;
 
@@ -92,8 +90,7 @@ unsigned char transform_server_string(gchar *server_string,
     curl_free(port);
   }
 
-  parser_rc =
-      curl_url_get(server_curl_handle, CURLUPART_FRAGMENT, &fragment, 0);
+  parser_rc = curl_url_get(server_curl_handle, CURLUPART_FRAGMENT, &fragment, 0);
   curl_url_cleanup(server_curl_handle);
 
   if (parser_rc != CURLUE_OK && parser_rc != CURLUE_NO_FRAGMENT) {

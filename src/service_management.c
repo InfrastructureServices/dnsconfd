@@ -3,7 +3,8 @@
 #include <gio/gio.h>
 #include <stdio.h>
 
-static unsigned int call_systemd_manager(GDBusConnection *connection, const char *method, const char *service_name, GError **error) {
+static unsigned int call_systemd_manager(GDBusConnection *connection, const char *method,
+                                         const char *service_name, GError **error) {
   GVariant *result;
   unsigned long job_id;
   char *job_string;
@@ -15,11 +16,10 @@ static unsigned int call_systemd_manager(GDBusConnection *connection, const char
    * Input: (service_name, mode) where mode is usually "replace"
    * Output: (job_path)
    */
-  result = g_dbus_connection_call_sync(connection, "org.freedesktop.systemd1",
-                                       "/org/freedesktop/systemd1",
-                                       "org.freedesktop.systemd1.Manager", method,
-                                       g_variant_new("(ss)", service_name, "replace"),
-                                       G_VARIANT_TYPE("(o)"), G_DBUS_CALL_FLAGS_NONE, -1, NULL, error);
+  result = g_dbus_connection_call_sync(
+      connection, "org.freedesktop.systemd1", "/org/freedesktop/systemd1",
+      "org.freedesktop.systemd1.Manager", method, g_variant_new("(ss)", service_name, "replace"),
+      G_VARIANT_TYPE("(o)"), G_DBUS_CALL_FLAGS_NONE, -1, NULL, error);
 
   if (!result) {
     return 0;
@@ -30,7 +30,7 @@ static unsigned int call_systemd_manager(GDBusConnection *connection, const char
   job_string = strrchr(job_string, '/');
   errno = 0;
   // systemd job ids are unsigned 32 bit integers starting at 1
-  job_id = strtoul(job_string+1, &end_ptr, 10);
+  job_id = strtoul(job_string + 1, &end_ptr, 10);
   if (*end_ptr != '\0' || errno != 0) {
     g_variant_unref(result);
     errno = 0;
@@ -88,7 +88,8 @@ guint service_management_subscribe_job_removed(GDBusConnection *connection,
     return 0;
   }
 
-  if (!(closure = malloc(sizeof(signal_closure_t)))) return 0;
+  if (!(closure = malloc(sizeof(signal_closure_t))))
+    return 0;
 
   closure->callback = callback;
   closure->user_data = user_data;
