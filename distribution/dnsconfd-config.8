@@ -1,4 +1,4 @@
-.TH "dnsconfd-config" "8" "07 Jan 2026" "dnsconfd-1.7.5" ""
+.TH "dnsconfd-config" "8" "15 Feb 2026" "dnsconfd-2.0.0" ""
 
 .SH NAME
 
@@ -36,7 +36,7 @@ Show help message and exit
 
 .IP 0
 Everything went as expected.
-.IP 1
+.IP 15
 Error occurred.
 .IP 13
 Bad arguments.
@@ -45,12 +45,12 @@ Bad arguments.
 Environment variables have lower priority than command line options but higher
 than configuration file.
 
-.IP DBUS_NAME
-DBUS name that dnsconfd should use, default org.freedesktop.resolve1
 .IP LOG_LEVEL
 Log level of dnsconfd, default INFO
 .IP CONFIG_FILE
 Path where config file is located, default /etc/dnsconfd.conf
+.IP RESOLV_CONF_PATH
+Path to resolv.conf that the dnsconfd should manage, Default /etc/resolv.conf
 
 .SH "REPORTING BUGS"
 Please for reporting bugs use Github repository https://github.com/InfrastructureServices/dnsconfd

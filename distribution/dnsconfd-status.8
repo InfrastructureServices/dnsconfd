@@ -1,4 +1,4 @@
-.TH "dnsconfd-status" "8" "07 Jan 2026" "dnsconfd-1.7.5" ""
+.TH "dnsconfd-status" "8" "15 Feb 2026" "dnsconfd-2.0.0" ""
 
 .SH NAME
 
@@ -23,17 +23,15 @@ Status should be formatted as JSON string
 
 .IP 0
 Everything went as expected.
-.IP 1
-Error occurred.
 .IP 13
 Bad arguments.
+.IP 15
+Failed to execute command.
 
 .SH ENVIRONMENT
 Environment variables have lower priority than command line options but higher
 than configuration file.
 
-.IP DBUS_NAME
-DBUS name that dnsconfd should use, default com.redhat.dnsconfd
 .IP LOG_LEVEL
 Log level of dnsconfd, default INFO
 .IP CONFIG_FILE

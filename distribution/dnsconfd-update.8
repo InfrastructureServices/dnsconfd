@@ -1,4 +1,4 @@
-.TH "dnsconfd-status" "8" "07 Jan 2026" "dnsconfd-1.7.5" ""
+.TH "dnsconfd-update" "8" "15 Feb 2026" "dnsconfd-2.0.0" ""
 
 .SH NAME
 
@@ -6,7 +6,7 @@ dnsconfd-update - Change Dnsconfd configuration
 
 .SH SYNOPSIS
 
-dnsconfd update [--json] <servers> [--mode] [--search]
+dnsconfd update [--json] <servers> [--mode]
 
 .SH DESCRIPTION
 
@@ -32,23 +32,24 @@ Available fields of JSON servers are:
  \(bu \fBinterface\fP optional, string indicating if server can be used only through interface with this interface name.
  \(bu \fBdnssec\fP optional, boolean indicating whether this server supports dnssec or not
  \(bu \fBnetworks\fP optional, list of strings representing networks whose reverse dns records must be resolved by this server
- \(bu \fBconnection-uuid\fP optional, string uuid of the connection associated with server in NetworkManager
- \(bu \fBconnection-name\fP optional, string name of the connection associated with server in NetworkManager
- \(bu \fBconnection-object\fP optional, string path of the connection object associated with server in NetworkManager
  \(bu \fBpriority\fP optional, integer indicating priority of this server, higher number means higher priority
- \(bu \fBfirewall_zone\fP optional, string indicating name of firewall zone that this server should be associated with
+ \(bu \fBca\fP optional, string with path to CA certificate
 
-URI consists of scheme, authority, path, query, fragment where:
+URI consists of scheme, authority, path, query where:
      \(bu \fBscheme\fP required, protocol for communication with server. Supported values are dns+udp, dns+tcp, dns+tls
      \(bu \fBauthority\fP required, IP address of server and optionally port where it is listening
      \(bu \fBpath\fP currently not used
      \(bu \fBquery\fP optional values specifying additional parameters
-     \(bu \fBfragment\fP optional name that should be present in server's TLS certificate
 
 Allowed query key/value pairs are:
+     \(bu \fBpriority\fP integer indicating priority of this server
      \(bu \fBdomain\fP domains that should be resolved by this server, can be specified multiple times, default is '.'
-     \(bu \fBvalidation\fP indicates whether responses from this server should be validated by dnssec, allowed values are yes/no, default is no
+     \(bu \fBsearch\fP search domains that should be used for host-name lookup, can be specified multiple times
      \(bu \fBinterface\fP indicates whether the server should be contacted by specific network interface, this value is unset by default
+     \(bu \fBdnssec\fP indicates whether responses from this server should be validated by dnssec, set to 0 to disable, default is enabled
+     \(bu \fBca\fP path to CA certificate
+     \(bu \fBname\fP name that should be present in server's TLS certificate
+     \(bu \fBnetwork\fP network whose reverse dns records must be resolved by this server, can be specified multiple times
 
 See examples section for further description.
 
@@ -68,7 +69,7 @@ Show help message and exit
 
 .IP 0
 Everything went as expected.
-.IP 1
+.IP 15
 Error occurred.
 .IP 13
 Bad arguments.
@@ -89,7 +90,7 @@ or
 .br
 or
 .br
-# dnsconfd update 'dns+tls://192.168.6.3#named'
+# dnsconfd update 'dns+tls://192.168.6.3?name=named'
 
 .IP "\(bu Use server 192.168.6.3 for resolving names under domain example.com, and use 2001:db8::103 for resolving of any other name."
 
