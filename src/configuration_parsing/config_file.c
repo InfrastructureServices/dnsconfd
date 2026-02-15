@@ -201,12 +201,19 @@ static int parse_static_servers(yaml_parser_t *parser, dnsconfd_config_t *config
 
     case YAML_SCALAR_EVENT:
       if (expect_key) {
-        current_key = strdup((char *)event.data.scalar.value);
+        if ((current_key = strdup((char *)event.data.scalar.value)) == NULL) {
+          *error_string = "Failed to allocate memory during YAML parsing";
+          status = -1;
+          break;
+        }
         expect_key = 0;
       } else {
         if (current_server && current_key) {
           if (strcmp(current_key, "name") == 0) {
-            current_server->name = strdup((const char *)event.data.scalar.value);
+            if ((current_server->name = strdup((const char *)event.data.scalar.value)) == NULL) {
+              *error_string = "Failed to allocate memory for name in static_servers";
+              status = -1;
+            }
           } else if (strcmp(current_key, "protocol") == 0) {
             current_server->protocol = parse_protocol_string((const char *)event.data.scalar.value);
             if (current_server->protocol == DNS_PROTOCOLS_END)
