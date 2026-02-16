@@ -2,7 +2,7 @@ FROM scratch
 
 COPY ./baseroot /
 COPY ./*.rpm ./
-RUN dnf install -y --setopt=install_weak_deps=False --setopt=tsflags=nodocs systemd \
+RUN dnf install -y --setopt=install_weak_deps=False --nogpgcheck --setopt=tsflags=nodocs systemd \
     NetworkManager iproute ./*.rpm openvpn NetworkManager-openvpn sssd-client \
     polkit bind-utils bind-dnssec-utils dbus-tools net-tools rsyslog tcpdump procps-ng python3-idna vim crypto-policies-scripts less gdb libasan
 

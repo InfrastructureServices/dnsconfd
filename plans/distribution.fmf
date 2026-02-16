@@ -48,7 +48,7 @@ prepare:
   - name: install-package
     order: 8
     how: shell
-    script: dnf install -y ./tests/*.rpm
+    script: dnf install --nogpgcheck -y ./tests/*.rpm
   - name: increase-verbosity
     order: 9
     how: shell
