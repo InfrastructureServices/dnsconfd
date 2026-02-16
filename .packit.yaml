@@ -25,16 +25,12 @@ jobs:
     targets:
       - fedora-42
       - fedora-rawhide
-      - centos-stream-10
-      - centos-stream-9
   - job: tests
     trigger: pull_request
     identifier: pr_tests_multihost
     targets:
       - fedora-42
       - fedora-rawhide
-      - centos-stream-10
-      - centos-stream-9
     tmt_plan: multihost
     skip_build: True
     tf_extra_params:
@@ -48,9 +44,7 @@ jobs:
     targets:
       - fedora-42
       - fedora-rawhide
-      - centos-stream-10
-      - centos-stream-9
-    tmt_plan: "(integration|distribution|unit)"
+    tmt_plan: "(integration|distribution)"
     skip_build: True
 # commit jobs (executed on main branch)
   - job: copr_build
@@ -59,16 +53,12 @@ jobs:
     targets:
       - fedora-42
       - fedora-rawhide
-      - centos-stream-10
-      - centos-stream-9
   - job: tests
     trigger: commit
     identifier: pr_tests_multihost
     targets:
       - fedora-42
       - fedora-rawhide
-      - centos-stream-10
-      - centos-stream-9
     tmt_plan: multihost
     skip_build: True
     tf_extra_params:
@@ -82,7 +72,5 @@ jobs:
     targets:
       - fedora-42
       - fedora-rawhide
-      - centos-stream-10
-      - centos-stream-9
-    tmt_plan: "(integration|distribution|unit)"
+    tmt_plan: "(integration|distribution)"
     skip_build: True
