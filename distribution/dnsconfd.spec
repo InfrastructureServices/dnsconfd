@@ -89,7 +89,7 @@ Requires:           unbound-dracut
 Dnsconfd dracut module
 
 %prep
-%autosetup -c
+%autosetup
 
 %build
 %if 0%{?with_asan}
