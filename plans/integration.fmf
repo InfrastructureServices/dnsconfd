@@ -48,7 +48,7 @@ prepare:
   - name: install-package
     order: 8
     how: shell
-    script: dnf install -y ./tests/*.rpm
+    script: dnf install -y --nogpgcheck ./tests/*.rpm
 adjust:
   - when: trigger is not defined or trigger == human
     provision:
