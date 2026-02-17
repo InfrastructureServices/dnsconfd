@@ -247,6 +247,9 @@ fi
 %{_prefix}/lib/dracut/modules.d/99dnsconfd
 
 %changelog
+* Tue Feb 17 2026 Tomas Korbar <tkorbar@redhat.com> - 2.0.0-1
+- Release 2.0.0
+
 * Wed Jan 07 2026 Tomas Korbar <tkorbar@redhat.com> - 1.7.5-1
 - Release 1.7.5
 
