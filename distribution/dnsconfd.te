@@ -114,6 +114,13 @@ allow named_t NetworkManager_var_run_t:file { open read getattr };
 allow dnsconfd_t dnsconfd_var_run_t:file { open write getattr ioctl read };
 allow dnsconfd_t dnsconfd_var_run_t:dir search;
 
+# dnsmasq of libvirt may need to follow /etc/resolv.conf symlink to /run/dnsconfd
+gen_require(`
+	type dnsmasq_t;
+        ')
+
+allow dnsmasq_t dnsconfd_var_run_t:dir watch;
+
 allow dnsconfd_t dnsconfd_t:dbus send_msg;
 
 allow dnsconfd_t NetworkManager_t:dbus send_msg;
