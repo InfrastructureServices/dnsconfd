@@ -27,7 +27,7 @@ int main(int argc, char *argv[]) {
       goto finish;
     }
     exit_code = dbus_server_run(&config);
-    close_logs(&config);
+    close_logs();
     break;
   case COMMAND_STATUS:
     exit_code = cli_execute_simple_command("Status");

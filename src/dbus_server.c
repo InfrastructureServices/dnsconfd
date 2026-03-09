@@ -230,14 +230,14 @@ static GVariant *handle_update_call(GVariant *parameters, fsm_context_t *ctx) {
   GVariant *result;
   GVariantIter *servers_iter;
   GVariantDict cur_server_dict;
-  char *domain_dup;
+  char *string_dup;
   server_uri_t *cur_server = NULL;
   GVariant *cur_param = NULL;
   GList *parsed_servers = NULL;
   int parse_error = PARSE_ERROR_NONE;
   int field_error = 0;
 
-  dnsconfd_log(LOG_DEBUG, ctx->config, "Handling Update call");
+  dnsconfd_log(LOG_DEBUG, "Handling Update call");
 
   struct {
     const char *key;
@@ -254,8 +254,14 @@ static GVariant *handle_update_call(GVariant *parameters, fsm_context_t *ctx) {
                          {"search_domains", G_VARIANT_TYPE_STRING_ARRAY, parse_search},
                          {"networks", G_VARIANT_TYPE_STRING_ARRAY, parse_networks}};
 
+  if (ctx->config->log_level >= LOG_DEBUG) {
+    string_dup = g_variant_print(parameters, TRUE);
+    dnsconfd_log(LOG_DEBUG, "Update parameters: %s", string_dup);
+    g_free(string_dup);
+  }
+
   g_variant_get(parameters, "(aa{sv}u)", &servers_iter, &mode);
-  dnsconfd_log(LOG_DEBUG, ctx->config, "Update mode: %u", mode);
+  dnsconfd_log(LOG_DEBUG, "Update mode: %u", mode);
 
   if (mode < 0 || mode > 2) {
     parse_error = PARSE_ERROR_INVALID_MODE;
@@ -300,15 +306,15 @@ static GVariant *handle_update_call(GVariant *parameters, fsm_context_t *ctx) {
     }
 
     if (!cur_server->routing_domains) {
-      domain_dup = strdup(".");
-      if (!domain_dup) {
+      string_dup = strdup(".");
+      if (!string_dup) {
         server_uri_t_destroy(cur_server);
         g_variant_dict_clear(&cur_server_dict);
         parse_error = PARSE_ERROR_OOM;
         result = g_variant_new("(us)", 0, parse_error_strings[PARSE_ERROR_OOM]);
         break;
       }
-      cur_server->routing_domains = g_list_append(NULL, domain_dup);
+      cur_server->routing_domains = g_list_append(NULL, string_dup);
     }
 
     set_default_port(&cur_server->address, cur_server->protocol != DNS_TLS ? 53 : 853);
@@ -320,7 +326,7 @@ static GVariant *handle_update_call(GVariant *parameters, fsm_context_t *ctx) {
         if (g_strcmp0(cur_server->interface, existing->interface) != 0) {
           char addr_str[INET6_ADDRSTRLEN];
           ip_to_str(&cur_server->address, addr_str);
-          dnsconfd_log(LOG_NOTICE, ctx->config,
+          dnsconfd_log(LOG_NOTICE,
                        "Ignoring server %s on interface %s because it is "
                        "already present on "
                        "interface %s",
@@ -335,30 +341,28 @@ static GVariant *handle_update_call(GVariant *parameters, fsm_context_t *ctx) {
 
     if (duplicate) {
       server_uri_t_destroy(cur_server);
-      dnsconfd_log(LOG_DEBUG, ctx->config, "Skipping duplicate server");
+      dnsconfd_log(LOG_DEBUG, "Skipping duplicate server");
       continue;
     }
 
     parsed_servers = g_list_append(parsed_servers, cur_server);
-    dnsconfd_log(LOG_DEBUG, ctx->config, "Parsed server successfully");
+    dnsconfd_log(LOG_DEBUG, "Parsed server successfully");
   }
 
   if (parse_error != PARSE_ERROR_NONE) {
-    dnsconfd_log(LOG_DEBUG, ctx->config, "Update failed with error: %s",
-                 parse_error_strings[parse_error]);
+    dnsconfd_log(LOG_DEBUG, "Update failed with error: %s", parse_error_strings[parse_error]);
     g_list_free_full(parsed_servers, server_uri_t_destroy);
   } else {
     ctx->new_dynamic_servers = parsed_servers;
     ctx->resolution_mode = mode;
     if (state_transition(ctx, EVENT_UPDATE)) {
-      dnsconfd_log(LOG_ERR, ctx->config,
-                   "Update resulted in unexpected state of FSM, please report "
-                   "bug. Will immediately "
-                   "stop to prevent any damage");
+      dnsconfd_log(LOG_ERR, "Update resulted in unexpected state of FSM, please report "
+                            "bug. Will immediately "
+                            "stop to prevent any damage");
       ctx->exit_code = EXIT_FSM_FAILURE;
       g_main_loop_quit(ctx->main_loop);
     }
-    dnsconfd_log(LOG_DEBUG, ctx->config, "Update accepted and state transition initiated");
+    dnsconfd_log(LOG_DEBUG, "Update accepted and state transition initiated");
     result = g_variant_new("(us)", ctx->requested_configuration_serial, "Update accepted");
   }
 
@@ -458,10 +462,9 @@ static GVariant *handle_status_call(fsm_context_t *ctx) {
 
 static GVariant *handle_reload_call(fsm_context_t *ctx) {
   if (state_transition(ctx, EVENT_RELOAD)) {
-    dnsconfd_log(LOG_ERR, ctx->config,
-                 "Reload resulted in unexpected state of FSM, please report "
-                 "bug. Will immediately "
-                 "stop to prevent any damage");
+    dnsconfd_log(LOG_ERR, "Reload resulted in unexpected state of FSM, please report "
+                          "bug. Will immediately "
+                          "stop to prevent any damage");
     ctx->exit_code = EXIT_FSM_FAILURE;
     g_main_loop_quit(ctx->main_loop);
   }
@@ -534,20 +537,18 @@ static void on_bus_acquired(GDBusConnection *connection, const gchar *name, gpoi
       NULL       // GError
   );
 
-  dnsconfd_log(LOG_NOTICE, ((fsm_context_t *)user_data)->config,
-               "Bus acquired, object registered at /com/redhat/dnsconfd (ID: %u)\n",
+  dnsconfd_log(LOG_NOTICE, "Bus acquired, object registered at /com/redhat/dnsconfd (ID: %u)\n",
                registration_id);
 }
 
 static void on_name_acquired(GDBusConnection *connection, const gchar *name, gpointer user_data) {
   fsm_context_t *ctx = (fsm_context_t *)user_data;
-  dnsconfd_log(LOG_NOTICE, ctx->config, "Acquired the name %s\n", name);
+  dnsconfd_log(LOG_NOTICE, "Acquired the name %s\n", name);
 
   if (state_transition(ctx, EVENT_KICKOFF)) {
-    dnsconfd_log(LOG_ERR, ctx->config,
-                 "Start resulted in unexpected state of FSM, please report "
-                 "bug. Will immediately "
-                 "stop to prevent any damage");
+    dnsconfd_log(LOG_ERR, "Start resulted in unexpected state of FSM, please report "
+                          "bug. Will immediately "
+                          "stop to prevent any damage");
     ctx->exit_code = EXIT_FSM_FAILURE;
     g_main_loop_quit(ctx->main_loop);
   }
@@ -555,7 +556,7 @@ static void on_name_acquired(GDBusConnection *connection, const gchar *name, gpo
 
 static void on_name_lost(GDBusConnection *connection, const gchar *name, gpointer user_data) {
   fsm_context_t *ctx = (fsm_context_t *)user_data;
-  dnsconfd_log(LOG_ERR, ctx->config, "Lost the name %s\n", name);
+  dnsconfd_log(LOG_ERR, "Lost the name %s\n", name);
   ctx->exit_code = EXIT_DBUS_FAILURE;
   g_main_loop_quit(ctx->main_loop);
 }
@@ -596,10 +597,9 @@ static void clean_context(fsm_context_t *ctx) {
 static gboolean on_sigterm(gpointer user_data) {
   fsm_context_t *ctx = (fsm_context_t *)user_data;
   if (state_transition(ctx, EVENT_STOP)) {
-    dnsconfd_log(LOG_ERR, ctx->config,
-                 "Stop resulted in unexpected state of FSM, please report bug. "
-                 "Will immediately "
-                 "stop to prevent any damage");
+    dnsconfd_log(LOG_ERR, "Stop resulted in unexpected state of FSM, please report bug. "
+                          "Will immediately "
+                          "stop to prevent any damage");
     ctx->exit_code = EXIT_FSM_FAILURE;
     g_main_loop_quit(ctx->main_loop);
   }

@@ -104,7 +104,7 @@ const char *dnsconfd_mode_t_to_string(dnsconfd_mode_t mode) {
 }
 
 static void set_dynamic_servers(fsm_context_t *ctx) {
-  dnsconfd_log(LOG_DEBUG, ctx->config, "Setting dynamic servers");
+  dnsconfd_log(LOG_DEBUG, "Setting dynamic servers");
   if (ctx->current_dynamic_servers) {
     g_list_free_full(ctx->current_dynamic_servers, server_uri_t_destroy);
   }
@@ -114,7 +114,7 @@ static void set_dynamic_servers(fsm_context_t *ctx) {
 }
 
 static fsm_event_t update_context(fsm_context_t *ctx) {
-  dnsconfd_log(LOG_DEBUG, ctx->config, "Refreshing server structures");
+  dnsconfd_log(LOG_DEBUG, "Refreshing server structures");
 
   if (ctx->all_servers) {
     g_list_free(ctx->all_servers);
@@ -123,7 +123,7 @@ static fsm_event_t update_context(fsm_context_t *ctx) {
   ctx->all_servers = g_list_concat(g_list_copy(ctx->config->static_servers),
                                    g_list_copy(ctx->current_dynamic_servers));
 
-  dnsconfd_log(LOG_DEBUG, ctx->config, "Total servers: %u", g_list_length(ctx->all_servers));
+  dnsconfd_log(LOG_DEBUG, "Total servers: %u", g_list_length(ctx->all_servers));
 
   if (ctx->current_domain_to_servers) {
     g_hash_table_destroy(ctx->current_domain_to_servers);
@@ -143,9 +143,9 @@ static fsm_event_t fsm_starting_event_kickoff(fsm_context_t *ctx) {
 
   if (write_configuration(ctx, &error_string)) {
     if (error_string) {
-      dnsconfd_log(LOG_ERR, ctx->config, error_string);
+      dnsconfd_log(LOG_ERR, error_string);
     }
-    dnsconfd_log(LOG_ERR, ctx->config, "Failed to create dns cache configuration");
+    dnsconfd_log(LOG_ERR, "Failed to create dns cache configuration");
     return EVENT_FAILURE;
   }
 
@@ -163,7 +163,7 @@ static void on_systemd_job_finished(unsigned int id, const char *result, gpointe
   if (strcmp(result, "done") == 0 || strcmp(result, "skipped") == 0) {
     state_transition(ctx, EVENT_JOB_SUCCESS);
   } else {
-    dnsconfd_log(LOG_ERR, ctx->config, "Awaited systemd job failed");
+    dnsconfd_log(LOG_ERR, "Awaited systemd job failed");
     state_transition(ctx, EVENT_JOB_FAILURE);
   }
 }
@@ -175,7 +175,7 @@ static fsm_event_t fsm_configuring_dns_manager_event_success(fsm_context_t *ctx)
     ctx->systemd_subscription_id = service_management_subscribe_job_removed(
         ctx->dbus_connection, on_systemd_job_finished, ctx);
     if (!ctx->systemd_subscription_id) {
-      dnsconfd_log(LOG_ERR, ctx->config, "Failed to subscribe to systemd job removed signal");
+      dnsconfd_log(LOG_ERR, "Failed to subscribe to systemd job removed signal");
       return EVENT_FAILURE;
     }
   }
@@ -183,9 +183,9 @@ static fsm_event_t fsm_configuring_dns_manager_event_success(fsm_context_t *ctx)
   ctx->awaited_systemd_job = service_start(ctx->dbus_connection, "unbound.service", &error);
 
   if (!ctx->awaited_systemd_job) {
-    dnsconfd_log(LOG_ERR, ctx->config, "Failed to submit DNS cache start job");
+    dnsconfd_log(LOG_ERR, "Failed to submit DNS cache start job");
     if (error) {
-      dnsconfd_log(LOG_ERR, ctx->config, "%s", error->message);
+      dnsconfd_log(LOG_ERR, "%s", error->message);
       g_error_free(error);
     }
     return EVENT_FAILURE;
@@ -199,9 +199,9 @@ static fsm_event_t set_resolv_conf(fsm_context_t *ctx) {
   if (write_resolv_conf(ctx->config, ctx->current_domain_to_servers, &ctx->resolv_conf_backup,
                         ctx->resolution_mode, &error_string)) {
     if (error_string) {
-      dnsconfd_log(LOG_ERR, ctx->config, error_string);
+      dnsconfd_log(LOG_ERR, error_string);
     }
-    dnsconfd_log(LOG_ERR, ctx->config, "Failed to write resolv.conf");
+    dnsconfd_log(LOG_ERR, "Failed to write resolv.conf");
     return EVENT_FAILURE;
   }
   return EVENT_SUCCESS;
@@ -240,9 +240,9 @@ static fsm_event_t update_dns_manager(fsm_context_t *ctx) {
     break;
   default:
     if (error_string) {
-      dnsconfd_log(LOG_ERR, ctx->config, error_string);
+      dnsconfd_log(LOG_ERR, error_string);
     }
-    dnsconfd_log(LOG_ERR, ctx->config, "Failed to update dns cache service");
+    dnsconfd_log(LOG_ERR, "Failed to update dns cache service");
     return EVENT_FAILURE;
     break;
   }
@@ -255,7 +255,7 @@ static fsm_event_t submit_stop_job(fsm_context_t *ctx) {
     ctx->systemd_subscription_id = service_management_subscribe_job_removed(
         ctx->dbus_connection, on_systemd_job_finished, ctx);
     if (!ctx->systemd_subscription_id) {
-      dnsconfd_log(LOG_ERR, ctx->config, "Failed to subscribe to systemd job removed signal");
+      dnsconfd_log(LOG_ERR, "Failed to subscribe to systemd job removed signal");
       return EVENT_FAILURE;
     }
   }
@@ -263,9 +263,9 @@ static fsm_event_t submit_stop_job(fsm_context_t *ctx) {
   ctx->awaited_systemd_job = service_stop(ctx->dbus_connection, "unbound.service", &error);
 
   if (!ctx->awaited_systemd_job) {
-    dnsconfd_log(LOG_ERR, ctx->config, "Failed to submit dns cache service stop job");
+    dnsconfd_log(LOG_ERR, "Failed to submit dns cache service stop job");
     if (error) {
-      dnsconfd_log(LOG_ERR, ctx->config, "%s", error->message);
+      dnsconfd_log(LOG_ERR, "%s", error->message);
       g_error_free(error);
     }
     return EVENT_FAILURE;
@@ -278,7 +278,7 @@ static fsm_event_t revert_resolv_conf(fsm_context_t *ctx) {
   FILE *resolv_conf_file = fopen(ctx->config->resolv_conf_path, "w");
 
   if (!resolv_conf_file || fprintf(resolv_conf_file, "%s", ctx->resolv_conf_backup->str) < 0) {
-    dnsconfd_log(LOG_ERR, ctx->config, "Failed to revert resolv.conf");
+    dnsconfd_log(LOG_ERR, "Failed to revert resolv.conf");
     return EVENT_FAILURE;
   }
 
@@ -296,7 +296,7 @@ int state_transition(fsm_context_t *ctx, fsm_event_t event) {
   fsm_event_t cur_event = event;
 
   do {
-    dnsconfd_log(LOG_NOTICE, ctx->config, "Performing transition from %s on %s",
+    dnsconfd_log(LOG_NOTICE, "Performing transition from %s on %s",
                  fsm_state_t_to_string(ctx->current_state), fsm_event_t_to_string(cur_event));
     switch (ctx->current_state) {
     case FSM_STARTING:
@@ -496,8 +496,7 @@ int state_transition(fsm_context_t *ctx, fsm_event_t event) {
     }
   } while (cur_event);
 
-  dnsconfd_log(LOG_DEBUG, ctx->config, "Sleeping on state %s",
-               fsm_state_t_to_string(ctx->current_state));
+  dnsconfd_log(LOG_DEBUG, "Sleeping on state %s", fsm_state_t_to_string(ctx->current_state));
 
   return 0;
 }
