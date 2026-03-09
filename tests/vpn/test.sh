@@ -54,7 +54,7 @@ rlJournalStart
         rlAssertNotDiffer status2 $ORIG_DIR/expected_status2.json
         rlRun "podman exec $dnsconfd_cid getent hosts dummy | grep 192.168.6.5" 0 "Verifying correct address resolution"
         rlRun "podman exec $dnsconfd_cid getent hosts second-address | grep 192.168.6.4" 0 "Verifying correct address resolution"
-        if rlTestVersion "$(rpm -q --queryformat '%{VERSION}' dnsconfd)" ">=" "1.7.3" && rlTestVersion "$(rpm -q --queryformat '%{VERSION}' NetworkManager)" ">=" "1.54"; then
+        if rlTestVersion "$(rpm -q --queryformat '%{VERSION}' NetworkManager)" ">=" "1.54"; then
           # fix for this behavior has been implemented in dnsconfd 1.7.3 and NM > 1.53.3
           rlRun "podman exec $dnsconfd_cid nmcli connection down vpn" 0 "Disconnecting from vpn"
           rlRun "podman exec $dnsconfd_cid nmcli connection mod vpn ipv4.never-default no" 0 "Allowing vpn to have gateway"
@@ -62,8 +62,38 @@ rlJournalStart
           # FIXME workaround of NM DAD issue
           rlRun "podman exec $dnsconfd_cid nmcli g reload"
           rlRun "podman exec $dnsconfd_cid dnsconfd status --json | jq_filter_general > status3" 0 "Getting status of dnsconfd"
+          # NetworkManager does not mandate waiting for tun device removal,
+          # because of that, just unify the naming
+          rlRun "sed -i 's/tun[1-9]/tun0/g' status3"
           rlAssertNotDiffer status3 $ORIG_DIR/expected_status3.json
           rlRun "podman exec $dnsconfd_cid getent hosts first-address.whatever.com | grep 192.168.6.5" 0 "Verifying correct address resolution"
+          rlRun "podman exec $dnsconfd_cid getent hosts first-address.test.com | grep 192.168.6.3" 0 "Verifying correct address resolution"
+          rlRun "podman exec $dnsconfd_cid getent hosts second-address.test.com | grep 192.168.6.4" 0 "Verifying correct address resolution"
+          rlRun "podman exec $dnsconfd_cid getent hosts dummy.vpndomain.com | grep 192.168.6.5" 0 "Verifying correct address resolution"
+          # test correct handling of ipv4.dns-search field of NetworkManager
+          rlRun "podman exec $dnsconfd_cid nmcli connection down vpn" 0 "Disconnecting from vpn"
+          rlRun "podman exec $dnsconfd_cid nmcli connection mod vpn ipv4.never-default yes ipv4.dns-search '~. vpndomain.com' " 0 "Revert the vpn gateway settings and set searches"
+          rlRun "podman exec $dnsconfd_cid nmcli connection up vpn" 0 "Connecting to vpn"
+          # FIXME workaround of NM DAD issue
+          rlRun "podman exec $dnsconfd_cid nmcli g reload"
+          rlRun "podman exec $dnsconfd_cid dnsconfd status --json | jq_filter_general > status4" 0 "Getting status of dnsconfd"
+          rlRun "sed -i 's/tun[1-9]/tun0/g' status4"
+          rlAssertNotDiffer status4 $ORIG_DIR/expected_status4.json
+          rlRun "podman exec $dnsconfd_cid getent hosts first-address.whatever.com | grep 192.168.6.5" 0 "Verifying correct address resolution"
+          rlRun "podman exec $dnsconfd_cid getent hosts first-address.test.com | grep 192.168.6.3" 0 "Verifying correct address resolution"
+          rlRun "podman exec $dnsconfd_cid getent hosts second-address.test.com | grep 192.168.6.4" 0 "Verifying correct address resolution"
+          rlRun "podman exec $dnsconfd_cid getent hosts dummy.vpndomain.com | grep 192.168.6.5" 0 "Verifying correct address resolution"
+        else
+          # test correct handling of ipv4.dns-search field of NetworkManager
+          rlRun "podman exec $dnsconfd_cid nmcli connection down vpn" 0 "Disconnecting from vpn"
+          rlRun "podman exec $dnsconfd_cid nmcli connection mod vpn ipv4.dns-search '~. vpndomain.com' " 0 "Set searches"
+          rlRun "podman exec $dnsconfd_cid nmcli connection up vpn" 0 "Connecting to vpn"
+          # FIXME workaround of NM DAD issue
+          rlRun "podman exec $dnsconfd_cid nmcli g reload"
+          rlRun "podman exec $dnsconfd_cid dnsconfd status --json | jq_filter_general > status5" 0 "Getting status of dnsconfd"
+          rlRun "sed -i 's/tun[1-9]/tun0/g' status5"
+          rlAssertNotDiffer status5 $ORIG_DIR/expected_status5.json
+          rlRun "podman exec $dnsconfd_cid getent hosts first-address.whatever.com | grep -e "192.168.6.3" -e "192.168.6.5"" 0 "Verifying correct address resolution"
           rlRun "podman exec $dnsconfd_cid getent hosts first-address.test.com | grep 192.168.6.3" 0 "Verifying correct address resolution"
           rlRun "podman exec $dnsconfd_cid getent hosts second-address.test.com | grep 192.168.6.4" 0 "Verifying correct address resolution"
           rlRun "podman exec $dnsconfd_cid getent hosts dummy.vpndomain.com | grep 192.168.6.5" 0 "Verifying correct address resolution"
