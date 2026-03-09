@@ -7,10 +7,12 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/wait.h>
+#include <syslog.h>
 #include <unistd.h>
 
 #include "fsm/fsm.h"
 #include "ip_utilities.h"
+#include "log_utilities.h"
 #include "types/server_uri.h"
 
 static GList *get_used_servers(GList *servers, dnsconfd_mode_t mode, const char *domain) {
@@ -257,10 +259,25 @@ error:
   return -1;
 }
 
-static int execute_unbound_command(char **argv) {
+static int execute_unbound_command(fsm_context_t *ctx, char **argv) {
   gint exit_status;
   gboolean success;
+  char **args;
+  GString *log_string;
   GError *error = NULL;
+
+  if (ctx->config->log_level >= LOG_DEBUG) {
+    args = argv;
+    log_string = g_string_new_len(NULL, 128);
+
+    while (*args) {
+      g_string_append_printf(log_string, "%s ", *args);
+      args++;
+    }
+
+    dnsconfd_log(LOG_DEBUG, "Executing unbound command: %s", log_string->str);
+    g_string_free(log_string, TRUE);
+  }
 
   success = g_spawn_sync(NULL, argv, NULL, G_SPAWN_SEARCH_PATH, NULL, NULL, NULL, NULL,
                          &exit_status, &error);
@@ -273,7 +290,7 @@ static int execute_unbound_command(char **argv) {
   return WIFEXITED(exit_status) && WEXITSTATUS(exit_status) == 0 ? 0 : -1;
 }
 
-static int remove_domain(const char *domain) {
+static int remove_domain(fsm_context_t *ctx, const char *domain) {
   char *argv[5];
   argv[0] = "unbound-control";
 
@@ -289,7 +306,7 @@ static int remove_domain(const char *domain) {
     argv[4] = NULL;
   }
 
-  if (execute_unbound_command(argv) != 0) {
+  if (execute_unbound_command(ctx, argv) != 0) {
     return -1;
   }
 
@@ -297,17 +314,15 @@ static int remove_domain(const char *domain) {
   argv[2] = (char *)domain;
   argv[3] = NULL;
 
-  return execute_unbound_command(argv);
+  return execute_unbound_command(ctx, argv);
 }
 
-static int add_domain(const char *domain, GList *servers) {
+GPtrArray *get_forward_add_command(const char *domain, GList *servers) {
   char address_buffer[INET6_ADDRSTRLEN];
   uint16_t port;
-  int ret;
   server_uri_t *cur_server = (server_uri_t *)servers->data;
   int flags = (!cur_server->dnssec) | ((cur_server->protocol == DNS_TLS) << 1);
   GPtrArray *argv_array = g_ptr_array_new_with_free_func(g_free);
-  char *flush_argv[] = {"unbound-control", "flush_zone", (char *)domain, NULL};
 
   g_ptr_array_add(argv_array, g_strdup("unbound-control"));
   g_ptr_array_add(argv_array, g_strdup("forward_add"));
@@ -352,13 +367,21 @@ static int add_domain(const char *domain, GList *servers) {
 
   g_ptr_array_add(argv_array, NULL);
 
-  ret = execute_unbound_command((char **)argv_array->pdata);
+  return argv_array;
+}
+
+static int add_domain(fsm_context_t *ctx, const char *domain, GList *servers) {
+  int ret;
+  char *flush_argv[] = {"unbound-control", "flush_zone", (char *)domain, NULL};
+  GPtrArray *argv_array = get_forward_add_command(domain, servers);
+
+  ret = execute_unbound_command(ctx, (char **)argv_array->pdata);
   g_ptr_array_free(argv_array, TRUE);
 
   if (ret != 0)
     return -1;
 
-  return execute_unbound_command(flush_argv);
+  return execute_unbound_command(ctx, flush_argv);
 }
 
 static int compare_addresses(struct sockaddr_storage *a, struct sockaddr_storage *b) {
@@ -493,7 +516,7 @@ int update(fsm_context_t *ctx, GHashTable **result, const char **error_string) {
       // function has to be implemented
       continue;
     }
-    if (add_domain((char *)key, used_servers)) {
+    if (add_domain(ctx, (char *)key, used_servers)) {
       *error_string = "Failed to add domain to Unbound";
       goto error;
     }
@@ -503,7 +526,7 @@ int update(fsm_context_t *ctx, GHashTable **result, const char **error_string) {
     g_hash_table_iter_init(&iter, ctx->current_unbound_domain_to_servers);
     while (g_hash_table_iter_next(&iter, &key, &value)) {
       if (!g_hash_table_contains(new_unbound_domain_to_servers, key)) {
-        if (remove_domain((char *)key) != 0) {
+        if (remove_domain(ctx, (char *)key) != 0) {
           goto error;
         }
       }

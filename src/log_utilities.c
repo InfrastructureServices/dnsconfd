@@ -5,6 +5,12 @@
 #include <string.h>
 #include <syslog.h>
 
+static struct {
+  int8_t log_level;
+  int8_t log_switch;
+  FILE *opened_log_file;
+} logging_context = {.log_level = -1, .log_switch = 0, .opened_log_file = NULL};
+
 int parse_log_level(const char *arg) {
   if (strcasecmp(arg, "debug") == 0)
     return LOG_DEBUG;
@@ -36,21 +42,23 @@ int initialize_logs(dnsconfd_config_t *config) {
   int syslog_flags;
   int stderr_syslog_handled = 0;
 
+  logging_context.log_level = config->log_level;
+
   if (config->syslog_log == CONFIG_BOOLEAN_TRUE) {
     syslog_flags = LOG_CONS | LOG_NDELAY | LOG_PID |
                    (config->stderr_log == CONFIG_BOOLEAN_TRUE ? LOG_PERROR : 0);
     stderr_syslog_handled = config->stderr_log == CONFIG_BOOLEAN_TRUE;
-    config->log_switch = LOG_TO_SYSLOG;
+    logging_context.log_switch = LOG_TO_SYSLOG;
     openlog("dnsconfd", syslog_flags, LOG_DAEMON);
   }
 
-  config->log_switch |=
+  logging_context.log_switch |=
       (!stderr_syslog_handled && config->stderr_log == CONFIG_BOOLEAN_TRUE) ? LOG_TO_STDERR : 0;
 
   if (config->file_log) {
-    config->log_switch |= LOG_TO_FILE;
-    config->opened_log_file = fopen(config->file_log, "a");
-    if (!config->opened_log_file) {
+    logging_context.log_switch |= LOG_TO_FILE;
+    logging_context.opened_log_file = fopen(config->file_log, "a");
+    if (!logging_context.opened_log_file) {
       fprintf(stderr, "Failed to open log file %s", config->file_log);
       return -1;
     }
@@ -59,37 +67,39 @@ int initialize_logs(dnsconfd_config_t *config) {
   return 0;
 }
 
-void dnsconfd_log(int level, dnsconfd_config_t *config, const char *format, ...) {
+void dnsconfd_log(int level, const char *format, ...) {
   va_list args;
 
-  if (level > config->log_level)
+  if (level > logging_context.log_level)
     return;
 
-  if (config->log_switch & LOG_TO_SYSLOG) {
+  if (logging_context.log_switch & LOG_TO_SYSLOG) {
     va_start(args, format);
     vsyslog(level, format, args);
     va_end(args);
-  } else if (config->log_switch & LOG_TO_STDERR) {
+  } else if (logging_context.log_switch & LOG_TO_STDERR) {
     va_start(args, format);
     vfprintf(stderr, format, args);
     fprintf(stderr, "\n");
     va_end(args);
   }
 
-  if (config->log_switch & LOG_TO_FILE) {
+  if (logging_context.log_switch & LOG_TO_FILE) {
     va_start(args, format);
-    vfprintf(config->opened_log_file, format, args);
-    fprintf(config->opened_log_file, "\n");
-    fflush(config->opened_log_file);
+    vfprintf(logging_context.opened_log_file, format, args);
+    fprintf(logging_context.opened_log_file, "\n");
+    fflush(logging_context.opened_log_file);
     va_end(args);
   }
 }
 
-void close_logs(dnsconfd_config_t *config) {
-  if (config->opened_log_file) {
-    fclose(config->opened_log_file);
+void close_logs(void) {
+  if (logging_context.opened_log_file) {
+    fclose(logging_context.opened_log_file);
+    logging_context.opened_log_file = NULL;
   }
-  if (config->syslog_log == CONFIG_BOOLEAN_TRUE) {
+  if (logging_context.log_switch & LOG_TO_SYSLOG) {
     closelog();
   }
+  logging_context.log_switch = 0;
 }

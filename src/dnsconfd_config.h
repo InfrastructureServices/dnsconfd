@@ -74,13 +74,11 @@ typedef struct {
   const char *resolver_options;
   const char *config_file;
   const char *certification_authority;
-  FILE *opened_log_file;
   GList *static_servers;
   struct sockaddr_storage listen_address;
   dnsconfd_command_t command;
   command_options_t command_options;
   int8_t log_level;
-  int8_t log_switch;
   config_boolean_t stderr_log;
   config_boolean_t syslog_log;
   config_boolean_t prioritize_wire;
