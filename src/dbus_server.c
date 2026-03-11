@@ -13,6 +13,7 @@
 #include "fsm/fsm.h"
 #include "ip_utilities.h"
 #include "log_utilities.h"
+#include "service_management.h"
 #include "types/network_address.h"
 #include "types/server_uri.h"
 
@@ -565,6 +566,7 @@ static void on_name_lost(GDBusConnection *connection, const gchar *name, gpointe
 }
 
 static void clean_context(fsm_context_t *ctx) {
+  service_management_context_destroy(&ctx->service_management_ctx);
   if (ctx->current_dynamic_servers) {
     g_list_free_full(ctx->current_dynamic_servers, server_uri_t_destroy);
   }

@@ -26,7 +26,6 @@ BuildRequires:  libasan
 Requires:  (%{name}-selinux if selinux-policy-%{selinuxtype})
 Requires:  dbus-common
 Requires:  %{name}-cache
-Requires:  polkit
 Suggests:  %{name}-unbound
 Requires:  (%{name}-unbound = %{version}-%{release} if %{name}-unbound)
 
@@ -124,10 +123,10 @@ mkdir   -m 0755 -p %{buildroot}%{_datadir}/dbus-1/system-services/
 mkdir   -m 0755 -p %{buildroot}%{_sysconfdir}/unbound/conf.d/
 mkdir   -m 0755 -p %{buildroot}%{_unitdir}
 mkdir   -m 0755 -p %{buildroot}%{_unitdir}/unbound.service.d
+mkdir   -m 0755 -p %{buildroot}%{_unitdir}/dnsconfd.service.d
 mkdir   -m 0755 -p %{buildroot}%{_sysconfdir}/sysconfig
 mkdir   -m 0755 -p %{buildroot}/%{_mandir}/man8
 mkdir   -m 0755 -p %{buildroot}/%{_mandir}/man5
-mkdir   -m 0755 -p %{buildroot}%{_datadir}/polkit-1/rules.d/
 mkdir   -m 0755 -p %{buildroot}%{_rundir}/dnsconfd
 mkdir   -m 0755 -p %{buildroot}%{_tmpfilesdir}
 mkdir   -m 0755 -p %{buildroot}%{_prefix}/lib/dracut/modules.d/99dnsconfd
@@ -139,20 +138,24 @@ install -m 0644 -p distribution/dnsconfd.sysconfig %{buildroot}%{_sysconfdir}/sy
 install -m 0644 -p distribution/micro-dnsconfd.sysconfig %{buildroot}%{_sysconfdir}/sysconfig/micro-dnsconfd
 install -m 0644 -p distribution/dnsconfd.service %{buildroot}%{_unitdir}/dnsconfd.service
 install -m 0644 -p distribution/micro-dnsconfd.service %{buildroot}%{_unitdir}/micro-dnsconfd.service
+install -m 0644 -p distribution/dnsconfd-unbound-control.path %{buildroot}%{_unitdir}/dnsconfd-unbound-control.path
+install -m 0644 -p distribution/dnsconfd-unbound-control.service %{buildroot}%{_unitdir}/dnsconfd-unbound-control.service
 install -m 0644 -p distribution/dnsconfd.conf %{buildroot}%{_sysconfdir}/dnsconfd.conf
-install -m 0644 -p distribution/dnsconfd.rules %{buildroot}%{_datadir}/polkit-1/rules.d/dnsconfd.rules
 install -m 0644 -p distribution/dnsconfd-tmpfiles.conf %{buildroot}%{_tmpfilesdir}/%{name}.conf
 install -m 0644 -p distribution/dnsconfd-unbound-tmpfiles.conf %{buildroot}%{_tmpfilesdir}/%{name}-unbound.conf
 install -m 0755 -p distribution/dracut_module/module-setup.sh %{buildroot}%{_prefix}/lib/dracut/modules.d/99dnsconfd
 install -m 0755 -p distribution/dnsconfd-prepare.sh %{buildroot}%{_libexecdir}/dnsconfd-prepare
 install -m 0755 -p distribution/dnsconfd-prepare.sh %{buildroot}%{_libexecdir}/dnsconfd-cleanup
+install -m 0755 -p distribution/dnsconfd-unbound-control.sh %{buildroot}%{_libexecdir}/dnsconfd-unbound-control.sh
 install -m 0644 -p distribution/dracut_module/*.conf %{buildroot}%{_prefix}/lib/dracut/modules.d/99dnsconfd
 
 touch %{buildroot}%{_rundir}/dnsconfd/unbound.conf
 chmod 0644 %{buildroot}%{_rundir}/dnsconfd/unbound.conf
 
-# hook to inform us about unbound stop
+# hook to inform us about unbound state
 install -m 0644 -p distribution/dnsconfd.service.d-unbound.conf %{buildroot}%{_unitdir}/unbound.service.d/dnsconfd.conf
+# hook to enable unbound_control file
+install -m 0644 -p distribution/dnsconfd-unbound-control.conf %{buildroot}%{_unitdir}/dnsconfd.service.d/dnsconfd-unbound-control.conf
 
 install -m 0644 -p distribution/unbound-dnsconfd.conf %{buildroot}%{_sysconfdir}/unbound/conf.d/unbound.conf
 
@@ -200,6 +203,15 @@ fi
 %sysusers_create_compat %{SOURCE1}
 %endif
 
+%post unbound
+%systemd_post dnsconfd-unbound-control.path
+
+%preun unbound
+%systemd_preun dnsconfd-unbound-control.path
+
+%postun unbound
+%systemd_postun_with_restart dnsconfd-unbound-control.path
+
 %post
 %systemd_post %{name}.service
 
@@ -223,7 +235,6 @@ fi
 %{_mandir}/man5/dnsconfd.conf.5*
 %{_sysusersdir}/dnsconfd.conf
 %doc README.md docs/com.redhat.dnsconfd.md
-%{_datadir}/polkit-1/rules.d/dnsconfd.rules
 %dir %attr(755,dnsconfd,dnsconfd) %{_rundir}/dnsconfd
 %{_tmpfilesdir}/%{name}.conf
 
@@ -238,10 +249,14 @@ fi
 
 %files unbound
 %{_unitdir}/unbound.service.d/dnsconfd.conf
+%{_unitdir}/dnsconfd.service.d/dnsconfd-unbound-control.conf
 %config(noreplace) %attr(644,unbound,unbound) %{_sysconfdir}/unbound/conf.d/unbound.conf
 %attr(664,dnsconfd,dnsconfd) %{_rundir}/dnsconfd/unbound.conf
 %{_sysusersdir}/dnsconfd.conf
 %{_tmpfilesdir}/dnsconfd-unbound.conf
+%{_unitdir}/dnsconfd-unbound-control.path
+%{_unitdir}/dnsconfd-unbound-control.service
+%{_libexecdir}/dnsconfd-unbound-control.sh
 
 %files dracut
 %{_prefix}/lib/dracut/modules.d/99dnsconfd
