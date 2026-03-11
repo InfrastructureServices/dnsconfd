@@ -1,0 +1,11 @@
+[Unit]
+Description=Watch for dnsconfd unbound control file
+Before=dnsconfd.service
+# default 5 is too little and has been hit reliably in testing
+StartLimitBurst=20
+
+[Path]
+PathChanged=/run/dnsconfd/unbound_control
+
+[Install]
+WantedBy=dnsconfd.service

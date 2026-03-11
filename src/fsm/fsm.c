@@ -137,9 +137,27 @@ static fsm_event_t update_context(fsm_context_t *ctx) {
   return EVENT_NONE;
 }
 
+static void on_systemd_job_finished(const char *result, gpointer user_data) {
+  fsm_context_t *ctx = (fsm_context_t *)user_data;
+  if (strcmp(result, "stopped") == 0) {
+    dnsconfd_log(LOG_INFO, "Cache stopped, will attempt to restart it");
+    state_transition(ctx, EVENT_RELOAD);
+  } else if (strcmp(result, "done") == 0) {
+    state_transition(ctx, EVENT_JOB_SUCCESS);
+  } else {
+    dnsconfd_log(LOG_ERR, "Awaited systemd job failed");
+    state_transition(ctx, EVENT_JOB_FAILURE);
+  }
+}
+
 static fsm_event_t fsm_starting_event_kickoff(fsm_context_t *ctx) {
   const char *error_string = NULL;
   update_context(ctx);
+
+  if (service_management_subscribe_job_removed(&ctx->service_management_ctx,
+                                               on_systemd_job_finished, ctx)) {
+    return EVENT_FAILURE;
+  }
 
   if (write_configuration(ctx, &error_string)) {
     if (error_string) {
@@ -152,37 +170,10 @@ static fsm_event_t fsm_starting_event_kickoff(fsm_context_t *ctx) {
   return EVENT_SUCCESS;
 }
 
-static void on_systemd_job_finished(unsigned int id, const char *result, gpointer user_data) {
-  fsm_context_t *ctx = (fsm_context_t *)user_data;
-  if (ctx->awaited_systemd_job != id)
-    return;
-  service_management_unsubscribe_job_removed(ctx->dbus_connection, ctx->systemd_subscription_id);
-  ctx->awaited_systemd_job = 0;
-  ctx->systemd_subscription_id = 0;
-
-  if (strcmp(result, "done") == 0 || strcmp(result, "skipped") == 0) {
-    state_transition(ctx, EVENT_JOB_SUCCESS);
-  } else {
-    dnsconfd_log(LOG_ERR, "Awaited systemd job failed");
-    state_transition(ctx, EVENT_JOB_FAILURE);
-  }
-}
-
 static fsm_event_t fsm_configuring_dns_manager_event_success(fsm_context_t *ctx) {
   GError *error = NULL;
 
-  if (!ctx->systemd_subscription_id) {
-    ctx->systemd_subscription_id = service_management_subscribe_job_removed(
-        ctx->dbus_connection, on_systemd_job_finished, ctx);
-    if (!ctx->systemd_subscription_id) {
-      dnsconfd_log(LOG_ERR, "Failed to subscribe to systemd job removed signal");
-      return EVENT_FAILURE;
-    }
-  }
-
-  ctx->awaited_systemd_job = service_start(ctx->dbus_connection, "unbound.service", &error);
-
-  if (!ctx->awaited_systemd_job) {
+  if (set_service_status(&ctx->service_management_ctx, "ready", "restart", &error) != 0) {
     dnsconfd_log(LOG_ERR, "Failed to submit DNS cache start job");
     if (error) {
       dnsconfd_log(LOG_ERR, "%s", error->message);
@@ -251,18 +242,7 @@ static fsm_event_t update_dns_manager(fsm_context_t *ctx) {
 static fsm_event_t submit_stop_job(fsm_context_t *ctx) {
   GError *error = NULL;
 
-  if (!ctx->systemd_subscription_id) {
-    ctx->systemd_subscription_id = service_management_subscribe_job_removed(
-        ctx->dbus_connection, on_systemd_job_finished, ctx);
-    if (!ctx->systemd_subscription_id) {
-      dnsconfd_log(LOG_ERR, "Failed to subscribe to systemd job removed signal");
-      return EVENT_FAILURE;
-    }
-  }
-
-  ctx->awaited_systemd_job = service_stop(ctx->dbus_connection, "unbound.service", &error);
-
-  if (!ctx->awaited_systemd_job) {
+  if (set_service_status(&ctx->service_management_ctx, "stopped", "stop", &error) != 0) {
     dnsconfd_log(LOG_ERR, "Failed to submit dns cache service stop job");
     if (error) {
       dnsconfd_log(LOG_ERR, "%s", error->message);

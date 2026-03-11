@@ -20,12 +20,11 @@ rlJournalStart
     rlPhaseEnd
 
     rlPhaseStartCleanup
-        rlRun "journalctl -u dnsconfd" 0 "Saving dnsconfd logs"
-        rlRun "journalctl -u unbound" 0 "Saving unbound logs"
         rlRun "ip route" 0 "Saving present routes"
         rlServiceRestore dnsconfd
         rlFileRestore
         rlRun "journalctl -u dnsconfd" 0 "Saving logs"
+        rlRun "journalctl -u unbound" 0 "Saving unbound logs"
         rlRun "dnsconfd config uninstall" 0 "Uninstalling dnsconfd privileges"
     rlPhaseEnd
 rlJournalEnd

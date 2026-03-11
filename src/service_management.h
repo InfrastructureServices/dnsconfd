@@ -4,16 +4,22 @@
 #include <gio/gio.h>
 #include <glib.h>
 
-typedef void (*service_job_completed_cb)(unsigned int id, const char *result, gpointer user_data);
+typedef void (*service_job_completed_cb)(const char *result, gpointer user_data);
 
-unsigned int service_start(GDBusConnection *connection, const char *service_name, GError **error);
+typedef struct {
+  char *expected_status;
+  service_job_completed_cb callback;
+  gpointer user_data;
+  GFileMonitor *monitor;
+  gulong handler_id;
+} ServiceManagementContext;
 
-unsigned int service_stop(GDBusConnection *connection, const char *service_name, GError **error);
+void service_management_context_destroy(ServiceManagementContext *ctx);
 
-guint service_management_subscribe_job_removed(GDBusConnection *connection,
-                                               service_job_completed_cb callback,
-                                               gpointer user_data);
+unsigned int set_service_status(ServiceManagementContext *ctx, char *expected_status, char *command,
+                                GError **error);
 
-void service_management_unsubscribe_job_removed(GDBusConnection *connection, guint subscription_id);
+int service_management_subscribe_job_removed(ServiceManagementContext *ctx,
+                                             service_job_completed_cb callback, gpointer user_data);
 
 #endif /* SERVICE_MANAGEMENT_H */

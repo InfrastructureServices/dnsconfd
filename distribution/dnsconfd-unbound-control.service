@@ -1,0 +1,7 @@
+[Unit]
+Description=Helper service to control unbound from dnsconfd
+StartLimitBurst=20
+
+[Service]
+Type=oneshot
+ExecStart=/usr/libexec/dnsconfd-unbound-control.sh

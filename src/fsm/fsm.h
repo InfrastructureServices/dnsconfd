@@ -1,9 +1,10 @@
+#ifndef FSM_H
+#define FSM_H
+
 #include <gio/gio.h>
 
 #include "dnsconfd_config.h"
-
-#ifndef FSM_H
-#define FSM_H
+#include "service_management.h"
 
 typedef enum {
   FSM_STARTING = 0,
@@ -44,12 +45,11 @@ typedef struct {
   GString *resolv_conf_backup;
   char *effective_ca;
   GMainLoop *main_loop;
-  unsigned int awaited_systemd_job;
-  unsigned int systemd_subscription_id;
   unsigned int exit_code;
   unsigned int requested_configuration_serial;
   unsigned int current_configuration_serial;
   dnsconfd_mode_t resolution_mode;
+  ServiceManagementContext service_management_ctx;
 } fsm_context_t;
 
 int state_transition(fsm_context_t *ctx, fsm_event_t event);

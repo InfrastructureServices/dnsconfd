@@ -32,6 +32,7 @@ require {
     type NetworkManager_var_run_t;
     type NetworkManager_t;
     type syslogd_var_run_t;
+    type fs_t;
 }
 
 type dnsconfd_t;
@@ -90,29 +91,19 @@ allow dnsconfd_t systemd_userdbd_runtime_t:lnk_file read;
 allow dnsconfd_t systemd_userdbd_runtime_t:sock_file write;
 
 allow dnsconfd_t systemd_userdbd_t:unix_stream_socket connectto;
-allow dnsconfd_t tmp_t:file { create unlink write open};
+allow dnsconfd_t tmp_t:file { create unlink write open };
 allow dnsconfd_t tmpfs_t:file { execute read write map };
-
-# Neccessary for Fedora >= 39
-# tempfile module unfortunately transitively imports libgomp,
-# which tries to find out how many CPUs are available on the system by reading
-# /sys/devices/system/cpu/possible file
-# tracked in Fedora selinux upstream https://github.com/fedora-selinux/selinux-policy/issues/1974
-# TODO: Add more fine graded permission
-allow dnsconfd_t sysfs_t:file { read open };
 
 allow unconfined_t dnsconfd_t:dbus send_msg;
 
-allow dnsconfd_t init_t:dbus send_msg;
 allow dnsconfd_t init_t:system status;
 allow dnsconfd_t named_unit_file_t:service { start stop };
-allow init_t dnsconfd_t:dbus send_msg;
 
 # unbound has to be able to read generated drop-in config
 allow named_t dnsconfd_var_run_t:file { read open getattr ioctl };
 allow named_t NetworkManager_var_run_t:file { open read getattr };
 allow dnsconfd_t dnsconfd_var_run_t:file { open write getattr ioctl read };
-allow dnsconfd_t dnsconfd_var_run_t:dir search;
+allow dnsconfd_t dnsconfd_var_run_t:dir { search watch read };
 
 allow dnsconfd_t dnsconfd_t:dbus send_msg;
 
@@ -122,3 +113,5 @@ logging_send_syslog_msg(dnsconfd_t)
 
 #============= dnsconfd_init_t ==============
 allow dnsconfd_init_t etc_t:dir write;
+
+allow dnsconfd_t fs_t:filesystem getattr;
