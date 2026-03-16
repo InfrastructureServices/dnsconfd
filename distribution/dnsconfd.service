@@ -5,14 +5,48 @@ Requires=dbus.service
 
 [Service]
 Type=notify
-User=dnsconfd
-Group=dnsconfd
-SupplementaryGroups=unbound
 BusName=com.redhat.dnsconfd
 ExecStartPre=+/usr/libexec/dnsconfd-prepare
 ExecStart=/usr/bin/dnsconfd $OPTIONS
 ExecStopPost=+/usr/libexec/dnsconfd-cleanup
 EnvironmentFile=/etc/sysconfig/dnsconfd
+
+# Set privileges.
+User=dnsconfd
+Group=dnsconfd
+SupplementaryGroups=unbound
+CapabilityBoundingSet=
+#NoNewPrivileges=no due to privileged transition from init_t to dnsconfd_t.
+
+# Limit filesystem read and write.
+ProtectSystem=strict
+ReadWritePaths=/etc/resolv.conf /run/dnsconfd
+PrivateTmp=yes
+ProtectHome=yes
+PrivateMounts=yes
+ProtectClock=yes
+ProtectProc=invisible
+
+# Limit network and IPC.
+IPAddressDeny=any
+IPAddressAllow=localhost
+RestrictAddressFamilies=AF_INET AF_INET6 AF_NETLINK AF_UNIX
+
+# Reduce kernel attack surface.
+LockPersonality=yes
+PrivateDevices=yes
+ProtectControlGroups=yes
+ProtectKernelLogs=yes
+ProtectKernelModules=yes
+ProtectKernelTunables=yes
+RestrictNamespaces=yes
+SystemCallArchitectures=native
+SystemCallFilter=@system-service
+
+# Mitigate damage from exploits.
+MemoryDenyWriteExecute=yes
+RestrictRealtime=yes
+RestrictSUIDSGID=yes
 
 [Install]
 WantedBy=multi-user.target
