@@ -13,6 +13,8 @@ executable(
     'src/configuration_parsing/config_utils.c',
     'src/cli_commands/cli_config.c',
     'src/cli_commands/cli_update.c',
+    'src/cli_commands/cli_status.c',
+    'src/cli_commands/cli_reload.c',
     'src/cli_commands/cli_common.c',
     'src/types/network_address.c',
     'src/types/server_uri.c',
