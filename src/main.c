@@ -3,6 +3,8 @@
 
 #include "cli_commands/cli_common.h"
 #include "cli_commands/cli_config.h"
+#include "cli_commands/cli_reload.h"
+#include "cli_commands/cli_status.h"
 #include "cli_commands/cli_update.h"
 #include "dnsconfd_config.h"
 #include "log_utilities.h"
@@ -30,10 +32,10 @@ int main(int argc, char *argv[]) {
     close_logs();
     break;
   case COMMAND_STATUS:
-    exit_code = cli_execute_simple_command("Status");
+    exit_code = cli_status_command(&config);
     break;
   case COMMAND_RELOAD:
-    exit_code = cli_execute_simple_command("Reload");
+    exit_code = cli_reload_command(&config);
     break;
   case COMMAND_CONFIG:
     exit_code = cli_config_command(&config);
