@@ -1,9 +1,11 @@
 #include "cli_common.h"
 
 #include <stdio.h>
+#include <string.h>
 
 #include "dnsconfd_config.h"
 #include "log_utilities.h"
+#include "print_utils.h"
 
 GDBusConnection *cli_connect_to_dbus() {
   GError *error = NULL;
@@ -32,7 +34,12 @@ int cli_call_simple_method(GDBusConnection *connection, const char *method_name)
   }
 
   g_variant_get(result, "(&s)", &response);
-  printf("%s\n", response);
+  if (strcmp(method_name, "Status") == 0)
+    //If the json parsing fails for any reason, just print the raw string at least
+    if(print_status(response))
+      printf("%s\n", response);
+  else
+    printf("%s\n", response);
 
   g_variant_unref(result);
   return EXIT_OK;
