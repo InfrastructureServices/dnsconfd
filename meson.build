@@ -14,6 +14,7 @@ executable(
     'src/cli_commands/cli_config.c',
     'src/cli_commands/cli_update.c',
     'src/cli_commands/cli_common.c',
+    'src/cli_commands/print_utils.c',
     'src/types/network_address.c',
     'src/types/server_uri.c',
     'src/ip_utilities.c',

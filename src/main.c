@@ -30,10 +30,10 @@ int main(int argc, char *argv[]) {
     close_logs();
     break;
   case COMMAND_STATUS:
-    exit_code = cli_execute_simple_command("Status");
+    exit_code = cli_execute_simple_command("Status", config.command_options.status_options.json);
     break;
   case COMMAND_RELOAD:
-    exit_code = cli_execute_simple_command("Reload");
+    exit_code = cli_execute_simple_command("Reload", 0);
     break;
   case COMMAND_CONFIG:
     exit_code = cli_config_command(&config);
