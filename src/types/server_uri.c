@@ -567,6 +567,9 @@ json_t *server_uri_to_json(server_uri_t *server) {
   else
     json_object_set_new(obj, "interface", json_null());
 
+  // Priority
+  json_object_set_new(obj, "priority", json_integer(server->priority));
+
   // Protocol
   json_object_set_new(obj, "protocol", json_string(dns_protocol_t_to_string(server->protocol)));
 
