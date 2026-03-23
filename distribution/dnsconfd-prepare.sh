@@ -10,7 +10,7 @@ if [ -f /etc/unbound/conf.d/unbound-local-root.conf ]; then
     mv -f /etc/unbound/conf.d/unbound-local-root.conf /etc/unbound/conf.d/unbound-local-root.conf.disabled
 fi
 # unbound-anchor checks for this file and will not start if it is present
-touch /run/unbound/anchor-disable
+> /run/unbound/anchor-disable
 # revert enablement of as112 domain resolution
 if ! [ -e /etc/unbound/conf.d/dnsconfd-as112.conf ]; then
   ln -s /usr/share/unbound/conf.d/unbound-as112-networks.conf /etc/unbound/conf.d/dnsconfd-as112.conf

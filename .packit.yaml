@@ -29,7 +29,6 @@ jobs:
     trigger: pull_request
     identifier: pr_tests_multihost
     targets:
-      - fedora-42
       - fedora-rawhide
     tmt_plan: multihost
     skip_build: True
@@ -57,7 +56,6 @@ jobs:
     trigger: commit
     identifier: pr_tests_multihost
     targets:
-      - fedora-42
       - fedora-rawhide
     tmt_plan: multihost
     skip_build: True
