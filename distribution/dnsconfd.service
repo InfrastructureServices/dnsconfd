@@ -1,7 +1,11 @@
 [Unit]
 Description=Dns local cache services configuration daemon
-After=network.target dbus.service
-Requires=dbus.service
+
+After=systemd-sysctl.service systemd-sysusers.service
+Before=initrd-switch-root.target network-online.target
+Conflicts=shutdown.target initrd-switch-root.target
+Wants=dbus.service
+Wants=systemd-sysusers.service
 
 [Service]
 Type=notify
@@ -15,5 +19,5 @@ ExecStopPost=+/usr/libexec/dnsconfd-cleanup
 EnvironmentFile=/etc/sysconfig/dnsconfd
 
 [Install]
-WantedBy=multi-user.target
+WantedBy=sysinit.target
 Alias=dbus-com.redhat.dnsconfd.service
