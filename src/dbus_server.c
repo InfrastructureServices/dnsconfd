@@ -280,8 +280,7 @@ static GVariant *handle_update_call(GVariant *parameters, fsm_context_t *ctx) {
       result = g_variant_new("(us)", 0, parse_error_strings[PARSE_ERROR_OOM]);
       break;
     }
-    *cur_server = (server_uri_t){.dnssec = 1};
-    *cur_server = (server_uri_t){.wired = 1};
+    *cur_server = (server_uri_t){.dnssec = 1, .wired = 1};
     g_variant_dict_init(&cur_server_dict, cur_server_params);
     if ((parse_error = parse_address(&cur_server_dict, cur_server)) != PARSE_ERROR_NONE) {
       server_uri_t_destroy(cur_server);
