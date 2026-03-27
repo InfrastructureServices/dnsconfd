@@ -2,6 +2,10 @@
 
 #include <stddef.h>
 #include <string.h>
+#include <unistd.h>
+#include <sys/socket.h>
+#include <linux/wireless.h>
+#include <sys/ioctl.h>
 
 int parse_ip_str(const char *str, struct sockaddr_storage *address) {
   struct sockaddr_in *s4 = (struct sockaddr_in *)address;
@@ -64,5 +68,23 @@ int are_ips_equal(struct sockaddr_storage *a, struct sockaddr_storage *b) {
     struct sockaddr_in6 *s6_b = (struct sockaddr_in6 *)b;
     return memcmp(&s6_a->sin6_addr, &s6_b->sin6_addr, sizeof(struct in6_addr)) == 0;
   }
+  return 0;
+}
+
+int is_wireless(const char* ifname)
+{
+  int sock;
+  struct iwreq pwrq;
+  sock = socket(AF_INET, SOCK_STREAM, 0);
+  if (sock == -1) {
+    return -1;
+  }
+  memset(&pwrq, 0, sizeof(pwrq));
+  strncpy(pwrq.ifr_name, ifname, IFNAMSIZ);
+  if (ioctl(sock, SIOCGIWNAME, &pwrq) != -1) {
+    close(sock);
+    return 1; // It is a wireless interface
+  }
+  close(sock);
   return 0;
 }

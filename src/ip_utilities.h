@@ -11,4 +11,6 @@ void set_default_port(struct sockaddr_storage *address, uint16_t port);
 
 int are_ips_equal(struct sockaddr_storage *a, struct sockaddr_storage *b);
 
+int is_wireless(const char* ifname);
+
 #endif /* IP_UTILITIES_H */

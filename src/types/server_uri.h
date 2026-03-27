@@ -18,6 +18,7 @@ typedef struct {
   int priority;
   char interface[IFNAMSIZ];
   unsigned char dnssec;
+  unsigned char wired;
   dns_protocol_t protocol;
   char *certification_authority;
   char *name;

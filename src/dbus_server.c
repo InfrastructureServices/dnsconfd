@@ -281,6 +281,7 @@ static GVariant *handle_update_call(GVariant *parameters, fsm_context_t *ctx) {
       break;
     }
     *cur_server = (server_uri_t){.dnssec = 1};
+    *cur_server = (server_uri_t){.wired = 1};
     g_variant_dict_init(&cur_server_dict, cur_server_params);
     if ((parse_error = parse_address(&cur_server_dict, cur_server)) != PARSE_ERROR_NONE) {
       server_uri_t_destroy(cur_server);
@@ -348,6 +349,9 @@ static GVariant *handle_update_call(GVariant *parameters, fsm_context_t *ctx) {
       dnsconfd_log(LOG_DEBUG, "Skipping duplicate server");
       continue;
     }
+
+    if(is_wireless(cur_server->interface))
+      cur_server->wired=0;
 
     parsed_servers = g_list_append(parsed_servers, cur_server);
     dnsconfd_log(LOG_DEBUG, "Parsed server successfully");
