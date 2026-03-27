@@ -76,7 +76,7 @@ allow dnsconfd_t rndc_port_t:tcp_socket { name_bind name_connect };
 allow dnsconfd_t self:capability { net_bind_service net_raw net_admin };
 allow dnsconfd_t self:netlink_route_socket { bind create getattr nlmsg_read read write };
 allow dnsconfd_t self:process setrlimit;
-allow dnsconfd_t self:tcp_socket { bind connect create getopt listen setopt accept read write};
+allow dnsconfd_t self:tcp_socket { bind connect create getopt listen setopt accept read write ioctl};
 allow dnsconfd_t self:udp_socket { bind create setopt connect read write };
 allow dnsconfd_t self:unix_dgram_socket { create ioctl };
 allow dnsconfd_t sssd_public_t:dir search;
