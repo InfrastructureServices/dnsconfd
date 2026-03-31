@@ -1,7 +1,10 @@
 #include "ip_utilities.h"
 
+#include <net/if.h>
 #include <stddef.h>
+#include <stdio.h>
 #include <string.h>
+#include <sys/stat.h>
 
 int parse_ip_str(const char *str, struct sockaddr_storage *address) {
   struct sockaddr_in *s4 = (struct sockaddr_in *)address;
@@ -65,4 +68,12 @@ int are_ips_equal(struct sockaddr_storage *a, struct sockaddr_storage *b) {
     return memcmp(&s6_a->sin6_addr, &s6_b->sin6_addr, sizeof(struct in6_addr)) == 0;
   }
   return 0;
+}
+
+int is_wireless(const char *ifname) {
+  char path[64 + IFNAMSIZ];
+  struct stat statbuf;
+  // Check for wireless directory in sysfs
+  snprintf(path, sizeof(path), "/sys/class/net/%s/wireless", ifname);
+  return stat(path, &statbuf) == 0 && S_ISDIR(statbuf.st_mode);
 }
