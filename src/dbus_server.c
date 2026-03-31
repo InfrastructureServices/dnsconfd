@@ -4,6 +4,7 @@
 #include <glib-unix.h>
 #include <idn2.h>
 #include <jansson.h>
+#include <limits.h>
 #include <linux/if.h>
 #include <netinet/in.h>
 #include <stdio.h>
@@ -348,6 +349,10 @@ static GVariant *handle_update_call(GVariant *parameters, fsm_context_t *ctx) {
       dnsconfd_log(LOG_DEBUG, "Skipping duplicate server");
       continue;
     }
+
+    // Lowering priority for wireless interfaces
+    if (is_wireless(cur_server->interface))
+      cur_server->priority = (int)MAX((int64_t)cur_server->priority - 10, INT_MIN);
 
     parsed_servers = g_list_append(parsed_servers, cur_server);
     dnsconfd_log(LOG_DEBUG, "Parsed server successfully");
