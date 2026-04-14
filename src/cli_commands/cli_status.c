@@ -7,6 +7,10 @@
 
 #include "cli_common.h"
 
+int print_nonsense() {
+  printf("This function does nothing, this is a testing PR\n");
+}
+
 static int print_status(const char *response) {
   json_t *root;
   json_error_t error;
