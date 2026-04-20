@@ -1,0 +1,14 @@
+$ORIGIN rpz.dnsconfd.test.
+$TTL 86400
+@       IN      SOA     ns.rpz.dnsconfd.test. hostmaster.rpz.dnsconfd.test. (
+                        2024010101 ; serial
+                        2          ; refresh after 2 seconds
+                        1          ; retry after 1 second
+                        604800     ; expire after 1 week
+                        86400 )    ; minimum TTL of 1 day
+
+        IN      NS      ns.rpz.dnsconfd.test.
+ns      IN      A       192.168.6.3
+
+; QNAME trigger: block blocked.test.com with NXDOMAIN
+blocked.test.com     CNAME   .

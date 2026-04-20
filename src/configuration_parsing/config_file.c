@@ -271,6 +271,110 @@ static int parse_static_servers(yaml_parser_t *parser, dnsconfd_config_t *config
   return status;
 }
 
+static int parse_rpz_zones(yaml_parser_t *parser, dnsconfd_config_t *config,
+                           const char **error_string) {
+  yaml_event_t event;
+  int done = 0;
+  int status = 0;
+  rpz_zone_t *current_zone = NULL;
+  char *current_key = NULL;
+  int expect_key = 1;
+
+  while (!done) {
+    if (!yaml_parser_parse(parser, &event)) {
+      *error_string = "Failed to parse RPZ configuration YAML";
+      status = -1;
+      break;
+    }
+
+    switch (event.type) {
+    case YAML_MAPPING_START_EVENT:
+      if (current_zone) {
+        *error_string = "Badly formatted rpz";
+        status = -1;
+      } else {
+        current_zone = calloc(1, sizeof(rpz_zone_t));
+        if (!current_zone) {
+          *error_string = "Failed to allocate memory for rpz zone";
+          status = -1;
+        }
+      }
+      break;
+
+    case YAML_MAPPING_END_EVENT:
+      if (current_zone) {
+        if (!current_zone->name) {
+          *error_string = "RPZ zone does not have name set";
+          status = -1;
+        } else if (!current_zone->master && !current_zone->zonefile) {
+          *error_string = "RPZ zone must have master, zonefile, or both";
+          status = -1;
+        } else {
+          config->rpz_zones = g_list_append(config->rpz_zones, current_zone);
+          current_zone = NULL;
+        }
+      }
+      break;
+
+    case YAML_SCALAR_EVENT:
+      if (expect_key) {
+        if ((current_key = strdup((char *)event.data.scalar.value)) == NULL) {
+          *error_string = "Failed to allocate memory during RPZ YAML parsing";
+          status = -1;
+          break;
+        }
+        expect_key = 0;
+      } else {
+        if (current_zone && current_key) {
+          const char *val = (const char *)event.data.scalar.value;
+          if (strcmp(current_key, "name") == 0) {
+            if ((current_zone->name = strdup(val)) == NULL) {
+              *error_string = "Failed to allocate memory for rpz name";
+              status = -1;
+            }
+          } else if (strcmp(current_key, "master") == 0) {
+            if ((current_zone->master = strdup(val)) == NULL) {
+              *error_string = "Failed to allocate memory for rpz master";
+              status = -1;
+            }
+          } else if (strcmp(current_key, "zonefile") == 0) {
+            if ((current_zone->zonefile = strdup(val)) == NULL) {
+              *error_string = "Failed to allocate memory for rpz zonefile";
+              status = -1;
+            }
+          } else {
+            *error_string = "Unrecognized field in rpz";
+            status = -1;
+          }
+        }
+        free(current_key);
+        current_key = NULL;
+        expect_key = 1;
+      }
+      break;
+
+    case YAML_SEQUENCE_END_EVENT:
+      done = 1;
+      break;
+
+    default:
+      break;
+    }
+
+    yaml_event_delete(&event);
+    if (status != 0)
+      break;
+  }
+
+  if (status != 0) {
+    if (current_key)
+      free(current_key);
+    if (current_zone)
+      rpz_zone_t_destroy(current_zone);
+  }
+  return status;
+}
+
 static int duplicating_options(const char *key, const char *value, dnsconfd_config_t *config,
                                const char **error_string) {
   struct {
@@ -341,6 +445,13 @@ int parse_config_file(const char *path, dnsconfd_config_t *config, const char **
     case YAML_SEQUENCE_START_EVENT:
       if (current_key && strcmp(current_key, "static_servers") == 0) {
         if (parse_static_servers(&parser, config, error_string) != 0) {
+          status = -1;
+        }
+        free(current_key);
+        current_key = NULL;
+        expect_key = 1;
+      } else if (current_key && strcmp(current_key, "rpz") == 0) {
+        if (parse_rpz_zones(&parser, config, error_string) != 0) {
           status = -1;
         }
         free(current_key);

@@ -1,0 +1,7 @@
+summary: Test Response Policy Zone configuration
+test: ./test.sh
+framework: beakerlib
+recommend:
+  - podman
+tag:
+  - integration
