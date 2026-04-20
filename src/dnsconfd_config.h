@@ -69,12 +69,21 @@ typedef enum {
 } config_boolean_t;
 
 typedef struct {
+  char *name;
+  char *master;
+  char *zonefile;
+} rpz_zone_t;
+
+void rpz_zone_t_destroy(gpointer data);
+
+typedef struct {
   const char *file_log;
   const char *resolv_conf_path;
   const char *resolver_options;
   const char *config_file;
   const char *certification_authority;
   GList *static_servers;
+  GList *rpz_zones;
   struct sockaddr_storage listen_address;
   dnsconfd_command_t command;
   command_options_t command_options;

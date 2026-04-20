@@ -239,6 +239,12 @@ static void merge_configs(dnsconfd_config_t *high_prio, dnsconfd_config_t *low_p
     g_list_free_full(low_prio->static_servers, (GDestroyNotify)server_uri_t_destroy);
   }
 
+  if (!high_prio->rpz_zones) {
+    high_prio->rpz_zones = low_prio->rpz_zones;
+  } else {
+    g_list_free_full(low_prio->rpz_zones, rpz_zone_t_destroy);
+  }
+
   if (high_prio->listen_address.ss_family == PF_UNSPEC) {
     high_prio->listen_address = low_prio->listen_address;
   }
@@ -330,6 +336,14 @@ int parse_configuration(int argc, char *argv[], dnsconfd_config_t *config) {
   return 0;
 }
 
+void rpz_zone_t_destroy(gpointer data) {
+  rpz_zone_t *zone = (rpz_zone_t *)data;
+  free(zone->name);
+  free(zone->master);
+  free(zone->zonefile);
+  free(zone);
+}
+
 void config_cleanup(dnsconfd_config_t *config) {
   const char *pointers_to_check[5] = {config->file_log, config->resolv_conf_path,
                                       config->resolver_options, config->config_file,
@@ -347,5 +361,9 @@ void config_cleanup(dnsconfd_config_t *config) {
 
   if (config->static_servers) {
     g_list_free_full(config->static_servers, (GDestroyNotify)server_uri_t_destroy);
+  }
+
+  if (config->rpz_zones) {
+    g_list_free_full(config->rpz_zones, rpz_zone_t_destroy);
   }
 }

@@ -34,6 +34,29 @@ List of servers that should be configured, default is empty
 Space separated list of CA bundles used for encrypted protocols as default
 when no custom CA was specified. The first one that can be accessed will be
 used, default /etc/pki/dns/extracted/pem/tls-ca-bundle.pem /etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem
+.IP "rpz"
+List of Response Policy Zones to be loaded via DNS zone transfer (AXFR/IXFR).
+Each zone is kept synchronized with its remote master automatically by Unbound.
+When at least one RPZ zone is configured, the respip module is loaded into Unbound.
+Default is empty (no RPZ zones).
+
+Available attributes of RPZ zones are:
+
+ \(bu \fBname\fP required, the name of the RPZ authority zone
+ \(bu \fBmaster\fP optional, IP address of the server to transfer the zone from
+ \(bu \fBzonefile\fP optional, path where the zone is stored locally. If a master is
+configured, the zonefile must be located in a directory writable by the
+underlying DNS resolver so that zone transfers can be saved.
+
+At least one of \fBmaster\fP or \fBzonefile\fP must be specified.
+
+Examples:
+
+Configuring a single RPZ zone with zone transfer
+
+rpz:
+  - name: rpz.example.com
+    master: 192.0.2.1
 
 Available attributes of servers are:
 

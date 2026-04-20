@@ -118,6 +118,29 @@ static int generate_forward_zones(FILE *config_file, GHashTable *domain_to_serve
   return 0;
 }
 
+static int generate_rpz_zones(FILE *config_file, GList *rpz_zones) {
+  GList *iter;
+  rpz_zone_t *zone;
+
+  for (iter = rpz_zones; iter != NULL; iter = iter->next) {
+    zone = (rpz_zone_t *)iter->data;
+
+    fprintf(config_file, "rpz:\n");
+    fprintf(config_file, "\tname: \"%s\"\n", zone->name);
+    if (zone->master) {
+      fprintf(config_file, "\tmaster: %s\n", zone->master);
+      fprintf(config_file, "\tallow-notify: %s\n", zone->master);
+    }
+    if (zone->zonefile) {
+      fprintf(config_file, "\tzonefile: \"%s\"\n", zone->zonefile);
+    }
+  }
+
+  if (ferror(config_file))
+    return -1;
+  return 0;
+}
+
 static int generate_listen_address(FILE *config_file, dnsconfd_config_t *config,
                                    const char **error_string) {
   char inet_buffer[INET6_ADDRSTRLEN];
@@ -211,9 +234,16 @@ int write_configuration(fsm_context_t *ctx, const char **error_string) {
     return -1;
   }
 
-  fprintf(config_file, "server:\n\tmodule-config: \"%s\"\n",
-          ctx->config->dnssec_enabled == CONFIG_BOOLEAN_TRUE ? "ipsecmod validator iterator"
-                                                             : "ipsecmod iterator");
+  if (ctx->config->rpz_zones) {
+    fprintf(config_file, "server:\n\tmodule-config: \"%s\"\n",
+            ctx->config->dnssec_enabled == CONFIG_BOOLEAN_TRUE
+                ? "ipsecmod respip validator iterator"
+                : "ipsecmod respip iterator");
+  } else {
+    fprintf(config_file, "server:\n\tmodule-config: \"%s\"\n",
+            ctx->config->dnssec_enabled == CONFIG_BOOLEAN_TRUE ? "ipsecmod validator iterator"
+                                                               : "ipsecmod iterator");
+  }
 
   if (generate_listen_address(config_file, ctx->config, error_string)) {
     goto error;
@@ -241,6 +271,13 @@ int write_configuration(fsm_context_t *ctx, const char **error_string) {
     }
   } else {
     fprintf(config_file, "forward-zone:\n\tname: \".\"\n\tforward-addr: \"127.0.0.1\"\n");
+  }
+
+  if (ctx->config->rpz_zones) {
+    if (generate_rpz_zones(config_file, ctx->config->rpz_zones)) {
+      *error_string = "Failed to generate Unbound RPZ configuration";
+      goto error;
+    }
   }
 
   if (ferror(config_file)) {
