@@ -15,7 +15,7 @@ rlJournalStart
     rlPhaseEnd
 
     rlPhaseStartTest "RPZ with master only"
-        rlRun "podman cp ./dnsconfd.conf $dnsconfd_cid://etc/dnsconfd.conf" 0 "Copying RPZ config into container"
+        rlRun "podman cp ./dnsconfd.conf $dnsconfd_cid://etc/dnsconfd/dnsconfd.conf" 0 "Copying RPZ config into container"
         rlRun "podman exec $dnsconfd_cid systemctl restart dnsconfd" 0 "Restarting dnsconfd with RPZ config"
         rlRun "podman exec $dnsconfd_cid nmcli connection mod eth0 ipv4.dns 192.168.6.10" 0 "Adding dns server to NM active profile"
         rlRun "podman exec $dnsconfd_cid nmcli connection up eth0" 0 "Bringing the connection up"
@@ -36,7 +36,7 @@ rlJournalStart
         rlRun "podman exec $dnsconfd_cid cp /dev/null /var/lib/unbound/rpz.dnsconfd.test" 0 "Ensuring clean zonefile path"
         rlRun "podman cp ../bind_zones/rpz.dnsconfd.test $dnsconfd_cid:/var/lib/unbound/rpz.dnsconfd.test" 0 "Copying RPZ zone file into container"
         rlRun "podman exec $dnsconfd_cid chown unbound:unbound /var/lib/unbound/rpz.dnsconfd.test" 0 "Setting zone file ownership"
-        rlRun "podman cp ./dnsconfd_zonefile.conf $dnsconfd_cid://etc/dnsconfd.conf" 0 "Copying zonefile-only RPZ config into container"
+        rlRun "podman cp ./dnsconfd_zonefile.conf $dnsconfd_cid://etc/dnsconfd/dnsconfd.conf" 0 "Copying zonefile-only RPZ config into container"
         rlRun "podman exec $dnsconfd_cid systemctl restart dnsconfd" 0 "Restarting dnsconfd with zonefile-only RPZ config"
         rlRun "podman exec $dnsconfd_cid nmcli connection up eth0" 0 "Bringing the connection up"
         rlRun "poll_cmd 15 'podman exec $dnsconfd_cid dig blocked.test.com | grep NXDOMAIN'" 0 "Waiting for RPZ zonefile to become active"
@@ -46,7 +46,7 @@ rlJournalStart
     rlPhaseEnd
 
     rlPhaseStartTest "RPZ with both master and zonefile"
-        rlRun "podman cp ./dnsconfd_both.conf $dnsconfd_cid://etc/dnsconfd.conf" 0 "Copying master+zonefile RPZ config into container"
+        rlRun "podman cp ./dnsconfd_both.conf $dnsconfd_cid://etc/dnsconfd/dnsconfd.conf" 0 "Copying master+zonefile RPZ config into container"
         rlRun "podman exec $dnsconfd_cid systemctl restart dnsconfd" 0 "Restarting dnsconfd with master+zonefile RPZ config"
         rlRun "podman exec $dnsconfd_cid nmcli connection up eth0" 0 "Bringing the connection up"
         rlRun "poll_cmd 15 'podman exec $dnsconfd_cid dig blocked.test.com | grep NXDOMAIN'" 0 "Waiting for RPZ zone to become active"

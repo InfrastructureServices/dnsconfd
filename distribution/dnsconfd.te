@@ -40,6 +40,7 @@ type dnsconfd_exec_t;
 type dnsconfd_init_t;
 type dnsconfd_init_exec_t;
 type dnsconfd_var_run_t;
+type dnsconfd_conf_t;
 
 init_daemon_domain(dnsconfd_t, dnsconfd_exec_t)
 init_daemon_domain(dnsconfd_init_t, dnsconfd_init_exec_t)
@@ -47,6 +48,7 @@ init_daemon_domain(dnsconfd_init_t, dnsconfd_init_exec_t)
 files_pid_file(dnsconfd_var_run_t)
 files_mountpoint(dnsconfd_var_run_t)
 init_daemon_run_dir(dnsconfd_var_run_t, "dnsconfd")
+files_config_file(dnsconfd_conf_t)
 
 #============= NetworkManager_t ==============
 allow NetworkManager_t dnsconfd_t:dbus send_msg;
@@ -59,6 +61,9 @@ allow dnsconfd_t cert_t:file { getattr open read };
 allow dnsconfd_t kernel_t:unix_stream_socket connectto;
 # /etc/resolv.conf modifications
 allow dnsconfd_t etc_t:file { getattr open read write };
+# Config snippet directory /etc/dnsconfd/
+allow dnsconfd_t dnsconfd_conf_t:dir { search getattr open read };
+allow dnsconfd_t dnsconfd_conf_t:file { getattr open read };
 allow dnsconfd_t named_exec_t:file { execute execute_no_trans open read map};
 # Required by unbound-control
 allow dnsconfd_t named_conf_t:dir { getattr open read search};

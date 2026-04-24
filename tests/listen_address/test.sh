@@ -17,7 +17,7 @@ rlJournalStart
     rlPhaseEnd
 
     rlPhaseStartTest
-        rlRun "podman exec $dnsconfd_cid /bin/bash -c 'echo listen_address: \"127.0.0.64\" >> /etc/dnsconfd.conf'" 0 "Change listen_address"
+        rlRun "podman exec $dnsconfd_cid /bin/bash -c 'echo listen_address: \"127.0.0.64\" >> /etc/dnsconfd/dnsconfd.conf'" 0 "Change listen_address"
         rlRun "podman exec $dnsconfd_cid systemctl restart dnsconfd"
         rlRun "podman exec $dnsconfd_cid nmcli connection mod eth0 ipv4.dns 192.168.6.3" 0 "Adding dns server to NM active profile"
         rlRun "podman exec $dnsconfd_cid nmcli con up eth0"

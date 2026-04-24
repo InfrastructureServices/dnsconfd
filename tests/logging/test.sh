@@ -21,7 +21,7 @@ rlJournalStart
         rlRun "podman exec $dnsconfd_cid systemctl start network-online.target"
         rlRun "podman exec $dnsconfd_cid touch /var/run/dnsconfd/dnsconfd.log" 0 "Create log file"
         rlRun "podman exec $dnsconfd_cid chown dnsconfd /var/run/dnsconfd/dnsconfd.log" 0 "Set log file ownership"
-        rlRun "podman exec $dnsconfd_cid /bin/bash -c 'printf \"file_log: /var/run/dnsconfd/dnsconfd.log\n\" >> /etc/dnsconfd.conf'" 0 "Enabling file logging"
+        rlRun "podman exec $dnsconfd_cid /bin/bash -c 'printf \"file_log: /var/run/dnsconfd/dnsconfd.log\n\" >> /etc/dnsconfd/dnsconfd.conf'" 0 "Enabling file logging"
         rlRun "podman exec $dnsconfd_cid systemctl restart dnsconfd"
         rlRun "podman exec $dnsconfd_cid systemctl start network-online.target"
         rlRun "podman exec $dnsconfd_cid cat /var/run/dnsconfd/dnsconfd.log | grep 'RUNNING'" 0 "verify logs are indeed in file"

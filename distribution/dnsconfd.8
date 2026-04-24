@@ -26,7 +26,7 @@ If set to yes then wireless interfaces will have lower priority, default yes
 .IP "--listen-address ADDRESS"
 Address on which local resolver listens, default 127.0.0.1
 .IP "--config-file PATH"
-Path where config file is located, default /etc/dnsconfd.conf
+Path where config file is located, default /etc/dnsconfd/dnsconfd.conf
 .IP "--resolver-options options"
 Options to be used in resolv.conf for alteration of resolver, default "edns0 trust-ad"
 .IP "--dnssec-enabled, --no-dnssec-enabled"
@@ -79,7 +79,7 @@ If set to yes then wireless interfaces will have lower priority, default yes
 .IP LISTEN_ADDRESS
 Address on which local resolver listens, default 127.0.0.1
 .IP CONFIG_FILE
-Path where config file is located, default /etc/dnsconfd.conf
+Path where config file is located, default /etc/dnsconfd/dnsconfd.conf
 .IP RESOLVER_OPTIONS
 Options to be used in resolv.conf for alteration of resolver, default "edns0 trust-ad"
 .IP DNSSEC_ENABLED
@@ -93,7 +93,7 @@ Dnsconfd will write logs into specified file, not used by default
 
 .SH FILES
 Dnsconfd manages resolv.conf to route domain name resolution to local cache service.
-Default location of the configuration file is /etc/dnsconfd.conf.
+Default location of the configuration file is /etc/dnsconfd/dnsconfd.conf.
 
 .SH NOTES
 The only currently supported backend is Unbound.

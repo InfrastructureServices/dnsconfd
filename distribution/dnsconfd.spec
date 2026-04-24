@@ -111,7 +111,8 @@ install -m 0644 -p distribution/dnsconfd.sysconfig %{buildroot}%{_sysconfdir}/sy
 install -m 0644 -p distribution/dnsconfd.service %{buildroot}%{_unitdir}/dnsconfd.service
 install -m 0644 -p distribution/dnsconfd-unbound-control.path %{buildroot}%{_unitdir}/dnsconfd-unbound-control.path
 install -m 0644 -p distribution/dnsconfd-unbound-control.service %{buildroot}%{_unitdir}/dnsconfd-unbound-control.service
-install -m 0644 -p distribution/dnsconfd.conf %{buildroot}%{_sysconfdir}/dnsconfd.conf
+mkdir   -m 0755 -p %{buildroot}%{_sysconfdir}/dnsconfd/conf.d
+install -m 0644 -p distribution/dnsconfd.conf %{buildroot}%{_sysconfdir}/dnsconfd/dnsconfd.conf
 install -m 0644 -p distribution/dnsconfd-tmpfiles.conf %{buildroot}%{_tmpfilesdir}/%{name}.conf
 install -m 0644 -p distribution/dnsconfd-unbound-tmpfiles.conf %{buildroot}%{_tmpfilesdir}/%{name}-unbound.conf
 install -m 0755 -p distribution/dracut_module/module-setup.sh %{buildroot}%{_prefix}/lib/dracut/modules.d/70dnsconfd
@@ -182,13 +183,28 @@ fi
 %postun
 %systemd_postun_with_restart %{name}.service
 
+%posttrans
+# Migrate legacy /etc/dnsconfd.conf to /etc/dnsconfd/dnsconfd.conf
+if [ -s %{_sysconfdir}/dnsconfd.conf.rpmsave ] && [ ! -L %{_sysconfdir}/dnsconfd.conf.rpmsave ]; then
+    if ! [ -s %{_sysconfdir}/dnsconfd/dnsconfd.conf ]; then
+        cp -a %{_sysconfdir}/dnsconfd.conf.rpmsave %{_sysconfdir}/dnsconfd/dnsconfd.conf
+        echo "dnsconfd: migrated %{_sysconfdir}/dnsconfd.conf.rpmsave -> %{_sysconfdir}/dnsconfd/dnsconfd.conf" >&2
+    else
+        echo "dnsconfd: WARNING: both legacy %{_sysconfdir}/dnsconfd.conf.rpmsave and" >&2
+        echo "  %{_sysconfdir}/dnsconfd/dnsconfd.conf contain customizations." >&2
+        echo "  Please merge manually." >&2
+    fi
+fi
+
 %files
 %license LICENSE
 %{_bindir}/dnsconfd
 %{_datadir}/dbus-1/system.d/com.redhat.dnsconfd.conf
 %{_datadir}/dbus-1/system-services/com.redhat.dnsconfd.service
 %config(noreplace) %{_sysconfdir}/sysconfig/dnsconfd
-%config(noreplace) %{_sysconfdir}/dnsconfd.conf
+%dir %{_sysconfdir}/dnsconfd
+%dir %{_sysconfdir}/dnsconfd/conf.d
+%config(noreplace) %{_sysconfdir}/dnsconfd/dnsconfd.conf
 %{_unitdir}/dnsconfd.service
 %{_libexecdir}/dnsconfd-prepare
 %{_libexecdir}/dnsconfd-cleanup

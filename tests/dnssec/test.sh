@@ -18,7 +18,7 @@ rlJournalStart
     rlPhaseEnd
 
     rlPhaseStartTest
-        rlRun "podman exec $dnsconfd_cid /bin/bash -c 'echo \"dnssec_enabled: yes\" >> /etc/dnsconfd.conf'" 0 "Enabling dnssec"
+        rlRun "podman exec $dnsconfd_cid /bin/bash -c 'echo \"dnssec_enabled: yes\" >> /etc/dnsconfd/dnsconfd.conf'" 0 "Enabling dnssec"
         rlRun "podman cp root.key $dnsconfd_cid:/var/lib/unbound/root.key" 0 "installing root key"
         rlRun "podman exec $dnsconfd_cid sed -i 's/# auto-trust-anchor-file:/auto-trust-anchor-file:/' /etc/unbound/unbound.conf" 0 "setting auto trust anchor file"
         rlRun "podman exec $dnsconfd_cid systemctl restart dnsconfd" 0 "restarting dnsconfd"

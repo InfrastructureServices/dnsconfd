@@ -1,0 +1,7 @@
+summary: Test RPZ configuration via snippet files in /etc/dnsconfd/
+test: ./test.sh
+framework: beakerlib
+recommend:
+  - podman
+tag:
+  - integration
