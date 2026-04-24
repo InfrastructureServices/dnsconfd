@@ -16,7 +16,7 @@ rlJournalStart
 
     rlPhaseStartTest
         rlRun "podman exec $dnsconfd_cid systemctl start network-online.target"
-        rlRun "podman exec $dnsconfd_cid /bin/bash -c 'echo listen_address: \"nonsense\" > /etc/dnsconfd.conf'"
+        rlRun "podman exec $dnsconfd_cid /bin/bash -c 'echo listen_address: \"nonsense\" > /etc/dnsconfd/dnsconfd.conf'"
         rlRun "podman exec $dnsconfd_cid systemctl restart dnsconfd" 1 "restart dnsconfd"
         rlRun "podman exec $dnsconfd_cid systemctl status dnsconfd | grep 'status=13'" 0 "Verify that dnsconfd refused bad option"
     rlPhaseEnd

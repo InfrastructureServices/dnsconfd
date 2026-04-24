@@ -1,7 +1,9 @@
 #include "config_file.h"
 
 #include <arpa/inet.h>
+#include <glob.h>
 #include <string.h>
+#include <sys/stat.h>
 #include <syslog.h>
 #include <yaml.h>
 
@@ -402,7 +404,45 @@ static int duplicating_options(const char *key, const char *value, dnsconfd_conf
   return -1;
 }
 
-int parse_config_file(const char *path, dnsconfd_config_t *config, const char **error_string) {
+static int parse_include_list(yaml_parser_t *parser, GList **include_paths,
+                              const char **error_string) {
+  yaml_event_t event;
+  int done = 0;
+  char *path;
+
+  while (!done) {
+    if (!yaml_parser_parse(parser, &event)) {
+      *error_string = "Failed to parse include list YAML";
+      return -1;
+    }
+
+    switch (event.type) {
+    case YAML_SCALAR_EVENT:
+      if (include_paths) {
+        if (!(path = strdup((const char *)event.data.scalar.value))) {
+          yaml_event_delete(&event);
+          *error_string = "Failed to allocate memory for include path";
+          return -1;
+        }
+        *include_paths = g_list_append(*include_paths, path);
+      }
+      break;
+
+    case YAML_SEQUENCE_END_EVENT:
+      done = 1;
+      break;
+
+    default:
+      break;
+    }
+
+    yaml_event_delete(&event);
+  }
+  return 0;
+}
+
+static int parse_single_config_file(const char *path, dnsconfd_config_t *config,
+                                    GList **include_paths, const char **error_string) {
   unsigned int temp_val;
   yaml_parser_t parser;
   yaml_event_t event;
@@ -457,6 +497,13 @@ int parse_config_file(const char *path, dnsconfd_config_t *config, const char **
         free(current_key);
         current_key = NULL;
         expect_key = 1;
+      } else if (current_key && strcmp(current_key, "include") == 0) {
+        if (parse_include_list(&parser, include_paths, error_string) != 0) {
+          status = -1;
+        }
+        free(current_key);
+        current_key = NULL;
+        expect_key = 1;
       }
       break;
 
@@ -489,6 +536,16 @@ int parse_config_file(const char *path, dnsconfd_config_t *config, const char **
           config->prioritize_wire = parse_boolean((const char *)event.data.scalar.value);
         } else if (strcmp(current_key, "dnssec_enabled") == 0) {
           config->dnssec_enabled = parse_boolean((const char *)event.data.scalar.value);
+        } else if (strcmp(current_key, "include") == 0) {
+          if (include_paths) {
+            char *inc_path = strdup((const char *)event.data.scalar.value);
+            if (!inc_path) {
+              *error_string = "Failed to allocate memory for include path";
+              status = -1;
+            } else {
+              *include_paths = g_list_append(*include_paths, inc_path);
+            }
+          }
         } else {
           status = duplicating_options(current_key, (const char *)event.data.scalar.value, config,
                                        error_string);
@@ -519,5 +576,107 @@ int parse_config_file(const char *path, dnsconfd_config_t *config, const char **
     free(current_key);
   yaml_parser_delete(&parser);
   fclose(fh);
+  return status;
+}
+
+static int resolve_include_path(const char *include_path, GList **files_to_parse,
+                                const char **error_string) {
+  struct stat st;
+  glob_t globbuf = {0};
+  int ret;
+
+  if (stat(include_path, &st) == 0 && S_ISDIR(st.st_mode)) {
+    size_t path_len = strlen(include_path);
+    int has_slash = (path_len > 0 && include_path[path_len - 1] == '/');
+    size_t pattern_len = path_len + (has_slash ? 0 : 1) + 7;
+    char *pattern = malloc(pattern_len);
+    if (!pattern) {
+      *error_string = "Failed to allocate memory for include glob pattern";
+      return -1;
+    }
+    snprintf(pattern, pattern_len, has_slash ? "%s*.conf" : "%s/*.conf", include_path);
+    ret = glob(pattern, 0, NULL, &globbuf);
+    free(pattern);
+  } else {
+    ret = glob(include_path, 0, NULL, &globbuf);
+  }
+
+  if (ret == GLOB_NOMATCH) {
+    globfree(&globbuf);
+    return 0;
+  }
+  if (ret != 0) {
+    *error_string = "Failed to expand include path";
+    globfree(&globbuf);
+    return -1;
+  }
+
+  for (size_t i = 0; i < globbuf.gl_pathc; i++) {
+    char *file_path = strdup(globbuf.gl_pathv[i]);
+    if (!file_path) {
+      *error_string = "Failed to allocate memory for include file path";
+      globfree(&globbuf);
+      return -1;
+    }
+    *files_to_parse = g_list_append(*files_to_parse, file_path);
+  }
+
+  globfree(&globbuf);
+  return 0;
+}
+
+#define MAX_INCLUDE_FILES 1000
+
+int parse_config_file(const char *path, dnsconfd_config_t *config, const char **error_string) {
+  GList *files_to_parse = NULL;
+  int status = 0;
+  int files_processed = 0;
+  char *current_file;
+
+  current_file = strdup(path);
+  if (!current_file) {
+    *error_string = "Failed to allocate memory";
+    return -1;
+  }
+  files_to_parse = g_list_append(NULL, current_file);
+
+  while (files_to_parse && status == 0) {
+    if (++files_processed > MAX_INCLUDE_FILES) {
+      *error_string = "Too many configuration files included, possible cycle";
+      status = -1;
+      break;
+    }
+
+    current_file = files_to_parse->data;
+    files_to_parse = g_list_delete_link(files_to_parse, files_to_parse);
+
+    GList *include_paths = NULL;
+    const char *file_error = NULL;
+    status = parse_single_config_file(current_file, config, &include_paths, &file_error);
+
+    if (status != 0) {
+      if (files_processed == 1) {
+        *error_string = file_error;
+      } else {
+        fprintf(stderr, "Error in included file %s: %s\n", current_file, file_error);
+        *error_string = "Error while processing included configuration file";
+      }
+      free(current_file);
+      g_list_free_full(include_paths, free);
+      break;
+    }
+
+    free(current_file);
+
+    GList *iter;
+    for (iter = include_paths; iter && status == 0; iter = iter->next) {
+      status = resolve_include_path((const char *)iter->data, &files_to_parse, error_string);
+    }
+    g_list_free_full(include_paths, free);
+  }
+
+  if (files_to_parse)
+    g_list_free_full(files_to_parse, free);
+
   return status;
 }

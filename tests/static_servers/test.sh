@@ -27,7 +27,7 @@ rlJournalStart
     rlPhaseEnd
 
     rlPhaseStartTest
-        rlRun "podman cp dnsconfd.conf $dnsconfd_cid://etc/dnsconfd.conf"
+        rlRun "podman cp dnsconfd.conf $dnsconfd_cid://etc/dnsconfd/dnsconfd.conf"
         rlRun "podman cp ca_cert.pem $dnsconfd_cid://etc/pki/ca-trust/source/anchors/ca_cert.pem" 0 "Installing CA"
         rlRun "podman exec $dnsconfd_cid update-ca-trust extract" 0 "updating CA trust"
         # this is necessary, because if ca trust is not in place before unbound start then verification of
@@ -38,10 +38,10 @@ rlJournalStart
         rlAssertNotDiffer status1 $ORIG_DIR/expected_status.json
         rlRun "cat status1"
         rlRun "podman exec $dnsconfd_cid getent hosts server.example.com | grep 192.168.6.5" 0 "Verifying correct address resolution"
-        rlRun "podman cp dnsconfd-wrong.conf $dnsconfd_cid://etc/dnsconfd.conf"
+        rlRun "podman cp dnsconfd-wrong.conf $dnsconfd_cid://etc/dnsconfd/dnsconfd.conf"
         rlRun "podman exec $dnsconfd_cid systemctl restart dnsconfd" 1 "restart dnsconfd"
         rlRun "podman exec $dnsconfd_cid systemctl status dnsconfd | grep 'status=13'" 0 "Verify that dnsconfd refused bad option"
-        rlRun "podman cp dnsconfd-second.conf $dnsconfd_cid://etc/dnsconfd.conf"
+        rlRun "podman cp dnsconfd-second.conf $dnsconfd_cid://etc/dnsconfd/dnsconfd.conf"
         rlRun "podman exec $dnsconfd_cid systemctl restart dnsconfd" 0 "restart dnsconfd"
         rlRun "podman exec $dnsconfd_cid /bin/bash -c 'nmcli connection mod eth0 ipv4.dns-search testdomain.com && nmcli connection mod eth0 ipv4.dns 192.168.6.20'" 0 "Adding dns server to the NM active profile"
         rlRun "podman exec $dnsconfd_cid nmcli con up eth0"

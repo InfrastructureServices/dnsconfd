@@ -16,7 +16,7 @@ install() {
     inst_simple /usr/share/dbus-1/system.d/com.redhat.dnsconfd.conf
     inst_simple /usr/share/dbus-1/system-services/com.redhat.dnsconfd.service
     inst_simple /etc/sysconfig/dnsconfd
-    inst_simple /etc/dnsconfd.conf
+    inst_simple /etc/dnsconfd/dnsconfd.conf
     inst_simple /usr/lib/systemd/system/dnsconfd.service
     inst_simple /usr/libexec/dnsconfd-prepare
     inst_simple /usr/libexec/dnsconfd-cleanup

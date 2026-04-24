@@ -74,7 +74,7 @@ static struct argp_option options[] = {
     {"no-dnssec-enabled", OPT_NO_DNSSEC_ENABLED, 0, 0,
      "Do not enable dnssec record validation, this is the default"},
     {"config-file", OPT_CONFIG_FILE, "CONFIG_FILE", 0,
-     "Path where config file is located, default is /etc/dnsconfd.conf"},
+     "Path where config file is located, default is /etc/dnsconfd/dnsconfd.conf"},
     {"certification-authority", OPT_CERTIFICATION_AUTHORITY, "CERTIFICATION_AUTHORITY", 0,
      "Space separated list of CA bundles used for encrypted protocols as "
      "default when no custom CA "
@@ -283,7 +283,7 @@ int parse_configuration(int argc, char *argv[], dnsconfd_config_t *config) {
   merge_configs(config, &temp_config);
 
   if (!config->config_file) {
-    if (!(config->config_file = strdup("/etc/dnsconfd.conf")))
+    if (!(config->config_file = strdup("/etc/dnsconfd/dnsconfd.conf")))
       return 1;
   }
 
