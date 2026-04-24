@@ -13,6 +13,11 @@ any statements. Do not declare variables in the middle of a function, inside
 Within the declaration block at the top of a function, declarations without
 assignments must come before declarations with assignments.
 
+### One variable per line
+
+Each variable declaration must be on its own line. Do not declare multiple
+variables on the same line separated by commas.
+
 Correct:
 
 ```c
@@ -37,6 +42,7 @@ static int example_function(const char *input) {
   int result = 0;  // WRONG: initialized declaration before uninitialized ones
   int i;
   char *buf;
+  int x, y;  // WRONG: multiple variables on one line
 
   for (int i = 0; i < 10; i++) {  // WRONG: declaration inside for loop
     // ...

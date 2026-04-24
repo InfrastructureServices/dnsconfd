@@ -77,7 +77,8 @@ static int server_to_unbound_string(FILE *config_file, server_uri_t *server) {
 static int generate_forward_zones(FILE *config_file, GHashTable *domain_to_servers,
                                   dnsconfd_mode_t mode) {
   GHashTableIter iter;
-  gpointer key, value;
+  gpointer key;
+  gpointer value;
   GList *used_servers;
   GList *l;
   server_uri_t *server;
@@ -158,7 +159,8 @@ static int generate_listen_address(FILE *config_file, dnsconfd_config_t *config,
 
 static char *effective_ca_from_uris(GHashTable *domain_to_servers, dnsconfd_mode_t mode) {
   GHashTableIter iter;
-  gpointer key, value;
+  gpointer key;
+  gpointer value;
   server_uri_t *cur_server;
   int highest_prio;
   GList *server_iterator;
@@ -505,7 +507,8 @@ int update(fsm_context_t *ctx, GHashTable **result, const char **error_string) {
   GList *old_servers;
   char *new_effective_ca;
   GHashTableIter iter;
-  gpointer key, value;
+  gpointer key;
+  gpointer value;
   int ca_comparison;
   GHashTable *new_unbound_domain_to_servers = g_hash_table_new_full(
       g_str_hash, g_str_equal, g_free, (GDestroyNotify)destroy_hash_table_cloned_list);
@@ -580,7 +583,8 @@ error:
 int write_resolv_conf(dnsconfd_config_t *config, GHashTable *domain_to_servers, GString **backup,
                       dnsconfd_mode_t mode, const char **error_string) {
   GHashTableIter iter;
-  gpointer key, value;
+  gpointer key;
+  gpointer value;
   GList *used_servers;
   GList *backup_servers;
   GList *cur_search;
