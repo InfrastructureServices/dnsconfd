@@ -384,7 +384,8 @@ static GVariant *handle_update_call(GVariant *parameters, fsm_context_t *ctx) {
 
 static json_t *construct_cache_config_status(GHashTable *current_unbound_domain_to_servers) {
   GHashTableIter iter;
-  gpointer key, value;
+  gpointer key;
+  gpointer value;
   json_t *new_object;
   json_t *servers_arr;
   server_uri_t *cur_server;

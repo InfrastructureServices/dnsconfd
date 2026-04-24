@@ -78,8 +78,7 @@ static int parse_query(UriUriA *parsed_uri, server_uri_t *uri) {
     return -1;
   }
 
-  for (queryListNode = queryList; queryListNode != NULL;
-       queryListNode = queryListNode->next) {
+  for (queryListNode = queryList; queryListNode != NULL; queryListNode = queryListNode->next) {
     if (queryListNode->value == NULL) {
       goto error;
     }

@@ -28,7 +28,8 @@ START_TEST(test_get_used_servers_priority) {
   server_uri_t *s1 = create_server(100, DNS_UDP, 1, NULL);
   server_uri_t *s2 = create_server(100, DNS_UDP, 1, NULL);
   server_uri_t *s3 = create_server(50, DNS_UDP, 1, NULL);
-  int found_s1 = 0, found_s2 = 0;
+  int found_s1 = 0;
+  int found_s2 = 0;
 
   servers = g_list_append(servers, s1);
   servers = g_list_append(servers, s2);
