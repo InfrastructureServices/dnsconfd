@@ -87,6 +87,38 @@ static_servers:
       routing_domains:
         - example.com
 
+.SH INCLUDE DIRECTIVE
+
+The \fBinclude\fP directive allows splitting configuration across multiple files.
+Its value can be a single path or a list of paths. Each path may be a file, a
+directory, or a glob pattern.
+
+When the path points to a directory, all files matching \fB*.conf\fP inside that
+directory are included. Glob patterns (e.g. \fB/etc/dnsconfd/conf.d/*.conf\fP)
+are expanded in the usual way. If a glob pattern matches nothing, it is silently
+ignored.
+
+Included files are parsed in order and their values are merged into the
+configuration. A maximum of 1000 files may be included in total; exceeding this
+limit causes an error, which protects against include cycles.
+
+.B Relative paths are resolved against the current working directory of the
+.B dnsconfd process,
+not against the directory of the file that contains the include directive.
+Use absolute paths to avoid ambiguity.
+
+Examples:
+
+Including a single file:
+
+include: /etc/dnsconfd/conf.d/custom.conf
+
+Including a list of paths:
+
+include:
+  - /etc/dnsconfd/conf.d/
+  - /etc/dnsconfd/conf.d/extra/*.conf
+
 .SH "REPORTING BUGS"
 Please for reporting bugs use Github repository https://github.com/InfrastructureServices/dnsconfd
 
