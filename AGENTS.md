@@ -8,13 +8,19 @@ All variable declarations must be placed at the top of the function body, before
 any statements. Do not declare variables in the middle of a function, inside
 `for` loops, or after any executable statement.
 
+### Uninitialized declarations before initialized ones
+
+Within the declaration block at the top of a function, declarations without
+assignments must come before declarations with assignments.
+
 Correct:
 
 ```c
 static int example_function(const char *input) {
   int i;
-  int result = 0;
   char *buf;
+  int result = 0;
+  int count = get_count();
 
   for (i = 0; i < 10; i++) {
     // ...
@@ -28,11 +34,15 @@ Incorrect:
 
 ```c
 static int example_function(const char *input) {
+  int result = 0;  // WRONG: initialized declaration before uninitialized ones
+  int i;
+  char *buf;
+
   for (int i = 0; i < 10; i++) {  // WRONG: declaration inside for loop
     // ...
   }
 
-  int result = 0;  // WRONG: declaration after executable statement
+  int count = 0;  // WRONG: declaration after executable statement
   return result;
 }
 ```

@@ -379,6 +379,7 @@ static int parse_rpz_zones(yaml_parser_t *parser, dnsconfd_config_t *config,
 
 static int duplicating_options(const char *key, const char *value, dnsconfd_config_t *config,
                                const char **error_string) {
+  size_t i;
   struct {
     const char *opt_key;
     const char **destination;
@@ -387,7 +388,7 @@ static int duplicating_options(const char *key, const char *value, dnsconfd_conf
                  {"resolver_options", &config->resolver_options},
                  {"certification_authority", &config->certification_authority}};
 
-  for (size_t i = 0; i < sizeof(options) / sizeof(options[0]); i++) {
+  for (i = 0; i < sizeof(options) / sizeof(options[0]); i++) {
     if (strcmp(key, options[i].opt_key) == 0) {
       if (*options[i].destination) {
         free((void *)*options[i].destination);
@@ -584,12 +585,18 @@ static int resolve_include_path(const char *include_path, GList **files_to_parse
   struct stat st;
   glob_t globbuf = {0};
   int ret;
+  size_t path_len;
+  int has_slash;
+  size_t pattern_len;
+  char *pattern;
+  size_t i;
+  char *file_path;
 
   if (stat(include_path, &st) == 0 && S_ISDIR(st.st_mode)) {
-    size_t path_len = strlen(include_path);
-    int has_slash = (path_len > 0 && include_path[path_len - 1] == '/');
-    size_t pattern_len = path_len + (has_slash ? 0 : 1) + 7;
-    char *pattern = malloc(pattern_len);
+    path_len = strlen(include_path);
+    has_slash = (path_len > 0 && include_path[path_len - 1] == '/');
+    pattern_len = path_len + (has_slash ? 0 : 1) + 7;
+    pattern = malloc(pattern_len);
     if (!pattern) {
       *error_string = "Failed to allocate memory for include glob pattern";
       return -1;
@@ -611,8 +618,8 @@ static int resolve_include_path(const char *include_path, GList **files_to_parse
     return -1;
   }
 
-  for (size_t i = 0; i < globbuf.gl_pathc; i++) {
-    char *file_path = strdup(globbuf.gl_pathv[i]);
+  for (i = 0; i < globbuf.gl_pathc; i++) {
+    file_path = strdup(globbuf.gl_pathv[i]);
     if (!file_path) {
       *error_string = "Failed to allocate memory for include file path";
       globfree(&globbuf);
@@ -628,10 +635,13 @@ static int resolve_include_path(const char *include_path, GList **files_to_parse
 #define MAX_INCLUDE_FILES 1000
 
 int parse_config_file(const char *path, dnsconfd_config_t *config, const char **error_string) {
+  char *current_file;
+  GList *include_paths;
+  const char *file_error;
+  GList *iter;
   GList *files_to_parse = NULL;
   int status = 0;
   int files_processed = 0;
-  char *current_file;
 
   current_file = strdup(path);
   if (!current_file) {
@@ -650,8 +660,8 @@ int parse_config_file(const char *path, dnsconfd_config_t *config, const char **
     current_file = files_to_parse->data;
     files_to_parse = g_list_delete_link(files_to_parse, files_to_parse);
 
-    GList *include_paths = NULL;
-    const char *file_error = NULL;
+    include_paths = NULL;
+    file_error = NULL;
     status = parse_single_config_file(current_file, config, &include_paths, &file_error);
 
     if (status != 0) {
@@ -668,7 +678,6 @@ int parse_config_file(const char *path, dnsconfd_config_t *config, const char **
 
     free(current_file);
 
-    GList *iter;
     for (iter = include_paths; iter && status == 0; iter = iter->next) {
       status = resolve_include_path((const char *)iter->data, &files_to_parse, error_string);
     }

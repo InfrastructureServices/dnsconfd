@@ -19,8 +19,8 @@ static void add_domain(server_uri_t *server, const char *domain) {
 }
 
 static void add_network(server_uri_t *server, const char *ip_str, int prefix) {
-  network_address_t *net = malloc(sizeof(network_address_t));
   char buf[128];
+  network_address_t *net = malloc(sizeof(network_address_t));
   snprintf(buf, sizeof(buf), "%s/%d", ip_str, prefix);
   network_address_t_from_string(buf, net);
   server->networks = g_list_append(server->networks, net);

@@ -9,17 +9,18 @@
 
 int network_address_t_from_string(const char *address_string, network_address_t *addr) {
   char ip_str[INET6_ADDRSTRLEN];
-  const char *ip_part = address_string;
   int prefix;
   long raw_prefix;
   char *endptr;
+  size_t len;
+  const char *ip_part = address_string;
   const char *slash = strchr(address_string, '/');
 
   if (!slash) {
     return -1;
   }
 
-  size_t len = slash - address_string;
+  len = slash - address_string;
   if (len >= sizeof(ip_str)) {
     return -1;
   }
@@ -49,6 +50,7 @@ int network_address_t_from_string(const char *address_string, network_address_t 
 static void reverse_dns_ipv4(struct sockaddr_in *s4, unsigned char prefix, char *result) {
   unsigned char *bytes;
   char buf[8];
+  int i;
   int nibbles = prefix / 8;
   // Cap octets at 4 for IPv4
   if (nibbles > 4)
@@ -61,7 +63,7 @@ static void reverse_dns_ipv4(struct sockaddr_in *s4, unsigned char prefix, char 
 
   bytes = (unsigned char *)&s4->sin_addr.s_addr;
 
-  for (int i = nibbles - 1; i >= 0; i--) {
+  for (i = nibbles - 1; i >= 0; i--) {
     snprintf(buf, sizeof(buf), "%d.", bytes[i]);
     strcat(result, buf);
   }
@@ -71,6 +73,9 @@ static void reverse_dns_ipv4(struct sockaddr_in *s4, unsigned char prefix, char 
 static void reverse_dns_ipv6(struct sockaddr_in6 *s6, unsigned char prefix, char *result) {
   unsigned char *bytes;
   char buf[4];
+  int i;
+  int byte_idx;
+  int val;
   int nibbles = prefix / 4;
   // Cap nibbles at 32 for IPv6 (128 bits / 4)
   if (nibbles > 32)
@@ -82,9 +87,8 @@ static void reverse_dns_ipv6(struct sockaddr_in6 *s6, unsigned char prefix, char
 
   bytes = s6->sin6_addr.s6_addr;
 
-  for (int i = nibbles - 1; i >= 0; i--) {
-    int byte_idx = i / 2;
-    int val;
+  for (i = nibbles - 1; i >= 0; i--) {
+    byte_idx = i / 2;
     if (i % 2 == 0) {
       // Even index: high nibble
       val = (bytes[byte_idx] >> 4) & 0x0F;

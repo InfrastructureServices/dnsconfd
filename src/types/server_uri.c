@@ -65,6 +65,7 @@ const char *dns_protocol_t_to_string(dns_protocol_t protocol) {
 
 static int parse_query(UriUriA *parsed_uri, server_uri_t *uri) {
   UriQueryListA *queryList;
+  UriQueryListA *queryListNode;
   int itemCount;
   long temp_long;
   char *endptr;
@@ -77,7 +78,7 @@ static int parse_query(UriUriA *parsed_uri, server_uri_t *uri) {
     return -1;
   }
 
-  for (UriQueryListA *queryListNode = queryList; queryListNode != NULL;
+  for (queryListNode = queryList; queryListNode != NULL;
        queryListNode = queryListNode->next) {
     if (queryListNode->value == NULL) {
       goto error;
@@ -369,12 +370,12 @@ static int parse_json_networks_field(json_t *field, server_uri_t *uri) {
 GList *server_uri_t_list_from_json(const char *server_list) {
   json_t *root;
   json_error_t error;
-  GList *list = NULL;
   size_t index;
   json_t *value;
   server_uri_t *uri;
   json_t *field;
   size_t i;
+  GList *list = NULL;
 
   struct {
     const char *key;
@@ -441,9 +442,9 @@ error:
 }
 
 static gint compare_servers(gconstpointer a, gconstpointer b) {
+  int temp;
   server_uri_t *server_a = (server_uri_t *)a;
   server_uri_t *server_b = (server_uri_t *)b;
-  int temp;
 
   if (server_a == NULL) {
     return server_b == NULL ? 0 : 1;
@@ -526,6 +527,13 @@ GHashTable *server_list_to_hash_table(GList *server_list) {
 json_t *server_uri_to_json(server_uri_t *server) {
   char addr_str[INET6_ADDRSTRLEN];
   uint16_t port;
+  json_t *domains_arr;
+  json_t *search_arr;
+  json_t *networks_arr;
+  GList *l;
+  network_address_t *net;
+  char net_str[INET6_ADDRSTRLEN + 5];
+  char ip_str[INET6_ADDRSTRLEN];
   json_t *obj = json_object();
 
   // Address
@@ -548,15 +556,15 @@ json_t *server_uri_to_json(server_uri_t *server) {
     json_object_set_new(obj, "name", json_null());
 
   // Routing domains
-  json_t *domains_arr = json_array();
-  for (GList *l = server->routing_domains; l != NULL; l = l->next) {
+  domains_arr = json_array();
+  for (l = server->routing_domains; l != NULL; l = l->next) {
     json_array_append_new(domains_arr, json_string((char *)l->data));
   }
   json_object_set_new(obj, "routing_domains", domains_arr);
 
   // Search domains
-  json_t *search_arr = json_array();
-  for (GList *l = server->search_domains; l != NULL; l = l->next) {
+  search_arr = json_array();
+  for (l = server->search_domains; l != NULL; l = l->next) {
     json_array_append_new(search_arr, json_string((char *)l->data));
   }
   json_object_set_new(obj, "search_domains", search_arr);
@@ -577,11 +585,9 @@ json_t *server_uri_to_json(server_uri_t *server) {
   json_object_set_new(obj, "dnssec", json_boolean(server->dnssec));
 
   // Networks
-  json_t *networks_arr = json_array();
-  for (GList *l = server->networks; l != NULL; l = l->next) {
-    network_address_t *net = (network_address_t *)l->data;
-    char net_str[INET6_ADDRSTRLEN + 5]; // + /prefix
-    char ip_str[INET6_ADDRSTRLEN];
+  networks_arr = json_array();
+  for (l = server->networks; l != NULL; l = l->next) {
+    net = (network_address_t *)l->data;
     ip_to_str(&net->address, ip_str);
     snprintf(net_str, sizeof(net_str), "%s/%d", ip_str, net->prefix);
     json_array_append_new(networks_arr, json_string(net_str));
