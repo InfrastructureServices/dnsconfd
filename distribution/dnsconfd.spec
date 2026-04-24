@@ -184,16 +184,11 @@ fi
 %systemd_postun_with_restart %{name}.service
 
 %posttrans
-# Migrate legacy /etc/dnsconfd.conf to /etc/dnsconfd/dnsconfd.conf
+# Warn about legacy /etc/dnsconfd.conf left behind after upgrade from < 2.1.0
 if [ -s %{_sysconfdir}/dnsconfd.conf.rpmsave ] && [ ! -L %{_sysconfdir}/dnsconfd.conf.rpmsave ]; then
-    if ! [ -s %{_sysconfdir}/dnsconfd/dnsconfd.conf ]; then
-        cp -a %{_sysconfdir}/dnsconfd.conf.rpmsave %{_sysconfdir}/dnsconfd/dnsconfd.conf
-        echo "dnsconfd: migrated %{_sysconfdir}/dnsconfd.conf.rpmsave -> %{_sysconfdir}/dnsconfd/dnsconfd.conf" >&2
-    else
-        echo "dnsconfd: WARNING: both legacy %{_sysconfdir}/dnsconfd.conf.rpmsave and" >&2
-        echo "  %{_sysconfdir}/dnsconfd/dnsconfd.conf contain customizations." >&2
-        echo "  Please merge manually." >&2
-    fi
+    echo "dnsconfd: WARNING: legacy configuration found at %{_sysconfdir}/dnsconfd.conf.rpmsave" >&2
+    echo "  The configuration file has moved to %{_sysconfdir}/dnsconfd/dnsconfd.conf." >&2
+    echo "  Please move your customizations to the new location and remove the old file." >&2
 fi
 
 %files

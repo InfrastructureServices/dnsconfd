@@ -408,8 +408,8 @@ static int duplicating_options(const char *key, const char *value, dnsconfd_conf
 static int parse_include_list(yaml_parser_t *parser, GList **include_paths,
                               const char **error_string) {
   yaml_event_t event;
-  int done = 0;
   char *path;
+  int done = 0;
 
   while (!done) {
     if (!yaml_parser_parse(parser, &event)) {
@@ -447,6 +447,7 @@ static int parse_single_config_file(const char *path, dnsconfd_config_t *config,
   unsigned int temp_val;
   yaml_parser_t parser;
   yaml_event_t event;
+  char *inc_path;
   int done = 0;
   int status = 0;
   char *current_key = NULL;
@@ -539,7 +540,7 @@ static int parse_single_config_file(const char *path, dnsconfd_config_t *config,
           config->dnssec_enabled = parse_boolean((const char *)event.data.scalar.value);
         } else if (strcmp(current_key, "include") == 0) {
           if (include_paths) {
-            char *inc_path = strdup((const char *)event.data.scalar.value);
+            inc_path = strdup((const char *)event.data.scalar.value);
             if (!inc_path) {
               *error_string = "Failed to allocate memory for include path";
               status = -1;
@@ -580,32 +581,58 @@ static int parse_single_config_file(const char *path, dnsconfd_config_t *config,
   return status;
 }
 
-static int resolve_include_path(const char *include_path, GList **files_to_parse,
-                                const char **error_string) {
-  struct stat st;
-  glob_t globbuf = {0};
-  int ret;
+static char *make_dir_glob_pattern(const char *dir_path) {
   size_t path_len;
   int has_slash;
   size_t pattern_len;
   char *pattern;
-  size_t i;
-  char *file_path;
 
-  if (stat(include_path, &st) == 0 && S_ISDIR(st.st_mode)) {
-    path_len = strlen(include_path);
-    has_slash = (path_len > 0 && include_path[path_len - 1] == '/');
-    pattern_len = path_len + (has_slash ? 0 : 1) + 7;
-    pattern = malloc(pattern_len);
+  path_len = strlen(dir_path);
+  has_slash = (path_len > 0 && dir_path[path_len - 1] == '/');
+  // 7 here because *.conf is 6 + one end of string character
+  pattern_len = path_len + (has_slash ? 0 : 1) + 7;
+  pattern = malloc(pattern_len);
+  if (!pattern)
+    return NULL;
+  snprintf(pattern, pattern_len, has_slash ? "%s*.conf" : "%s/*.conf", dir_path);
+  return pattern;
+}
+
+static int resolve_include_path(const char *include_path, GList **files_to_parse,
+                                const char **error_string) {
+  struct stat st;
+  int ret;
+  int stat_ret;
+  size_t i;
+  char *pattern;
+  char *file_path;
+  glob_t globbuf = {0};
+
+  stat_ret = stat(include_path, &st);
+
+  if (stat_ret == 0 && S_ISDIR(st.st_mode)) {
+    pattern = make_dir_glob_pattern(include_path);
     if (!pattern) {
       *error_string = "Failed to allocate memory for include glob pattern";
       return -1;
     }
-    snprintf(pattern, pattern_len, has_slash ? "%s*.conf" : "%s/*.conf", include_path);
     ret = glob(pattern, 0, NULL, &globbuf);
     free(pattern);
-  } else {
+  } else if (strpbrk(include_path, "*?[") != NULL) {
     ret = glob(include_path, 0, NULL, &globbuf);
+  } else {
+    if (stat_ret != 0) {
+      fprintf(stderr, "Warning: include path '%s' does not exist or is not accessible, skipping\n",
+              include_path);
+      return 0;
+    }
+    file_path = strdup(include_path);
+    if (!file_path) {
+      *error_string = "Failed to allocate memory for include file path";
+      return -1;
+    }
+    *files_to_parse = g_list_append(*files_to_parse, file_path);
+    return 0;
   }
 
   if (ret == GLOB_NOMATCH) {
