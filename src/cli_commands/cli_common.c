@@ -18,8 +18,8 @@ GDBusConnection *cli_connect_to_dbus() {
 }
 
 GVariant *cli_call_simple_method(GDBusConnection *connection, const char *method_name) {
-  GError *error = NULL;
   GVariant *result;
+  GError *error = NULL;
 
   result = g_dbus_connection_call_sync(
       connection, "com.redhat.dnsconfd", "/com/redhat/dnsconfd", "com.redhat.dnsconfd.Manager",

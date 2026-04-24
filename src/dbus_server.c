@@ -236,14 +236,16 @@ static GVariant *handle_update_call(GVariant *parameters, fsm_context_t *ctx) {
   GVariantIter *servers_iter;
   GVariantDict cur_server_dict;
   char *string_dup;
+  size_t i;
+  GList *l;
+  gboolean duplicate;
+  server_uri_t *existing;
+  char addr_str[INET6_ADDRSTRLEN];
   server_uri_t *cur_server = NULL;
   GVariant *cur_param = NULL;
   GList *parsed_servers = NULL;
   int parse_error = PARSE_ERROR_NONE;
   int field_error = 0;
-
-  dnsconfd_log(LOG_DEBUG, "Handling Update call");
-
   struct {
     const char *key;
     const GVariantType *type;
@@ -258,6 +260,8 @@ static GVariant *handle_update_call(GVariant *parameters, fsm_context_t *ctx) {
                          {"routing_domains", G_VARIANT_TYPE_STRING_ARRAY, parse_domains},
                          {"search_domains", G_VARIANT_TYPE_STRING_ARRAY, parse_search},
                          {"networks", G_VARIANT_TYPE_STRING_ARRAY, parse_networks}};
+
+  dnsconfd_log(LOG_DEBUG, "Handling Update call");
 
   if (ctx->config->log_level >= LOG_DEBUG) {
     string_dup = g_variant_print(parameters, TRUE);
@@ -290,7 +294,7 @@ static GVariant *handle_update_call(GVariant *parameters, fsm_context_t *ctx) {
       break;
     }
 
-    for (size_t i = 0; i < sizeof(key_type_parser) / sizeof(key_type_parser[0]); i++) {
+    for (i = 0; i < sizeof(key_type_parser) / sizeof(key_type_parser[0]); i++) {
       cur_param = g_variant_dict_lookup_value(&cur_server_dict, key_type_parser[i].key,
                                               key_type_parser[i].type);
 
@@ -324,12 +328,11 @@ static GVariant *handle_update_call(GVariant *parameters, fsm_context_t *ctx) {
 
     set_default_port(&cur_server->address, cur_server->protocol != DNS_TLS ? 53 : 853);
 
-    gboolean duplicate = FALSE;
-    for (GList *l = parsed_servers; l != NULL; l = l->next) {
-      server_uri_t *existing = (server_uri_t *)l->data;
+    duplicate = FALSE;
+    for (l = parsed_servers; l != NULL; l = l->next) {
+      existing = (server_uri_t *)l->data;
       if (are_ips_equal(&cur_server->address, &existing->address)) {
         if (g_strcmp0(cur_server->interface, existing->interface) != 0) {
-          char addr_str[INET6_ADDRSTRLEN];
           ip_to_str(&cur_server->address, addr_str);
           dnsconfd_log(LOG_NOTICE,
                        "Ignoring server %s on interface %s because it is "
@@ -387,6 +390,7 @@ static json_t *construct_cache_config_status(GHashTable *current_unbound_domain_
   server_uri_t *cur_server;
   char addr_str[INET6_ADDRSTRLEN];
   uint16_t port;
+  GList *l;
   GString *uri_str = g_string_new_len(NULL, 128);
 
   // Cache config
@@ -395,7 +399,7 @@ static json_t *construct_cache_config_status(GHashTable *current_unbound_domain_
     g_hash_table_iter_init(&iter, current_unbound_domain_to_servers);
     while (g_hash_table_iter_next(&iter, &key, &value)) {
       servers_arr = json_array();
-      for (GList *l = (GList *)value; l != NULL; l = l->next) {
+      for (l = (GList *)value; l != NULL; l = l->next) {
         cur_server = (server_uri_t *)l->data;
         ip_to_str(&cur_server->address, addr_str);
 
@@ -437,6 +441,7 @@ static json_t *construct_cache_config_status(GHashTable *current_unbound_domain_
 }
 
 static json_t *config_to_json(fsm_context_t *ctx) {
+  GList *l;
   json_t *root = json_object();
   json_t *servers_array = json_array();
 
@@ -452,7 +457,7 @@ static json_t *config_to_json(fsm_context_t *ctx) {
   json_object_set_new(root, "state", json_string(fsm_state_t_to_string(ctx->current_state)));
 
   // Servers
-  for (GList *l = ctx->all_servers; l != NULL; l = l->next) {
+  for (l = ctx->all_servers; l != NULL; l = l->next) {
     json_array_append_new(servers_array, server_uri_to_json((server_uri_t *)l->data));
   }
   json_object_set_new(root, "servers", servers_array);

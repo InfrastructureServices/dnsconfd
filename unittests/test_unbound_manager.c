@@ -22,23 +22,25 @@ static server_uri_t *create_server(int priority, dns_protocol_t protocol, int dn
 }
 
 START_TEST(test_get_used_servers_priority) {
+  GList *result;
+  GList *l;
   GList *servers = NULL;
   server_uri_t *s1 = create_server(100, DNS_UDP, 1, NULL);
   server_uri_t *s2 = create_server(100, DNS_UDP, 1, NULL);
   server_uri_t *s3 = create_server(50, DNS_UDP, 1, NULL);
+  int found_s1 = 0, found_s2 = 0;
 
   servers = g_list_append(servers, s1);
   servers = g_list_append(servers, s2);
   servers = g_list_append(servers, s3);
 
-  GList *result = get_used_servers(servers, MODE_BACKUP, ".");
+  result = get_used_servers(servers, MODE_BACKUP, ".");
 
   // Should contain s1 and s2 (priority 100), but not s3 (priority 50)
   ck_assert_int_eq(g_list_length(result), 2);
 
   // Verify contents (order might be reversed due to prepend)
-  int found_s1 = 0, found_s2 = 0;
-  for (GList *l = result; l != NULL; l = l->next) {
+  for (l = result; l != NULL; l = l->next) {
     if (l->data == s1)
       found_s1 = 1;
     if (l->data == s2)
@@ -53,6 +55,7 @@ START_TEST(test_get_used_servers_priority) {
 END_TEST
 
 START_TEST(test_get_used_servers_protocol) {
+  GList *result;
   GList *servers = NULL;
   server_uri_t *s1 = create_server(100, DNS_TLS, 1, NULL);
   server_uri_t *s2 = create_server(100, DNS_UDP, 1, NULL);
@@ -60,7 +63,7 @@ START_TEST(test_get_used_servers_protocol) {
   servers = g_list_append(servers, s1);
   servers = g_list_append(servers, s2);
 
-  GList *result = get_used_servers(servers, MODE_BACKUP, ".");
+  result = get_used_servers(servers, MODE_BACKUP, ".");
 
   // Should contain s1 (TLS > UDP)
   ck_assert_int_eq(g_list_length(result), 1);
@@ -72,6 +75,7 @@ START_TEST(test_get_used_servers_protocol) {
 END_TEST
 
 START_TEST(test_get_used_servers_dnssec) {
+  GList *result;
   GList *servers = NULL;
   server_uri_t *s1 = create_server(100, DNS_UDP, 1, NULL);
   server_uri_t *s2 = create_server(100, DNS_UDP, 0, NULL);
@@ -79,7 +83,7 @@ START_TEST(test_get_used_servers_dnssec) {
   servers = g_list_append(servers, s1);
   servers = g_list_append(servers, s2);
 
-  GList *result = get_used_servers(servers, MODE_BACKUP, ".");
+  result = get_used_servers(servers, MODE_BACKUP, ".");
 
   // Should contain s1 (dnssec mismatch breaks the loop)
   ck_assert_int_eq(g_list_length(result), 1);
@@ -91,12 +95,13 @@ START_TEST(test_get_used_servers_dnssec) {
 END_TEST
 
 START_TEST(test_get_used_servers_interface_backup) {
+  GList *result;
   GList *servers = NULL;
   server_uri_t *s1 = create_server(100, DNS_UDP, 1, "eth0");
 
   servers = g_list_append(servers, s1);
 
-  GList *result = get_used_servers(servers, MODE_BACKUP, ".");
+  result = get_used_servers(servers, MODE_BACKUP, ".");
 
   // MODE_BACKUP allows interface
   ck_assert_int_eq(g_list_length(result), 1);
@@ -108,12 +113,13 @@ START_TEST(test_get_used_servers_interface_backup) {
 END_TEST
 
 START_TEST(test_get_used_servers_interface_prefer_root) {
+  GList *result;
   GList *servers = NULL;
   server_uri_t *s1 = create_server(100, DNS_UDP, 1, "eth0");
 
   servers = g_list_append(servers, s1);
 
-  GList *result = get_used_servers(servers, MODE_PREFER, ".");
+  result = get_used_servers(servers, MODE_PREFER, ".");
 
   // MODE_PREFER on root domain skips interface
   ck_assert_int_eq(g_list_length(result), 0);
@@ -124,12 +130,13 @@ START_TEST(test_get_used_servers_interface_prefer_root) {
 END_TEST
 
 START_TEST(test_get_used_servers_interface_prefer_nonroot) {
+  GList *result;
   GList *servers = NULL;
   server_uri_t *s1 = create_server(100, DNS_UDP, 1, "eth0");
 
   servers = g_list_append(servers, s1);
 
-  GList *result = get_used_servers(servers, MODE_PREFER, "example.com");
+  result = get_used_servers(servers, MODE_PREFER, "example.com");
 
   // MODE_PREFER on non-root domain allows interface
   ck_assert_int_eq(g_list_length(result), 1);
@@ -141,12 +148,13 @@ START_TEST(test_get_used_servers_interface_prefer_nonroot) {
 END_TEST
 
 START_TEST(test_get_used_servers_interface_exclusive) {
+  GList *result;
   GList *servers = NULL;
   server_uri_t *s1 = create_server(100, DNS_UDP, 1, "eth0");
 
   servers = g_list_append(servers, s1);
 
-  GList *result = get_used_servers(servers, MODE_EXCLUSIVE, ".");
+  result = get_used_servers(servers, MODE_EXCLUSIVE, ".");
 
   // MODE_EXCLUSIVE skips interface regardless of domain
   ck_assert_int_eq(g_list_length(result), 0);
@@ -157,12 +165,13 @@ START_TEST(test_get_used_servers_interface_exclusive) {
 END_TEST
 
 START_TEST(test_get_used_servers_interface_exclusive_nonroot) {
+  GList *result;
   GList *servers = NULL;
   server_uri_t *s1 = create_server(100, DNS_UDP, 1, "eth0");
 
   servers = g_list_append(servers, s1);
 
-  GList *result = get_used_servers(servers, MODE_EXCLUSIVE, "example.com");
+  result = get_used_servers(servers, MODE_EXCLUSIVE, "example.com");
 
   // MODE_EXCLUSIVE skips interface regardless of domain
   ck_assert_int_eq(g_list_length(result), 0);
@@ -173,6 +182,7 @@ START_TEST(test_get_used_servers_interface_exclusive_nonroot) {
 END_TEST
 
 START_TEST(test_get_used_servers_mixed) {
+  GList *result;
   GList *servers = NULL;
   server_uri_t *s1 = create_server(100, DNS_UDP, 1, NULL);   // Global
   server_uri_t *s2 = create_server(100, DNS_UDP, 1, "eth0"); // Interface
@@ -181,7 +191,7 @@ START_TEST(test_get_used_servers_mixed) {
   servers = g_list_append(servers, s2);
 
   // Case 1: MODE_PREFER, root domain -> should get s1 only
-  GList *result = get_used_servers(servers, MODE_PREFER, ".");
+  result = get_used_servers(servers, MODE_PREFER, ".");
   ck_assert_int_eq(g_list_length(result), 1);
   ck_assert_ptr_eq(result->data, s1);
   g_list_free(result);

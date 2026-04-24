@@ -191,10 +191,10 @@ static char *effective_ca_from_uris(GHashTable *domain_to_servers, dnsconfd_mode
 }
 
 static char *effective_ca_from_config(dnsconfd_config_t *config) {
-  char *effective_ca = NULL;
-  char *backup_ca = NULL;
   char *duplicated_ca;
   char *result;
+  char *effective_ca = NULL;
+  char *backup_ca = NULL;
   duplicated_ca = backup_ca = strdup(config->certification_authority);
   if (!duplicated_ca)
     return NULL;
@@ -584,11 +584,11 @@ int write_resolv_conf(dnsconfd_config_t *config, GHashTable *domain_to_servers, 
   GList *used_servers;
   GList *backup_servers;
   GList *cur_search;
-  char *original_content = NULL;
   char inet_buffer[INET6_ADDRSTRLEN];
-  int first_search = 1;
   GHashTable *searches_table;
   FILE *resolv_conf_file;
+  char *original_content = NULL;
+  int first_search = 1;
 
   if (!*backup) {
     if (g_file_get_contents(config->resolv_conf_path, &original_content, NULL, NULL)) {

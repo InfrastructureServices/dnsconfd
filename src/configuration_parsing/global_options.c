@@ -345,11 +345,12 @@ void rpz_zone_t_destroy(gpointer data) {
 }
 
 void config_cleanup(dnsconfd_config_t *config) {
+  size_t i;
   const char *pointers_to_check[5] = {config->file_log, config->resolv_conf_path,
                                       config->resolver_options, config->config_file,
                                       config->certification_authority};
 
-  for (size_t i = 0; i < 5; i++) {
+  for (i = 0; i < 5; i++) {
     if (pointers_to_check[i] != NULL) {
       free((char *)pointers_to_check[i]);
     }

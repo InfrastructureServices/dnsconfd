@@ -22,12 +22,12 @@ static void on_properties_changed(GDBusConnection *connection, const gchar *send
                                   const gchar *object_path, const gchar *interface_name,
                                   const gchar *signal_name, GVariant *parameters,
                                   gpointer user_data) {
-  UpdateContext *ctx = (UpdateContext *)user_data;
   const gchar *interface;
   GVariant *changed_properties;
   GVariantIter iter;
   const gchar *key;
   GVariant *value;
+  UpdateContext *ctx = (UpdateContext *)user_data;
 
   g_variant_get(parameters, "(&sa{sv}*)", &interface, &changed_properties);
 
@@ -72,9 +72,10 @@ static void build_string_array(GVariantBuilder *server_dict_builder, GList *list
 static void build_networks_array(server_uri_t *server, GVariantBuilder *server_dict_builder) {
   GVariantBuilder networks_builder;
   char net_str[INET6_ADDRSTRLEN + 5]; // +5 for /128
+  GList *n;
 
   g_variant_builder_init(&networks_builder, G_VARIANT_TYPE("as"));
-  for (GList *n = server->networks; n != NULL; n = n->next) {
+  for (n = server->networks; n != NULL; n = n->next) {
     network_address_to_string((network_address_t *)n->data, net_str, sizeof(net_str));
     g_variant_builder_add(&networks_builder, "s", net_str);
   }
