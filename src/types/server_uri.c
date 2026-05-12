@@ -99,7 +99,7 @@ static int parse_query(UriUriA *parsed_uri, server_uri_t *uri) {
       }
       uri->search_domains = g_list_append(uri->search_domains, duplicated_string);
     } else if (strcmp(queryListNode->key, "interface") == 0) {
-      if (strlen(queryListNode->value) > IFNAMSIZ) {
+      if (strlen(queryListNode->value) >= IFNAMSIZ) {
         goto error;
       }
       strcpy(uri->interface, queryListNode->value);
