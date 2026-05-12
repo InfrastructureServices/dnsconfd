@@ -80,6 +80,7 @@ static int do_take_resolvconf(const char *path) {
   struct stat st;
   struct passwd *pwd;
   FILE *fp;
+  gid_t target_gid = 0;
 
   if (lstat(path, &st) == 0) {
     if (S_ISLNK(st.st_mode)) {
@@ -87,6 +88,8 @@ static int do_take_resolvconf(const char *path) {
         fprintf(stderr, "Failed to remove symlink %s: %s\n", path, strerror(errno));
         return EXIT_COMMAND_FAILURE;
       }
+    } else {
+      target_gid = st.st_gid;
     }
   } else {
     if (errno != ENOENT) {
@@ -95,7 +98,6 @@ static int do_take_resolvconf(const char *path) {
     }
   }
 
-  // Ensure file exists
   fp = fopen(path, "a");
   if (!fp) {
     fprintf(stderr, "Failed to open/create %s: %s\n", path, strerror(errno));
@@ -109,7 +111,7 @@ static int do_take_resolvconf(const char *path) {
     return EXIT_COMMAND_FAILURE;
   }
 
-  if (chown(path, pwd->pw_uid, st.st_gid) != 0) {
+  if (chown(path, pwd->pw_uid, target_gid) != 0) {
     fprintf(stderr, "Failed to change ownership of %s to dnsconfd: %s\n", path, strerror(errno));
     return EXIT_COMMAND_FAILURE;
   }
