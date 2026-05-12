@@ -17,7 +17,7 @@
 #include "update_command.h"
 
 error_t argp_err_exit_status = EXIT_BAD_ARGUMENTS;
-const char *argp_program_version = "dnsconfd 2.1.0";
+const char *argp_program_version = "dnsconfd 2.2.0";
 const char *argp_program_bug_address = "<tkorbar@redhat.com>";
 static char doc[] = "local DNS cache configuration daemon";
 static char args_doc[] = "[--help] [--log-level LOG_LEVEL] [--stderr-log | --no-stderr-log] "
