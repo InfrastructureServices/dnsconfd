@@ -41,7 +41,7 @@ Requires:            %{name} = %{version}-%{release}
 Requires:            selinux-policy-%{selinuxtype}
 Requires(post):      selinux-policy-%{selinuxtype}
 BuildRequires:       selinux-policy-devel
-%{?selinux_requires}
+%{?selinux_requires_min}
 
 %description selinux
 Dnsconfd SELinux policy module.
