@@ -126,6 +126,7 @@ static int parse_networks(yaml_parser_t *parser, GList **dest_list) {
 static int parse_static_servers(yaml_parser_t *parser, dnsconfd_config_t *config,
                                 const char **error_string) {
   yaml_event_t event;
+  char *dot;
   int done = 0;
   int status = 0;
   server_uri_t *current_server = NULL;
@@ -192,12 +193,20 @@ static int parse_static_servers(yaml_parser_t *parser, dnsconfd_config_t *config
         }
 
         if (!current_server->routing_domains) {
-          current_server->routing_domains = g_list_append(NULL, strdup("."));
+          dot = strdup(".");
+          if (!dot) {
+            *error_string = "Failed to allocate memory";
+            status = -1;
+          } else {
+            current_server->routing_domains = g_list_append(NULL, dot);
+          }
         }
 
-        set_default_port(&current_server->address, current_server->protocol != DNS_TLS ? 53 : 853);
-        config->static_servers = g_list_append(config->static_servers, current_server);
-        current_server = NULL;
+        if (status == 0) {
+          set_default_port(&current_server->address, current_server->protocol != DNS_TLS ? 53 : 853);
+          config->static_servers = g_list_append(config->static_servers, current_server);
+          current_server = NULL;
+        }
       }
       break;
 

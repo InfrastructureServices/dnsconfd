@@ -191,6 +191,9 @@ static int save_domains(GVariant *cur_param, GList **where) {
     // consider empty string to be '.' (eg. root)
     if (strcmp(domain_str, "") == 0) {
       domain_idn = (uint8_t *)strdup(".");
+      if (!domain_idn) {
+        return PARSE_ERROR_OOM;
+      }
     } else if (strstr(domain_str, "..") ||
                idn2_lookup_u8((uint8_t *)domain_str, &domain_idn, IDN2_NFC_INPUT) != IDN2_OK) {
       return PARSE_ERROR_INVALID_DOMAIN;
