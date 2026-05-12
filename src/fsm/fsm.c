@@ -161,7 +161,7 @@ static fsm_event_t fsm_starting_event_kickoff(fsm_context_t *ctx) {
 
   if (write_configuration(ctx, &error_string)) {
     if (error_string) {
-      dnsconfd_log(LOG_ERR, error_string);
+      dnsconfd_log(LOG_ERR, "%s", error_string);
     }
     dnsconfd_log(LOG_ERR, "Failed to create dns cache configuration");
     return EVENT_FAILURE;
@@ -190,7 +190,7 @@ static fsm_event_t set_resolv_conf(fsm_context_t *ctx) {
   if (write_resolv_conf(ctx->config, ctx->current_domain_to_servers, &ctx->resolv_conf_backup,
                         ctx->resolution_mode, &error_string)) {
     if (error_string) {
-      dnsconfd_log(LOG_ERR, error_string);
+      dnsconfd_log(LOG_ERR, "%s", error_string);
     }
     dnsconfd_log(LOG_ERR, "Failed to write resolv.conf");
     return EVENT_FAILURE;
@@ -231,7 +231,7 @@ static fsm_event_t update_dns_manager(fsm_context_t *ctx) {
     break;
   default:
     if (error_string) {
-      dnsconfd_log(LOG_ERR, error_string);
+      dnsconfd_log(LOG_ERR, "%s", error_string);
     }
     dnsconfd_log(LOG_ERR, "Failed to update dns cache service");
     return EVENT_FAILURE;
