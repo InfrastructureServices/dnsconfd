@@ -3,9 +3,9 @@
 set -e
 
 tempdir="$(mktemp -d)"
-tar -czvf "$tempdir/dnsconfd-2.2.0.tar.gz" --transform 's,^\./,dnsconfd-2.2.0/,' .
+tar -czvf "$tempdir/dnsconfd-2.2.1.tar.gz" --transform 's,^\./,dnsconfd-2.2.1/,' .
 mkdir SOURCES
-cp ./distribution/dnsconfd.sysusers "$tempdir/dnsconfd-2.2.0.tar.gz" ./SOURCES
+cp ./distribution/dnsconfd.sysusers "$tempdir/dnsconfd-2.2.1.tar.gz" ./SOURCES
 # there is a hidden side effect of bb and that is that it copies sources from
 # SOURCES directory into binary rpms, however if they are missing, they
 # are not copied and scriptlets are left without them
