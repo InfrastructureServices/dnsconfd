@@ -1,0 +1,8 @@
+summary: Verify that daemon-reload + service restart does not hang due to path unit race
+test: ./test.sh
+framework: beakerlib
+tag:
+  - distribution
+recommend:
+  - dnsconfd
+  - dnsconfd-unbound
