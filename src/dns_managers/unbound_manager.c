@@ -206,7 +206,7 @@ static char *effective_ca_from_config(dnsconfd_config_t *config) {
       break;
   }
 
-  result = strdup(effective_ca);
+  result = effective_ca ? strdup(effective_ca) : NULL;
 
   free(backup_ca);
   return result;
