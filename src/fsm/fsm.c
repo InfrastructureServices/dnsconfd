@@ -255,14 +255,24 @@ static fsm_event_t submit_stop_job(fsm_context_t *ctx) {
 }
 
 static fsm_event_t revert_resolv_conf(fsm_context_t *ctx) {
+  fsm_event_t result = EVENT_SUCCESS;
   FILE *resolv_conf_file = fopen(ctx->config->resolv_conf_path, "w");
 
-  if (!resolv_conf_file || fprintf(resolv_conf_file, "%s", ctx->resolv_conf_backup->str) < 0) {
-    dnsconfd_log(LOG_ERR, "Failed to revert resolv.conf");
+  if (!resolv_conf_file) {
+    dnsconfd_log(LOG_ERR, "Failed to open resolv.conf");
     return EVENT_FAILURE;
   }
 
-  return EVENT_SUCCESS;
+  if (fprintf(resolv_conf_file, "%s", ctx->resolv_conf_backup->str) < 0) {
+    dnsconfd_log(LOG_ERR, "Failed to revert resolv.conf");
+    result = EVENT_FAILURE;
+  }
+
+  if (fclose(resolv_conf_file) != 0) {
+    dnsconfd_log(LOG_ERR, "Failed to close resolv.conf");
+    result = EVENT_FAILURE;
+  }
+  return result;
 }
 
 static void set_exit_code(fsm_context_t *ctx, exit_code_t code) {
