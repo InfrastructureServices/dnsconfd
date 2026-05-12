@@ -172,7 +172,7 @@ fi
 %systemd_preun dnsconfd-unbound-control.path
 
 %postun unbound
-%systemd_postun_with_restart dnsconfd-unbound-control.path
+%systemd_postun dnsconfd-unbound-control.path
 
 %post
 %systemd_post %{name}.service
