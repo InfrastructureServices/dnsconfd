@@ -28,7 +28,8 @@ Requires:  dbus-common
 Requires:  %{name}-cache
 Suggests:  %{name}-unbound
 Requires:  (%{name}-unbound = %{version}-%{release} if %{name}-unbound)
-Provides:  %{name}-micro
+Provides:  %{name}-micro = %{version}-%{release}
+Obsoletes: %{name}-micro < %{version}-%{release}
 
 %description
 Dnsconfd configures local DNS cache services.
