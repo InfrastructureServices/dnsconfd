@@ -1,4 +1,4 @@
-project('dnsconfd', 'c', version: '2.2.1')
+project('dnsconfd', 'c', version: '2.2.2')
 
 executable(
     'dnsconfd',
