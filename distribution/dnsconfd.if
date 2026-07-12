@@ -1,0 +1,68 @@
+# modified copy from system/sysnetwork.if, sysnet_filetrans_named_content
+interface(`sysnet_filetrans_dnsconfd_content',`
+        gen_require(`
+                type net_conf_t;
+        ')
+
+        sysnet_etc_filetrans_config($1, "resolv.conf")
+        files_etc_filetrans($1, net_conf_t, file, "resolv.conf.tmp")
+        files_etc_filetrans($1, net_conf_t, file, "resolv.conf.fp-tmp")
+        files_etc_filetrans($1, net_conf_t, file, "resolv.conf.fp-saved")
+        files_etc_filetrans($1, net_conf_t, file, "resolv-secure.conf")
+        files_etc_filetrans($1, net_conf_t, file, ".resolv.conf.dnssec-trigger")
+        files_etc_filetrans($1, net_conf_t, file, ".resolv-secure.conf.dnssec-trigger")
+        files_etc_filetrans($1, net_conf_t, file, "denyhosts")
+        files_etc_filetrans($1, net_conf_t, file, "hosts")
+        files_etc_filetrans($1, net_conf_t, file, "hosts.deny")
+        init_pid_filetrans($1, net_conf_t, dir, "network")
+        
+        optional_policy(`
+                networkmanager_pid_filetrans($1, net_conf_t, file, "no-stub-resolv.conf")
+                networkmanager_pid_filetrans($1, net_conf_t, file, "no-stub-resolv.conf.tmp")
+                networkmanager_pid_filetrans($1, net_conf_t, file, "resolv.conf")
+                networkmanager_pid_filetrans($1, net_conf_t, file, "resolv.conf.tmp")
+        ')
+
+        sysnet_filetrans_systemd_resolved($1)
+')
+
+######################################
+## <summary>
+##	Read dnsconfd PID files.
+## </summary>
+## <param name="domain">
+##	<summary>
+##	Domain allowed access.
+##	</summary>
+## </param>
+#
+interface(`dnsconfd_read_pid',`
+	gen_require(`
+		type dnsconfd_var_run_t;
+	')
+
+	files_search_pids($1)
+	list_dirs_pattern($1, dnsconfd_var_run_t, dnsconfd_var_run_t)
+	read_files_pattern($1, dnsconfd_var_run_t, dnsconfd_var_run_t)
+	read_lnk_files_pattern($1, dnsconfd_var_run_t, dnsconfd_var_run_t)
+')
+
+######################################
+## <summary>
+##	Watch dnsconfd PID directories.
+## </summary>
+## <param name="domain">
+##	<summary>
+##	Domain allowed access.
+##	</summary>
+## </param>
+#
+interface(`dnsconfd_watch_pid_dirs',`
+	gen_require(`
+		type dnsconfd_var_run_t;
+	')
+
+	files_search_pids($1)
+	allow $1 dnsconfd_var_run_t:dir watch_dir_perms;
+')
+
