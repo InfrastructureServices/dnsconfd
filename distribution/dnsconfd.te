@@ -115,3 +115,35 @@ logging_send_syslog_msg(dnsconfd_t)
 allow dnsconfd_init_t etc_t:dir write;
 
 allow dnsconfd_t fs_t:filesystem getattr;
+
+# allow certain processes to watch changes in /run/dnsconfd, similar to systemd-resolved
+# for cases when resolv.conf is maintained in /run/dnsconfd and
+# /etc/resolv.conf is symlink to it.
+# Mimicks systemd_resolved_watch_pid_dirs, add the same contexts
+
+optional_policy(`
+    gen_require(`
+	type dnsmasq_t;
+    ')
+
+    dnsconfd_read_pid(dnsmasq_t)
+    dnsconfd_watch_pid_dirs(dnsmasq_t)
+')
+
+optional_policy(`
+    gen_require(`
+        type sssd_t;
+    ')
+
+    dnsconfd_read_pid(sssd_t)
+    dnsconfd_watch_pid_dirs(sssd_t)
+')
+
+optional_policy(`
+    gen_require(`
+        attribute login_userdomain;
+    ')
+
+    dnsconfd_read_pid(login_userdomain)
+    dnsconfd_watch_pid_dirs(login_userdomain)
+')
