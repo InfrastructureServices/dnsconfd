@@ -18,6 +18,7 @@ install() {
     inst_simple /etc/sysconfig/dnsconfd
     inst_simple /etc/dnsconfd/dnsconfd.conf
     inst_simple /usr/lib/systemd/system/dnsconfd.service
+    inst_simple "$moddir/dnsconfd-initrd.conf" /usr/lib/systemd/system/dnsconfd.service.d/10-initrd.conf
     inst_simple /usr/libexec/dnsconfd-prepare
     inst_simple /usr/libexec/dnsconfd-cleanup
 
