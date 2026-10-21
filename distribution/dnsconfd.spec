@@ -117,6 +117,7 @@ install -m 0644 -p distribution/dnsconfd.conf %{buildroot}%{_sysconfdir}/dnsconf
 install -m 0644 -p distribution/dnsconfd-tmpfiles.conf %{buildroot}%{_tmpfilesdir}/%{name}.conf
 install -m 0644 -p distribution/dnsconfd-unbound-tmpfiles.conf %{buildroot}%{_tmpfilesdir}/%{name}-unbound.conf
 install -m 0755 -p distribution/dracut_module/module-setup.sh %{buildroot}%{_prefix}/lib/dracut/modules.d/70dnsconfd
+install -m 0644 -p distribution/dracut_module/dnsconfd-initrd.conf %{buildroot}%{_prefix}/lib/dracut/modules.d/70dnsconfd
 install -m 0755 -p distribution/dnsconfd-prepare.sh %{buildroot}%{_libexecdir}/dnsconfd-prepare
 install -m 0755 -p distribution/dnsconfd-prepare.sh %{buildroot}%{_libexecdir}/dnsconfd-cleanup
 install -m 0755 -p distribution/dnsconfd-unbound-control.sh %{buildroot}%{_libexecdir}/dnsconfd-unbound-control.sh
